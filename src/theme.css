@@ -1,0 +1,135 @@
+@import '@fontsource-variable/montserrat';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'Montserrat Variable', Montserrat, ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: light;
+  --radius: 0.75rem;
+  --background: #f8faf8;
+  --foreground: #182923;
+  --card: #ffffff;
+  --card-foreground: #182923;
+  --popover: #ffffff;
+  --popover-foreground: #182923;
+  --primary: #193b2c;
+  --primary-foreground: #ffffff;
+  --secondary: #edf2ee;
+  --secondary-foreground: #264534;
+  --muted: #f0f3f1;
+  --muted-foreground: #64716a;
+  --accent: #dff1e5;
+  --accent-foreground: #193b2c;
+  --destructive: #b42332;
+  --border: #e0e7e2;
+  --input: #829488;
+  --ring: #388258;
+  --chart-1: #276749;
+  --chart-2: #3880a1;
+  --chart-3: #977020;
+  --chart-4: #8464b3;
+  --chart-5: #bf6752;
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #111b16;
+  --foreground: #eff5f0;
+  --card: #18271e;
+  --card-foreground: #eff5f0;
+  --popover: #18271e;
+  --popover-foreground: #eff5f0;
+  --primary: #a6dbb5;
+  --primary-foreground: #14271c;
+  --secondary: #25372b;
+  --secondary-foreground: #e5eee7;
+  --muted: #213127;
+  --muted-foreground: #a9b8ad;
+  --accent: #2b4534;
+  --accent-foreground: #d0efd9;
+  --destructive: #ff9b9b;
+  --border: #35483b;
+  --input: #496151;
+  --ring: #a6dbb5;
+  --chart-1: #a6dbb5;
+  --chart-2: #82bfe0;
+  --chart-3: #e0c078;
+  --chart-4: #bba4e6;
+  --chart-5: #efa18c;
+  --sidebar: #18271e;
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply m-0 bg-background font-sans text-foreground antialiased; font-synthesis: none; }
+  button:not(:disabled), [role='button']:not([aria-disabled='true']) { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  ::selection { background: var(--accent); color: var(--accent-foreground); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Project base brand */
+:root, .dark {
+  --primary: #c15f3c;
+  --primary-foreground: #000000;
+  --ring: #c15f3c;
+  --accent: color-mix(in srgb, #c15f3c 12%, var(--background));
+  --accent-foreground: var(--foreground);
+}

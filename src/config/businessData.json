@@ -1,0 +1,14 @@
+{
+  "countryCode": "US",
+  "countryName": "Estados Unidos",
+  "stateCode": "",
+  "stateName": "",
+  "currency": "USD",
+  "locale": "en-US",
+  "timeZone": "America/Adak",
+  "mapCenter": {
+    "lat": 38,
+    "lng": -97
+  },
+  "mapZoom": 5
+}
