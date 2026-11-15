@@ -1,0 +1,21 @@
+import {
+  actionGeneric, httpActionGeneric, internalMutationGeneric, internalQueryGeneric, mutationGeneric, queryGeneric,
+  type ActionBuilder, type DataModelFromSchemaDefinition, type GenericMutationCtx, type GenericQueryCtx,
+  type MutationBuilder, type QueryBuilder,
+} from 'convex/server';
+import type { GenericId } from 'convex/values';
+import schema from '../schema';
+
+// Typed builders from the schema, so modules do not depend on generated bindings.
+export type DataModel = DataModelFromSchemaDefinition<typeof schema>;
+export type QueryCtx = GenericQueryCtx<DataModel>;
+export type MutationCtx = GenericMutationCtx<DataModel>;
+export type Id<Table extends keyof DataModel & string> = GenericId<Table>;
+export type Doc<Table extends keyof DataModel> = DataModel[Table]['document'];
+
+export const query = queryGeneric as QueryBuilder<DataModel, 'public'>;
+export const mutation = mutationGeneric as MutationBuilder<DataModel, 'public'>;
+export const internalQuery = internalQueryGeneric as QueryBuilder<DataModel, 'internal'>;
+export const internalMutation = internalMutationGeneric as MutationBuilder<DataModel, 'internal'>;
+export const action = actionGeneric as ActionBuilder<DataModel, 'public'>;
+export const httpAction = httpActionGeneric;

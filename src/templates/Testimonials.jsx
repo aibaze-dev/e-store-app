@@ -1,0 +1,47 @@
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
+
+export function Rating({ value, customers }) {
+  if (!value) return null;
+  return <div className="sales-rating" aria-label={`Calificación: ${value} de 5${customers ? `, ${customers} clientes` : ''}`}>
+    <span className="sales-stars" aria-hidden="true"><span>★★★★★</span><span style={{ width: `${value * 20}%` }}>★★★★★</span></span>
+    <strong>{value.toLocaleString('es-AR', { maximumFractionDigits: 1 })}</strong>{customers > 0 && <span>({customers.toLocaleString('es-AR')} clientes)</span>}
+  </div>;
+}
+
+export default function Testimonials({ section }) {
+  const [index, setIndex] = useState(0);
+  const current = Math.min(index, Math.max(0, section.items.length - 1));
+  const item = section.items[current];
+  const move = delta => setIndex((current + delta + section.items.length) % section.items.length);
+  return <>
+    {item && <div className="sales-carousel" role="region" aria-roledescription="carrusel" aria-label="Testimonios" onKeyDown={event => {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
+    }}>
+      <div className="sales-testimonials" aria-live="polite" aria-atomic="true">
+        {item.format === 'chat' ? <figure className="sales-chat" aria-label={`Conversación con ${item.name}`}>
+          <figcaption className="sales-chat-header"><span className="sales-chat-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span><strong>{item.name}</strong></figcaption>
+          <div className="sales-chat-messages">
+            {item.openingMessage && <p className="sales-chat-sent">{item.openingMessage}</p>}
+            <blockquote className="sales-chat-received">{item.quote}</blockquote>
+            {item.closingMessage && <p className="sales-chat-sent">{item.closingMessage}</p>}
+          </div>
+        </figure> : <figure className={item.imageUrl ? 'sales-testimonial-image' : 'sales-testimonial'}>
+          {item.imageUrl ? <a href={item.imageUrl} target="_blank" rel="noreferrer"><img src={item.imageUrl} alt={`Testimonio de ${item.name}`} loading="lazy" /></a> : <Quote aria-hidden="true" />}
+          {item.quote && <blockquote>{item.quote}</blockquote>}<figcaption>{item.name}</figcaption>
+        </figure>}
+      </div>
+      {section.items.length > 1 && <div className="sales-carousel-controls">
+        <button type="button" onClick={() => move(-1)} aria-label="Testimonio anterior"><ChevronLeft aria-hidden="true" /></button>
+        {section.items.map((_, i) => <button key={i} type="button" aria-label={`Ver testimonio ${i + 1}`} aria-pressed={current === i} onClick={() => setIndex(i)}><span /></button>)}
+        <button type="button" onClick={() => move(1)} aria-label="Testimonio siguiente"><ChevronRight aria-hidden="true" /></button>
+      </div>}
+    </div>}
+    <div className="sales-metrics">
+      {section.customers > 0 && <p><strong>{section.customers.toLocaleString('es-AR')}+</strong><span>Clientes</span></p>}
+      {section.rating > 0 && <p><strong>{section.rating.toLocaleString('es-AR', { maximumFractionDigits: 1 })}</strong><span>Calificación</span></p>}
+      {section.satisfaction > 0 && <p><strong>{section.satisfaction}%</strong><span>Satisfacción</span></p>}
+    </div>
+  </>;
+}

@@ -1,0 +1,93 @@
+import { useEffect, useRef, useState } from 'react';
+import { useAction } from 'convex/react';
+import { CheckoutElementsProvider, PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
+import { loadStripe } from '@stripe/stripe-js/pure';
+import { CreditCard, LoaderCircle, UserRound } from 'lucide-react';
+import { api } from '@/lib/api.js';
+import { errorText } from '@/lib/format.js';
+import { trackPixel } from '@/lib/pixel.js';
+import { Field, ErrorAlert } from '@/components/Field.jsx';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { stripeKey } from './StripeCheckout.jsx';
+import { confirmCheckout } from './confirmCheckout.js';
+
+let stripe;
+const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b', borderRadius: '10px', fontFamily: 'Arial, sans-serif', fontSizeBase: '16px' } };
+
+export function PersonalDetails({ buyer, setBuyer, disabled, formId }) {
+  const field = (key, label, autocomplete, type = 'text', hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={key === 'email' ? 'tu@email.com' : key === 'firstName' ? 'Tu nombre' : 'Tu apellido'} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
+  return <fieldset disabled={disabled} className="checkout-personal space-y-6">
+    <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />Datos personales</legend>
+    {field('email', 'Email *', 'email', 'email', 'Usaremos este email para identificar tu compra.')}
+    <div className="grid gap-5 sm:grid-cols-2">{field('firstName', 'Nombre *', 'given-name')}{field('lastName', 'Apellido *', 'family-name')}</div>
+    <Field label="Teléfono *" hint="Incluí el código de país, por ejemplo +54 9 11 1234 5678.">{ids => <Input {...ids} form={formId} type="tel" name="phone" autoComplete="tel" required maxLength={25} pattern={String.raw`\+[0-9 \(\)\-]{7,24}`} placeholder="+54 9 11 1234 5678" value={buyer.phone} onChange={event => setBuyer(current => ({ ...current, phone: event.target.value }))} />}</Field>
+  </fieldset>;
+}
+
+function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onInitiate, payRef }) {
+  const state = useCheckoutElements();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const submitting = useRef(false);
+  async function submit(event) {
+    event.preventDefault();
+    if (submitting.current || state.type !== 'success' || !ready) return;
+    submitting.current = true; setBusy(true); onPayingChange(true); setError('');
+    try {
+      const result = await confirmCheckout(state.checkout, buyer, { total, currency }, onInitiate);
+      if (result.type === 'error') setError(result.error.message);
+    } catch { setError('No pudimos confirmar el pago. Revisá tus datos y volvé a intentar.'); }
+    finally { submitting.current = false; setBusy(false); onPayingChange(false); }
+  }
+  return <form id="checkout-payment" onSubmit={submit} className="space-y-6" aria-busy={busy}>
+    <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
+    <ErrorAlert>{state.type === 'error' ? 'No pudimos cargar el pago seguro. Recargá la página para reintentar.' : error}</ErrorAlert>
+    {state.type === 'success' && <PaymentElement options={{ layout: 'tabs' }} onReady={() => setReady(true)} onLoadError={() => setLoadError(true)} />}
+    {loadError && <ErrorAlert>No se pudo cargar el medio de pago. Recargá la página para reintentar.</ErrorAlert>}
+    {!ready && state.type !== 'error' && !loadError && <p role="status" className="text-sm text-muted-foreground">Cargando medios de pago…</p>}
+    <Button ref={payRef} className="checkout-pay h-16 w-full text-lg" type="submit" disabled={busy || state.type !== 'success' || !ready || loadError}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Procesando…' : `Pagar ${totalLabel}`}</Button>
+  </form>;
+}
+
+export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef }) {
+  const start = useAction(api.checkout.start);
+  const [buyer, setBuyer] = useState({ email: '', firstName: '', lastName: '', phone: '' });
+  const [paying, setPaying] = useState(false);
+  const [session, setSession] = useState(null);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const attempts = useRef(new Map());
+  const selection = JSON.stringify([...selected].sort());
+  const key = `${view.subdomain}:${via}:${selection}:${total}:${view.store.currency}`;
+  useEffect(() => {
+    if (!stripeKey) return;
+    let ignore = false;
+    setError('');
+    const timer = setTimeout(() => {
+      let attempt = attempts.current.get(key);
+      if (!attempt) { attempt = { id: crypto.randomUUID() }; attempts.current.set(key, attempt); }
+      // Reuse the pending request/session for this selection, including retries and Strict Mode.
+      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true }).catch(failure => { attempt.promise = null; throw failure; });
+      attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, failure => { if (!ignore) setError(errorText(failure, 'No pudimos cargar el pago. Volvé a intentar.')); });
+    }, 250);
+    return () => { ignore = true; clearTimeout(timer); };
+  }, [key, selection, view.subdomain, via, start, retry]);
+  const ready = session?.key === key;
+  const setProcessing = value => { setPaying(value); onPayingChange(value); };
+  if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });
+  return <div className="space-y-9">
+    <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" />
+    {ready ? <CheckoutElementsProvider key={session.clientSecret} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
+      <PaymentForm total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
+    </CheckoutElementsProvider> : <div className="space-y-6">
+      <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
+      <ErrorAlert>{error}</ErrorAlert>
+      <p className="text-sm text-muted-foreground" role="status">{!stripeKey ? 'Los pagos todavía no están habilitados en este sitio.' : !error ? 'Cargando medios de pago seguros…' : ''}</p>
+      {error && <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Reintentar</Button>}
+      <Button className="checkout-pay h-16 w-full text-lg" disabled>Pagar {totalLabel}</Button>
+    </div>}
+  </div>;
+}
