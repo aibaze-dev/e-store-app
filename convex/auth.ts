@@ -5,6 +5,7 @@ import { queryGeneric, type GenericDataModel } from 'convex/server';
 import { components } from './_generated/api';
 import authConfig from './auth.config';
 import { authOrigins } from './lib/auth_origins';
+import { isAdminEmail } from './lib/admin_emails';
 
 export const authComponent = createClient(components.betterAuth);
 
@@ -29,6 +30,6 @@ export const getCurrentUser = queryGeneric({
   args: {},
   handler: async ctx => {
     const user = await requireUser(ctx);
-    return { id: user._id, name: user.name, email: user.email };
+    return { id: user._id, name: user.name, email: user.email, isAdmin: isAdminEmail(user.email) };
   },
 });

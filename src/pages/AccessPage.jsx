@@ -1,9 +1,17 @@
 import { ArrowUpRight, Layers3, Orbit, Sparkles } from 'lucide-react';
-import AuthPanel from './components/AuthPanel.jsx';
-import brand from './config/brandData.json';
+import { Navigate } from 'react-router-dom';
+import { useConvexAuth, useQuery } from 'convex/react';
+import AuthPanel from '../components/AuthPanel.jsx';
+import brand from '../config/brandData.json';
+import { api } from '../lib/api.js';
+import { InternalTheme, ThemeToggle } from '../components/InternalTheme.jsx';
 
-export default function App() {
-  return <main className="auth-layout">
+export default function AccessPage() {
+  const { isAuthenticated } = useConvexAuth();
+  const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? {} : 'skip');
+  if (user?.isAdmin) return <Navigate to="/panel" replace />;
+
+  return <InternalTheme><main className="auth-layout">
     <aside className="auth-story" aria-label="Bienvenida">
       <div className="auth-brand">
         {brand.logoUrl ? <img src={brand.logoUrl} alt={brand.name} style={{ width: 64, height: 48, objectFit: 'contain' }} /> : <span className="auth-brand-mark" aria-hidden="true"><Layers3 size={22} strokeWidth={1.7} /></span>}
@@ -31,9 +39,12 @@ export default function App() {
     </aside>
 
     <section className="auth-content" aria-label="Acceso a tu cuenta">
-      <div className="auth-content-top"><span>TU ESPACIO DE TRABAJO</span><span className="auth-content-rule" /></div>
+      <div className="flex items-center justify-end gap-4">
+        <div className="auth-content-top flex-1"><span>TU ESPACIO DE TRABAJO</span><span className="auth-content-rule" /></div>
+        <ThemeToggle />
+      </div>
       <div className="auth-form-container"><AuthPanel headingAs="h1" /></div>
       <p className="auth-content-footer">El siguiente paso empieza con vos.</p>
     </section>
-  </main>;
+  </main></InternalTheme>;
 }

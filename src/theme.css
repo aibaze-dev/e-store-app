@@ -1,4 +1,5 @@
 @import '@fontsource-variable/montserrat';
+@import '@fontsource-variable/nunito-sans';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -132,4 +133,80 @@
   --ring: #c15f3c;
   --accent: color-mix(in srgb, #c15f3c 12%, var(--background));
   --accent-foreground: var(--foreground);
+}
+
+/* Internal surfaces only: readable controls and brand accents on dark cards. */
+.internal-theme.dark {
+  --primary: #e58a67;
+  --ring: var(--primary);
+  --input: #84978b;
+  --accent: color-mix(in srgb, var(--primary) 12%, var(--background));
+}
+
+.internal-theme.dark [data-variant='destructive']:is([data-slot='button'], [data-slot='badge']) {
+  background-color: var(--destructive);
+  color: var(--background);
+}
+
+.internal-theme.dark [data-slot='button'][data-variant='destructive']:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--destructive) 90%, var(--background));
+}
+
+/* The campaign workspace uses slate surfaces; public templates retain their palette. */
+.workspace-theme.dark {
+  --background: #1c2636;
+  --foreground: #eff3fa;
+  --card: #101a2b;
+  --card-foreground: #eff3fa;
+  --popover: #101a2b;
+  --popover-foreground: #eff3fa;
+  --secondary: #202d40;
+  --secondary-foreground: #e5ebf4;
+  --muted: #243247;
+  --muted-foreground: #a5b3c8;
+  --border: #344258;
+  --input: #8292a9;
+  --accent: color-mix(in srgb, var(--primary) 12%, var(--card));
+  --accent-foreground: var(--foreground);
+}
+
+/* Sales template palette, isolated from the internal workspace theme. */
+.sales-landing {
+  color-scheme: light;
+  --sales-ink: #202a3b;
+  --sales-muted: #606d80;
+  --sales-paper: #ffffff;
+  --sales-soft: #f7f8fb;
+  --sales-night: #111727;
+  --sales-deep: #060b16;
+  --sales-night-card: #1a2232;
+  --sales-night-muted: #a9b3c3;
+  --sales-border: #e7eaf0;
+  --sales-green: #16803d;
+  --sales-green-light: #eafbf0;
+  --sales-red: #c81c3c;
+  --sales-red-light: #fff2f3;
+  --ring: var(--sales-accent);
+}
+
+/* Public checkout palette, independent of the administration theme. */
+.checkout-page {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #202a3b;
+  --card: #ffffff;
+  --card-foreground: #202a3b;
+  --muted: #e2e2e2;
+  --muted-foreground: #667085;
+  --border: #e1e5eb;
+  --input: #ccd2dc;
+  --primary: #aa4b05;
+  --primary-foreground: #ffffff;
+  --accent: #fff9e7;
+  --destructive: #d91e28;
+  --ring: #075bd8;
+  --checkout-blue: #075bd8;
+  --checkout-green: #07803b;
+  --checkout-selected: #08a879;
+  --checkout-amber: #f59e0b;
 }

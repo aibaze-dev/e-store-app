@@ -67,7 +67,7 @@ export default function AuthPanel({ headingAs = 'h2' }) {
     <CardHeader className="gap-3 px-0">
       <span className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-accent text-accent-foreground"><Check size={23} aria-hidden="true" /></span>
       <CardTitle as={headingAs} id={`${id}-title`} className="text-3xl font-semibold tracking-tight">Ya estás adentro.</CardTitle>
-      <CardDescription className="text-sm leading-7">Tu sesión está activa. Este es tu punto de partida.</CardDescription>
+      <CardDescription className="text-sm leading-7">{user && !user.isAdmin ? 'Tu sesión está activa, pero esta cuenta no tiene acceso al panel.' : 'Tu sesión está activa. Este es tu punto de partida.'}</CardDescription>
     </CardHeader>
     <CardContent className="space-y-6 px-0">
       <div className="flex items-center gap-4 rounded-xl border bg-card p-4">
