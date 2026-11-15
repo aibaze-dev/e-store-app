@@ -1,8 +1,13 @@
+// A final-page block may hold several pictures: itself, now/after sides and product mockups.
+export function imageNodes(block) {
+  return [['', block], [':now', block.now], [':after', block.after], ...(block.mockups || []).map((m, i) => [`:mockup${i}`, m])]
+    .filter(([, node]) => node && typeof node === 'object' && node.imagePrompt);
+}
 export function quizImages(quiz) {
   if (!quiz) return [];
   return [
     ...quiz.steps.filter(s => s.imagePrompt).map(s => ({ key: `step:${s.id}`, title: s.title, node: s })),
-    ...quiz.results.flatMap(r => r.blocks.filter(b => b.imagePrompt).map(b => ({ key: `result:${r.id}:${b.id}`, title: r.title, node: b }))),
+    ...quiz.results.flatMap(r => r.blocks.flatMap(b => imageNodes(b).map(([path, node]) => ({ key: `result:${r.id}:${b.id}${path}`, title: b.title || r.title || 'Página final', node })))),
   ];
 }
 

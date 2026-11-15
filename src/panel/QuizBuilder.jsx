@@ -23,7 +23,7 @@ const TYPE_META = {
 const meta = type => TYPE_META[type] || { label: stepNames[type] || type, icon: LayoutList, tone: 'slate' };
 const ADD_TYPES = ['single', 'multiple', 'info', 'number', 'loading', 'contact'];
 const TONES = [{ value: 'good', label: '🟢 Bien' }, { value: 'warn', label: '🟡 Atención' }, { value: 'bad', label: '🔴 Te pasaste' }, { value: 'info', label: '🔵 Dato' }];
-const RESULT_BLOCKS = ['planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'guarantee', 'faq', 'text', 'image', 'video'];
+const RESULT_BLOCKS = ['nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'guarantee', 'faq', 'text', 'image'];
 const RESULT = '$result';
 
 function IconButton({ label, children, ...props }) {
@@ -243,8 +243,11 @@ function StepInspector({ step, index, quiz, onChange }) {
 const NEW_BLOCKS = {
   planSummary: quiz => ({ title: '', items: quiz.steps.filter(s => QUESTION_TYPES.includes(s.type)).slice(0, 3).map(s => ({ stepId: s.id, label: s.title, icon: '✅' })) }),
   goals: quiz => ({ title: 'Queremos que logres:', stepId: quiz.steps.find(s => s.type === 'multiple')?.id, items: [] }),
-  features: () => ({ title: 'Qué vas a recibir:', imageUrl: '', items: [{ icon: '📘', title: 'Beneficio', text: '' }] }),
-  rating: () => ({ title: 'Más de 1.000 lectores', text: 'ya empezaron su plan', rating: 4.8 }),
+  features: () => ({ title: 'Qué vas a recibir:', mockups: [], items: [{ icon: '📘', title: 'Beneficio', text: '' }] }),
+  rating: () => ({ title: 'Más de 1.000 lectores', text: 'ya empezaron su plan', rating: 4.8, laurels: true }),
+  nowAfter: () => ({ now: { label: 'Ahora', icon: '😕', imageUrl: '' }, after: { label: 'Con tu plan', icon: '😄', imageUrl: '' }, metrics: [{ label: 'Claridad', now: 2, after: 5 }] }),
+  gauge: quiz => { const step = quiz.steps.find(s => ['number', 'measure'].includes(s.type) || (['single', 'intro'].includes(s.type) && s.options?.length)); return { title: 'Tu punto de partida', stepId: step?.id, leftLabel: 'Inicial', rightLabel: 'Avanzado', ranges: [] }; },
+  stats: () => ({ items: [{ icon: '📖', label: 'Tiempo diario recomendado', value: '15 min', badge: 'Recomendado', display: 'slider', percent: 30, minLabel: '5 min', maxLabel: '60 min' }] }),
   beforeAfter: () => ({ title: 'Resultados que nos enorgullecen', text: '*Historias reales. Los resultados dependen de cada persona.', items: [] }),
   guarantee: () => ({ title: '' }),
   faq: () => ({ title: 'Preguntas frecuentes', items: [{ title: 'Pregunta', text: 'Respuesta' }] }),
@@ -267,7 +270,7 @@ function ItemsEditor({ items = [], onChange, fields, empty, max = 10, addLabel }
 function BlockEditor({ block, quiz, onChange }) {
   const questions = quiz.steps.filter(s => QUESTION_TYPES.includes(s.type) || (s.type === 'intro' && s.options?.length));
   const set = patch => onChange({ ...block, ...patch });
-  const head = <><QField label="Título" value={block.title} onChange={title => set({ title })} />{!['planSummary', 'goals', 'guarantee'].includes(block.type) && <QField label={block.type === 'beforeAfter' ? 'Aclaración debajo' : 'Texto'} multiline value={block.text} onChange={text => set({ text })} />}</>;
+  const head = <><QField label="Título (*palabra* la resalta)" value={block.title} onChange={title => set({ title })} />{!['planSummary', 'goals', 'guarantee'].includes(block.type) && <QField label={block.type === 'beforeAfter' ? 'Aclaración debajo' : 'Texto'} multiline value={block.text} onChange={text => set({ text })} />}</>;
   if (block.type === 'planSummary') return <div className="qe-stack">{head}
     <p className="qe-hint">Tarjetas con lo que respondió. Las que quedaron sin respuesta no se muestran.</p>
     {(block.items || []).map((item, i) => <div className="qe-option" key={i}><div className="qe-grid">
@@ -282,11 +285,57 @@ function BlockEditor({ block, quiz, onChange }) {
     <label className="qe-field"><span>Mostrar las respuestas marcadas en</span><select value={block.stepId || ''} onChange={e => set({ stepId: e.target.value || undefined })}><option value="">Ninguna (solo la lista fija)</option>{quiz.steps.filter(s => ['single', 'multiple'].includes(s.type)).map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
     <QField label="Objetivos fijos (uno por línea)" multiline value={(block.items || []).join('\n')} onChange={text => set({ items: text.split('\n').map(x => x.trimStart()).filter((x, i, all) => x || i < all.length - 1).slice(0, 10) })} />
   </div>;
-  if (block.type === 'features') return <div className="qe-stack">{head}
-    <ImageField label="Imagen al costado (mockup del ebook, opcional)" value={block.imageUrl} onChange={imageUrl => set({ imageUrl })} />
+  if (block.type === 'features') { const mockups = block.mockups?.length ? block.mockups : block.imageUrl ? [{ imageUrl: block.imageUrl }] : [];
+    const setMockup = (i, imageUrl) => { const next = [0, 1].map(j => j === i ? { ...mockups[j], imageUrl } : mockups[j] || { imageUrl: '' }).filter(m => m.imageUrl || m.imagePrompt); set({ mockups: next, imageUrl: undefined }); };
+    return <div className="qe-stack">{head}
+    <div className="qe-grid"><ImageField label="Imagen del producto 1" value={mockups[0]?.imageUrl} onChange={url => setMockup(0, url)} /><ImageField label="Imagen del producto 2" value={mockups[1]?.imageUrl} onChange={url => setMockup(1, url)} /></div>
+    <p className="qe-hint">Los beneficios se reparten al lado de cada imagen.</p>
     <ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar beneficio" empty={() => ({ icon: '✅', title: 'Beneficio', text: '' })} fields={[['icon', 'Emoji', 'emoji'], ['title', 'Título'], ['text', 'Detalle (opcional)']]} />
+  </div>; }
+  if (block.type === 'nowAfter') { const side = key => patch => set({ [key]: { ...block[key], ...patch } });
+    return <div className="qe-stack">
+    <div className="qe-grid">{['now', 'after'].map(key => <div className="qe-option" key={key}>
+      <QField label={key === 'now' ? 'Etiqueta «ahora»' : 'Etiqueta «después»'} value={block[key]?.label} onChange={label => side(key)({ label })} />
+      <ImageField compact label="Imagen" value={block[key]?.imageUrl} onChange={imageUrl => side(key)({ imageUrl })} />
+      {!block[key]?.imageUrl && <QField label="Emoji si no hay imagen" value={block[key]?.icon} onChange={icon => side(key)({ icon })} />}
+    </div>)}</div>
+    <strong className="text-sm">Indicadores (barras del 0 al 5)</strong>
+    {(block.metrics || []).map((m, i) => <div className="qe-option-row" key={i}>
+      <input className="qe-input" aria-label={`Indicador ${i + 1}`} value={m.label} onChange={e => set({ metrics: block.metrics.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} />
+      {['now', 'after'].map(k => <select key={k} className="qe-input qe-level-select" aria-label={k === 'now' ? 'Ahora' : 'Después'} value={m[k]} onChange={e => set({ metrics: block.metrics.map((x, j) => j === i ? { ...x, [k]: Number(e.target.value) } : x) })}>{[0, 1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{k === 'now' ? 'Ahora' : 'Después'}: {n}</option>)}</select>)}
+      <IconButton label="Quitar indicador" onClick={() => set({ metrics: block.metrics.filter((_, j) => j !== i) })}><Trash2 /></IconButton>
+    </div>)}
+    <Button type="button" variant="outline" disabled={(block.metrics || []).length >= 4} onClick={() => set({ metrics: [...(block.metrics || []), { label: 'Nuevo indicador', now: 1, after: 4 }] })}>+ Agregar indicador</Button>
+  </div>; }
+  if (block.type === 'gauge') { const sources = quiz.steps.filter(s => ['number', 'measure'].includes(s.type) || (['single', 'intro'].includes(s.type) && s.options?.length)), source = quiz.steps.find(s => s.id === block.stepId);
+    const choice = source?.options?.length && ['single', 'intro'].includes(source.type);
+    const ranges = block.ranges || [];
+    const setRange = (i, patch) => { const next = choice ? source.options.map((_, j) => ({ min: j + 1, max: j + 1, tone: 'good', title: '', text: '', ...(ranges.find(r => r.min === j + 1) || {}), ...(j === i ? patch : {}) })) : ranges.map((r, j) => j === i ? { ...r, ...patch } : r); set({ ranges: next }); };
+    return <div className="qe-stack">
+    <QField label="Título (ej. Tu punto de partida)" value={block.title} onChange={title => set({ title })} />
+    <label className="qe-field"><span>Se mueve según la respuesta de</span><select value={block.stepId || ''} onChange={e => set({ stepId: e.target.value, ranges: [] })}>{sources.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
+    <div className="qe-grid"><QField label="Texto a la izquierda" value={block.leftLabel} onChange={leftLabel => set({ leftLabel })} /><QField label="Texto a la derecha" value={block.rightLabel} onChange={rightLabel => set({ rightLabel })} /></div>
+    {choice ? source.options.map((o, i) => { const r = ranges.find(x => x.min === i + 1) || {}; return <div className={`qe-range tone-${r.tone || 'good'}`} key={o.id}>
+      <strong className="text-sm">Si eligió «{o.label}»</strong>
+      <div className="qe-segmented" role="radiogroup" aria-label="Tono">{TONES.map(tone => <button type="button" role="radio" key={tone.value} aria-checked={(r.tone || 'good') === tone.value} onClick={() => setRange(i, { tone: tone.value })}>{tone.label}</button>)}</div>
+      <QField label="Título" value={r.title} onChange={title => setRange(i, { title })} /><QField label="Texto" value={r.text} onChange={text => setRange(i, { text })} />
+    </div>; }) : <><div className="qe-grid"><QField label="Mínimo de la escala" type="number" value={block.min} onChange={min => set({ min })} /><QField label="Máximo de la escala" type="number" value={block.max} onChange={max => set({ max })} /></div>
+      {ranges.map((r, i) => <div className={`qe-range tone-${r.tone}`} key={i}><div className="qe-grid"><QField label="Desde" type="number" value={r.min} onChange={min => setRange(i, { min })} /><QField label="Hasta" type="number" value={r.max} onChange={max => setRange(i, { max })} /></div>
+        <div className="qe-segmented" role="radiogroup" aria-label="Tono">{TONES.map(tone => <button type="button" role="radio" key={tone.value} aria-checked={r.tone === tone.value} onClick={() => setRange(i, { tone: tone.value })}>{tone.label}</button>)}</div>
+        <QField label="Título" value={r.title} onChange={title => setRange(i, { title })} /><QField label="Texto" value={r.text} onChange={text => setRange(i, { text })} /></div>)}
+      <Button type="button" variant="outline" onClick={() => set({ ranges: [...ranges, { tone: 'good', title: '¡Bien!', text: '' }] })}>+ Agregar rango</Button></>}
+  </div>; }
+  if (block.type === 'stats') return <div className="qe-stack">
+    <ItemsEditor items={block.items} max={6} onChange={items => set({ items })} addLabel="+ Agregar tarjeta" empty={() => ({ icon: '✅', label: 'Recomendación', value: '', badge: 'Recomendado', display: 'none' })} fields={[['icon', 'Emoji', 'emoji'], ['label', 'Etiqueta'], ['value', 'Valor (ej. 15 min)'], ['badge', 'Etiqueta de esquina (opcional)']]} />
+    {(block.items || []).map((item, i) => <div className="qe-option" key={i}>
+      <strong className="text-sm">Visual de «{item.label}»</strong>
+      <div className="qe-segmented" role="radiogroup" aria-label="Visual">{[['none', 'Solo texto'], ['slider', 'Barra'], ['icons', 'Íconos']].map(([value, label]) => <button type="button" role="radio" key={value} aria-checked={(item.display || 'none') === value} onClick={() => set({ items: block.items.map((x, j) => j === i ? { ...x, display: value } : x) })}>{label}</button>)}</div>
+      {item.display === 'slider' && <div className="qe-grid"><QField label="Posición (0 a 100)" type="number" value={item.percent} onChange={percent => set({ items: block.items.map((x, j) => j === i ? { ...x, percent } : x) })} /><QField label="Texto izquierda" value={item.minLabel} onChange={minLabel => set({ items: block.items.map((x, j) => j === i ? { ...x, minLabel } : x) })} /><QField label="Texto derecha" value={item.maxLabel} onChange={maxLabel => set({ items: block.items.map((x, j) => j === i ? { ...x, maxLabel } : x) })} /></div>}
+      {item.display === 'icons' && <div className="qe-grid"><QField label="Emoji de cada ícono" value={item.unitIcon} onChange={unitIcon => set({ items: block.items.map((x, j) => j === i ? { ...x, unitIcon } : x) })} /><QField label="Llenos" type="number" value={item.filled} onChange={filled => set({ items: block.items.map((x, j) => j === i ? { ...x, filled } : x) })} /><QField label="Total (máx. 12)" type="number" value={item.total} onChange={total => set({ items: block.items.map((x, j) => j === i ? { ...x, total } : x) })} /></div>}
+    </div>)}
   </div>;
   if (block.type === 'rating') return <div className="qe-stack">{head}
+    <Toggle label="Ramas de laurel alrededor del título" value={block.laurels !== false} onChange={laurels => set({ laurels })} />
     <div className="qe-grid"><QField label="Puntuación (0 a 5, 0 oculta las estrellas)" type="number" value={block.rating} onChange={rating => set({ rating })} /><QField label="Texto junto a las estrellas" value={block.subtitle} onChange={subtitle => set({ subtitle })} /></div>
     <p className="qe-hint">Usá solo cifras reales y comprobables.</p>
   </div>;

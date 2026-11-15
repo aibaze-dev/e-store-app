@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, product, content, mockStripe, sendWebhook, stripeEvent, WEBHOOK_SECRET } from './helpers';
-import { createAdvancedQuizTemplate as createQuizTemplate, createQuizTemplate as createFunnelTemplate, feedbackFor, personalize, validateQuiz, assertQuiz, evaluate, contextFor, initialSession, advanceSession, validateAnswer, newStep, nextStep, resultFor, applicableQuestions } from '../shared/quiz.js';
+import { createAdvancedQuizTemplate as createQuizTemplate, createQuizTemplate as createFunnelTemplate, feedbackFor, gaugeFor, statPercent, personalize, validateQuiz, assertQuiz, evaluate, contextFor, initialSession, advanceSession, validateAnswer, newStep, nextStep, resultFor, applicableQuestions } from '../shared/quiz.js';
 vi.mock('../convex/lib/analytics_ip', async original => ({...await original(),requestIp:vi.fn(async()=> '192.0.2.1')}));
 const token=()=>crypto.randomUUID()+crypto.randomUUID();
 const command=(session,value,direction='next')=>({revision:session.revision,commandId:crypto.randomUUID(),value,direction});
@@ -133,7 +133,10 @@ describe('funnel quiz: images, live feedback, loading and final page', () => {
   expect(broken(q => { q.steps.find(s => s.id === 'obstacle').options[0].feedback.tone = 'x'; })).toMatch(/feedback/);
   expect(broken(q => { q.steps.find(s => s.type === 'loading').durationMs = 60000; })).toMatch(/segundos/);
   expect(broken(q => { q.steps.find(s => s.id === 'goal').imageLayout = 'floating'; })).toMatch(/imagen/);
-  expect(broken(q => { q.results[0].blocks[0].items.push({ stepId: 'missing', label: 'x' }); })).toMatch(/resumen/);
+  expect(broken(q => { q.results[0].blocks.find(b => b.type === 'planSummary').items.push({ stepId: 'missing', label: 'x' }); })).toMatch(/resumen/);
+  expect(broken(q => { q.results[0].blocks.find(b => b.type === 'gauge').stepId = 'goals_none'; })).toMatch(/indicador/);
+  expect(broken(q => { q.results[0].blocks.find(b => b.type === 'stats').items[1].total = 40; })).toMatch(/tarjetas/);
+  expect(broken(q => { q.results[0].blocks.find(b => b.type === 'nowAfter').metrics[0].now = 9; })).toMatch(/comparación/);
   expect(broken(q => { q.results[0].blocks.find(b => b.type === 'goals').stepId = 'minutes'; })).toMatch(/objetivos/);
  });
  it('going back skips the automatic loading screen', () => {
@@ -145,8 +148,9 @@ describe('funnel quiz: images, live feedback, loading and final page', () => {
  });
  it('personalises copy without printing missing variables', () => {
   const q = createFunnelTemplate();
-  expect(personalize(q.results[0].title, contextFor(q, {}))).toBe('Tu plan está listo');
-  expect(personalize(q.results[0].title, contextFor(q, { contact: { name: 'Ana', email: '' } }))).toBe('Ana, tu plan está listo');
+  const heading = q.results[0].blocks.find(b => b.type === 'planSummary').title;
+  expect(personalize(heading, contextFor(q, {}))).toBe('Tu plan está *listo*');
+  expect(personalize(heading, contextFor(q, { contact: { name: 'Ana', email: '' } }))).toBe('Ana, tu plan está *listo*');
  });
  it('only admins upload step images; non-images are rejected and deleted', async () => {
   const f = await fixture();
@@ -159,5 +163,15 @@ describe('funnel quiz: images, live feedback, loading and final page', () => {
   const html = await f.t.run(ctx => ctx.storage.store(new Blob(['<script>x</script>'], { type: 'text/html' })));
   expect(await f.admin.mutation(api.quizzes.imageUrl, { storageId: html })).toEqual({ error: expect.stringMatching(/imagen/) });
   expect(await f.t.run(ctx => ctx.storage.getUrl(html))).toBeNull();
+ });
+ it('moves the indicator with the chosen level or a number and follows answers in recommendation bars', () => {
+  const q = createFunnelTemplate();
+  const gauge = q.results[0].blocks.find(b => b.type === 'gauge'), bar = q.results[0].blocks.find(b => b.type === 'stats').items[0];
+  expect(gaugeFor(gauge, contextFor(q, {}))).toBeNull();
+  expect(gaugeFor(gauge, contextFor(q, { welcome: 'new' }))).toMatchObject({ percent: 0, display: 'Estoy empezando', feedback: { tone: 'info' } });
+  expect(gaugeFor(gauge, contextFor(q, { welcome: 'experienced' }))).toMatchObject({ percent: 100, feedback: { title: 'Listo para profundizar' } });
+  expect(gaugeFor({ stepId: 'minutes', min: 0, max: 60, ranges: [{ min: 31, tone: 'bad', title: 'Mucho' }] }, contextFor(q, { minutes: 45 }))).toMatchObject({ percent: 75, display: '45', feedback: { title: 'Mucho' } });
+  expect(statPercent(bar, contextFor(q, { minutes: 60 }))).toBe(100);
+  expect(statPercent(bar, contextFor(q, {}))).toBe(30);
  });
 });

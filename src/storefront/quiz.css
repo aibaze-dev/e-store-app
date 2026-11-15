@@ -235,3 +235,56 @@
 }
 /* These fields already show focus with their own accent border. */
 .quiz-public .quiz-number input:focus-visible, .quiz-public .quiz-field input:focus-visible, .quiz-public .quiz-field textarea:focus-visible { outline: none; }
+
+/* Final page · funnel blocks (now/after, indicator, recommendations, laurels). */
+.quiz-accent-text { font-style: normal; color: var(--quiz-accent); }
+.quiz-block.is-planSummary h2 { font-size: 24px; margin-top: 8px; }
+.quiz-compare { overflow: hidden; border-radius: 22px; background: var(--quiz-card); box-shadow: var(--quiz-shadow); }
+.quiz-compare-tabs { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; margin: 12px 12px -48px; padding: 8px 0; border-radius: 12px; background: rgb(255 255 255 / .92); font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; text-align: center; box-shadow: 0 2px 8px rgb(16 24 40 / .06); }
+.quiz-compare-tabs span + span { border-left: 1px solid var(--quiz-line); }
+.quiz-compare-images { display: grid; grid-template-columns: 1fr 1fr; height: 250px; background: linear-gradient(115deg, color-mix(in srgb, var(--quiz-accent) 22%, #e8f6f0) 0%, color-mix(in srgb, var(--quiz-accent) 10%, white) 52%, #fbf3d9 100%); }
+.quiz-compare-images figure { position: relative; margin: 0; display: grid; place-items: end center; overflow: hidden; }
+.quiz-compare-images figure.is-now { clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); }
+.quiz-compare-images figure.is-now img { filter: saturate(.75) brightness(1.02); }
+.quiz-compare-images img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.quiz-compare-icon { align-self: center; font-size: 76px; filter: drop-shadow(0 8px 14px rgb(16 24 40 / .12)); }
+.is-now .quiz-compare-icon { opacity: .75; filter: grayscale(.35); }
+.quiz-compare-metrics { display: grid; grid-template-columns: 1fr 1fr; }
+.quiz-compare-metrics dl { margin: 0; padding: 14px 16px 16px; display: grid; gap: 14px; }
+.quiz-compare-metrics dl + dl { border-left: 1px solid var(--quiz-line); }
+.quiz-compare-metrics dt { font-size: 14px; font-weight: 600; margin: 0 0 6px; color: var(--quiz-text); }
+.quiz-compare-metrics dd { margin: 0; }
+.quiz-level { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.quiz-level span { height: 4px; border-radius: 4px; background: var(--quiz-line); }
+.quiz-level span.is-on { background: var(--quiz-accent); }
+.quiz-compare-text { color: var(--quiz-accent); font-size: 17px; font-weight: 800; }
+.quiz-gauge, .quiz-stat { position: relative; padding: 18px; border-radius: 20px; background: var(--quiz-card); box-shadow: var(--quiz-shadow); }
+.quiz-gauge-head { display: flex; justify-content: space-between; gap: 12px; }
+.quiz-gauge-head small, .quiz-stat-head small { display: block; font-size: 14px; color: var(--quiz-text); }
+.quiz-gauge-head strong, .quiz-stat-head strong { display: block; font-size: 24px; font-weight: 800; line-height: 1.25; }
+.quiz-gauge-head svg { flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: var(--quiz-bg); color: var(--quiz-muted); }
+.quiz-gauge-bar { position: relative; height: 6px; margin: 26px 4px 12px; border-radius: 6px; background: linear-gradient(90deg, #6fd3d1 0%, #2fb36d 35%, #8fd14f 55%, #f7c948 72%, #f26b4a 88%, #e83a5a 100%); }
+.quiz-gauge-bar span { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; background: white; box-shadow: 0 2px 6px rgb(16 24 40 / .25); transform: translate(-50%, -50%); }
+.quiz-gauge-bar span::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--quiz-text); }
+.quiz-gauge-scale { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--quiz-muted); }
+.quiz-gauge-status { --tone: var(--quiz-accent); margin-top: 16px; }
+.quiz-gauge-status.is-good { --tone: #1f9d55; } .quiz-gauge-status.is-warn { --tone: #d48806; } .quiz-gauge-status.is-bad { --tone: #d93b3b; } .quiz-gauge-status.is-info { --tone: #2f6fd6; }
+.quiz-gauge-status strong { display: block; font-size: 20px; font-weight: 800; color: var(--tone); }
+.quiz-gauge-status p, .quiz-gauge-note { margin: 4px 0 0 !important; font-size: 14px; color: var(--quiz-muted); }
+.quiz-stats { display: grid; gap: 14px; }
+.quiz-stat-badge { position: absolute; top: 0; right: 0; padding: 3px 12px; border-radius: 0 20px 0 12px; border: 1px solid color-mix(in srgb, var(--quiz-accent) 40%, transparent); background: var(--quiz-tint); color: var(--quiz-accent); font-size: 11px; font-weight: 700; }
+.quiz-stat-head { display: flex; align-items: center; gap: 14px; padding-right: 72px; }
+.quiz-stat-head strong { font-size: 22px; }
+.quiz-stat-slider { position: relative; height: 6px; margin: 22px 4px 12px; border-radius: 6px; background: color-mix(in srgb, var(--quiz-accent) 18%, white); }
+.quiz-stat-slider > span { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--quiz-accent) 35%, white), var(--quiz-accent)); }
+.quiz-stat-slider > i { position: absolute; top: 50%; width: 26px; height: 16px; border-radius: 8px; background: var(--quiz-accent); border: 3px solid white; box-shadow: 0 2px 6px rgb(16 24 40 / .2); transform: translate(-50%, -50%); }
+.quiz-stat-icons { display: flex; justify-content: space-between; gap: 2px; margin-top: 18px; font-size: 24px; }
+.quiz-stat-icons span:not(.is-on) { opacity: .22; filter: grayscale(1); }
+.quiz-features-rows { display: grid; gap: 28px; }
+.quiz-features.has-image { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); }
+.quiz-features-image { aspect-ratio: 3 / 4; object-fit: cover; }
+.quiz-laurels { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; gap: 8px; }
+.quiz-laurels h2 { margin: 0 !important; font-size: 26px !important; line-height: 1.15; }
+.quiz-laurels p { margin: 2px 0 0 !important; font-size: 15px; }
+.quiz-laurel { width: 34px; height: 68px; color: color-mix(in srgb, var(--quiz-accent) 70%, #9ccfb6); }
+.quiz-laurel.is-flipped { transform: scaleX(-1); }

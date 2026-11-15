@@ -136,4 +136,37 @@ describe('AI quiz images', () => {
     await expect(f.admin.action(api.quiz_images.generate, { storeId: f.storeId, prompt: 'Un huerto' })).rejects.toThrow(/reintentá las pendientes/);
     expect(await f.t.run(ctx => ctx.db.system.query('_storage').collect())).toHaveLength(0);
   });
+
+  it('builds the whole final page from the AI copy and plans its now/after and product images', async () => {
+    const f = await fixture();
+    const steps = [
+      { ...copy.steps[0], type: 'single', title: '¿Cuál es tu experiencia?', description: '', options: [{ label: 'Ninguna', description: '' }, { label: 'Algo', description: '' }, { label: 'Mucha', description: '' }] },
+      { ...copy.steps[0], type: 'multiple', title: '¿Qué querés lograr?', description: '', options: [{ label: 'Comer sano', description: '' }, { label: 'Ahorrar', description: '' }] },
+      { ...copy.steps[0], type: 'number', title: '¿Cuántos minutos?', description: '', options: [] },
+    ];
+    const finalPage = {
+      planName: 'plan de huerta', now: { label: 'Ahora', imagePrompt: 'Persona dudando frente a macetas vacías', imageAlt: 'Persona dudando' }, after: { label: 'Con tu plan', imagePrompt: 'La misma persona cosechando', imageAlt: 'Persona cosechando' },
+      metrics: [{ label: 'Confianza', now: 1, after: 9 }], levelQuestion: 0, levelTitle: 'Tu experiencia', leftLabel: 'Inicial', rightLabel: 'Experto',
+      levels: [{ tone: 'info', title: 'Desde cero', text: 'Empezamos por lo básico.' }, { tone: 'good', title: 'Buena base', text: '' }, { tone: 'nope', title: 'Avanzado', text: '' }],
+      recommendations: [{ icon: '💧', label: 'Riego diario', value: '2 vasos', display: 'icons', percent: 0, minLabel: '', maxLabel: '', unitIcon: '💧', filled: 20, total: 40 }],
+      summary: [{ questionIndex: 0, label: 'Experiencia', icon: '🌱' }, { questionIndex: 7, label: 'Fuera', icon: 'x' }], goalsQuestion: 1, goals: ['Cosechar en 6 semanas'],
+      features: [{ icon: '📗', title: 'Guía paso a paso' }], mockups: [{ imagePrompt: 'Ebook en una tablet sobre la mesa', imageAlt: 'Ebook en tablet' }],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ ...copy, finalPage, steps }) } }] }))));
+    const quiz = await f.admin.action(api.quiz_wizard.generate, { storeId: f.storeId, quiz: proposal(), audience: 'Principiantes', goal: 'Conocer su experiencia', tone: 'Cercano', length: 3, mode: 'replace' });
+    expect(validateQuiz(quiz, true)).toEqual([]);
+    const blocks = quiz.results[0].blocks, of = type => blocks.find(b => b.type === type);
+    expect(blocks.map(b => b.type)).toEqual(['nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'guarantee', 'offer']);
+    expect(of('nowAfter').metrics).toEqual([{ label: 'Confianza', now: 1, after: 5 }]);
+    expect(of('gauge').ranges.map(r => [r.min, r.tone])).toEqual([[1, 'info'], [2, 'good'], [3, 'good']]);
+    expect(of('stats').items[0]).toMatchObject({ total: 12, filled: 12, display: 'icons' });
+    expect(of('planSummary')).toMatchObject({ title: '{{contact:name}}, tu plan de huerta está *listo*', items: [{ label: 'Experiencia' }] });
+    expect(of('goals').stepId).toBe(quiz.steps.find(s => s.type === 'multiple').id);
+    // 3 questions + cover + now + after + 1 mockup; no generic result image when the page has its own.
+    const images = quizImages(quiz);
+    expect(images).toHaveLength(7);
+    expect(images.filter(i => i.key.startsWith('result:')).map(i => i.key.split(':').slice(2).join(':'))).toEqual(['now_after:now', 'now_after:after', 'features:mockup0']);
+    expect(JSON.parse(of('nowAfter').now.imagePrompt)).toMatchObject({ scene: 'Persona dudando frente a macetas vacías', style: copy.visualStyle });
+    expect(JSON.stringify(quiz)).not.toContain('imageScene');
+  });
 });

@@ -1,6 +1,6 @@
 // Shared, deterministic quiz language. Never evaluates user JavaScript.
 export const STEP_TYPES = ['intro', 'single', 'multiple', 'text', 'number', 'measure', 'date', 'info', 'contact', 'summary', 'transition', 'loading'];
-export const BLOCK_TYPES = ['text', 'image', 'video', 'answers', 'metric', 'scale', 'comparison', 'line', 'bar', 'benefits', 'offer', 'testimonials', 'faq', 'guarantee', 'promotion', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter'];
+export const BLOCK_TYPES = ['text', 'image', 'video', 'answers', 'metric', 'scale', 'comparison', 'line', 'bar', 'benefits', 'offer', 'testimonials', 'faq', 'guarantee', 'promotion', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'nowAfter', 'gauge', 'stats'];
 // Feedback tones shown inside a step: green, amber, red and neutral.
 export const TONES = ['good', 'warn', 'bad', 'info'];
 export const IMAGE_LAYOUTS = ['top', 'hero-bottom', 'side', 'none'];
@@ -112,6 +112,27 @@ export function feedbackFor(step, value) {
   const number = step.type === 'measure' ? answerValue(step, value) : finite(value);
   if (number == null) return null;
   return usable((step.feedbackRanges || []).find(r => (finite(r.min) == null || number >= r.min) && (finite(r.max) == null || number <= r.max)));
+}
+// Indicator block: the marker comes from a number answer, or from the position of the chosen
+// option (1…n). `ranges` work like a step's feedback ranges on that value.
+export function gaugeFor(block, context) {
+  const step = context.quiz.steps.find(s => s.id === block.stepId);
+  const answer = step ? context.answers[step.id] : null;
+  if (!step || answer == null || answer === '') return null;
+  const choice = step.options?.length && ['single', 'intro'].includes(step.type);
+  const value = choice ? step.options.findIndex(o => o.id === answer) + 1 : step.type === 'measure' ? answerValue(step, answer) : finite(answer);
+  if (!value) return value === 0 ? { value, percent: 0, display: '0', feedback: null } : null;
+  const min = finite(block.min) ?? (choice ? 1 : finite(step.min) ?? 0), max = finite(block.max) ?? (choice ? step.options.length : finite(step.max) ?? 100);
+  const percent = max > min ? Math.min(100, Math.max(0, (value - min) / (max - min) * 100)) : 50;
+  const display = choice ? step.options[value - 1].label : `${Math.round(value * 10) / 10}`;
+  return { value, percent, display, feedback: feedbackFor({ type: 'number', feedbackRanges: block.ranges }, value) };
+}
+// A stats card can follow a number answer within [scaleMin, scaleMax]; otherwise it uses `percent`.
+export function statPercent(item, context) {
+  const answer = item.stepId ? context.answers[item.stepId] : null;
+  const value = typeof answer === 'number' ? answer : answer && typeof answer === 'object' ? answer.value : null;
+  if (finite(value) != null && finite(item.scaleMin) != null && finite(item.scaleMax) != null && item.scaleMax > item.scaleMin) return Math.min(100, Math.max(0, (value - item.scaleMin) / (item.scaleMax - item.scaleMin) * 100));
+  return Math.min(100, Math.max(0, finite(item.percent) ?? 50));
 }
 export function hasOptionFeedback(step) { return Boolean(step?.options?.some(o => o.feedback && (o.feedback.title || o.feedback.text))); }
 export function validDate(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value; }
@@ -237,6 +258,10 @@ function validateQuizStructure(input, publishing) {
       if (b.type === 'planSummary') check(Array.isArray(b.items) && b.items.length <= 6 && b.items.every(i => q.steps.some(s => s.id === i?.stepId)), `${label}: el resumen usa pantallas inexistentes (máximo 6).`);
       if (b.type === 'goals') check((!b.stepId || q.steps.some(s => s.id === b.stepId && ['single', 'multiple'].includes(s.type))) && (b.items == null || (Array.isArray(b.items) && b.items.length <= 10)), `${label}: los objetivos deben salir de una pregunta con opciones.`);
       if (['features', 'beforeAfter'].includes(b.type)) check(Array.isArray(b.items) && b.items.length <= 10, `${label}: máximo 10 elementos.`);
+      if (b.type === 'gauge') check(q.steps.some(s => s.id === b.stepId && (['number', 'measure'].includes(s.type) || (['single', 'intro'].includes(s.type) && s.options?.length))) && (b.ranges == null || (Array.isArray(b.ranges) && b.ranges.length <= 12 && b.ranges.every(r => r && TONES.includes(r.tone) && (r.min == null || finite(r.min) != null) && (r.max == null || finite(r.max) != null)))), `${label}: el indicador necesita una pregunta numérica o de opciones y rangos válidos.`);
+      if (b.type === 'stats') check(Array.isArray(b.items) && b.items.length <= 6 && b.items.every(i => i && ['none', 'slider', 'icons'].includes(i.display ?? 'none') && (!i.stepId || q.steps.some(s => s.id === i.stepId)) && (i.total == null || (Number.isInteger(i.total) && i.total >= 1 && i.total <= 12)) && (i.filled == null || (Number.isInteger(i.filled) && i.filled >= 0))), `${label}: tarjetas inválidas (máximo 6, hasta 12 íconos).`);
+      if (b.type === 'nowAfter') check(['now', 'after'].every(k => b[k] && typeof b[k] === 'object') && Array.isArray(b.metrics) && b.metrics.length <= 4 && b.metrics.every(m => m && [m.now, m.after].every(n => n == null || typeof n === 'string' || (Number.isInteger(n) && n >= 0 && n <= 5))), `${label}: la comparación necesita «ahora», «después» y hasta 4 indicadores.`);
+      if (b.mockups != null) check(Array.isArray(b.mockups) && b.mockups.length <= 2, `${label}: máximo 2 imágenes de producto.`);
       if (b.type === 'rating' && b.rating != null) check(finite(b.rating) != null && b.rating >= 0 && b.rating <= 5, `${label}: la puntuación va de 0 a 5.`); });
   };
   q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, s.id); });
@@ -245,7 +270,7 @@ function validateQuizStructure(input, publishing) {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
       if (['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText'].includes(key) || /Url$/.test(key)) check(typeof child === 'string', `Texto inválido en ${key}.`);
-      if (['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted'].includes(key)) check(typeof child === 'boolean', `Opción inválida en ${key}.`);
+      if (['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels'].includes(key)) check(typeof child === 'boolean', `Opción inválida en ${key}.`);
       if (typeof child === 'string') {
         check(child.length <= 6000, `Texto demasiado largo en ${key}.`);
         if (/Url$/.test(key) && child) { try { check(new URL(child).protocol === 'https:', `Usá una URL HTTPS en ${key}.`); } catch { errors.push(`URL inválida en ${key}.`); } }
@@ -300,15 +325,28 @@ export function createQuizTemplate(productName = 'tu próximo objetivo') {
     { ...newStep('contact', 'contact'), title: '¿A dónde te enviamos tu plan?', description: 'Lo vas a ver en la próxima pantalla.', required: true, consentText: 'Quiero recibir consejos y novedades por email.' },
   ];
   return { version: 1, identity: { name: 'Tu guía', logoUrl: '', color: '#2e8b62', background: '#f6f3ef', textColor: '#1c2530', backText: 'Atrás', skipText: 'Omitir', termsUrl: '', privacyUrl: '' }, steps, calculations: [],
-    results: [{ id: 'general', default: true, title: '{{contact:name}}, tu plan está listo', description: 'Lo armamos con tus respuestas. Esto es lo que vas a lograr:', stickyCta: true, buttonText: 'Quiero mi plan', blocks: [
-      { id: 'summary', type: 'planSummary', title: '', items: [{ stepId: 'welcome', label: 'Nivel', icon: '📈' }, { stepId: 'goal', label: 'Objetivo', icon: '🎯' }, { stepId: 'minutes', label: 'Tiempo por día', icon: '⏱️', suffix: 'min' }] },
-      { id: 'goals', type: 'goals', title: 'Queremos que logres:', stepId: 'wishes', items: ['Avanzar con un paso a paso claro'] },
-      { id: 'features', type: 'features', title: 'Qué vas a recibir:', imageUrl: '', items: [{ icon: '📘', title: `${productName}, completo`, text: '' }, { icon: '🗓️', title: 'Un plan fácil de seguir', text: '' }, { icon: '✅', title: 'Resultados visibles desde las primeras semanas', text: '' }] },
-      { id: 'rating', type: 'rating', enabled: false, title: '', text: '', rating: 0 },
-      { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
-      { id: 'guarantee', type: 'guarantee', title: '' },
-      { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
-    ] }] };
+    results: [{ id: 'general', default: true, title: '', description: '', stickyCta: true, buttonText: 'Quiero mi plan', blocks: finalPageBlocks(productName) }] };
+}
+// The final page, in the order of a mobile funnel: now/after, indicator, recommendations,
+// "your plan is ready" summary, goals, what you get and (when real data exists) social proof.
+export function finalPageBlocks(productName = 'tu guía', ids = { level: 'welcome', minutes: 'minutes', goal: 'goal', wishes: 'wishes' }) {
+  return [
+    { id: 'now_after', type: 'nowAfter', now: { label: 'Ahora', icon: '😕', imageUrl: '' }, after: { label: 'Con tu plan', icon: '😄', imageUrl: '' },
+      metrics: [{ label: 'Claridad', now: 2, after: 5 }, { label: 'Constancia', now: 1, after: 4 }] },
+    ...(ids.level ? [{ id: 'level', type: 'gauge', title: 'Tu punto de partida', stepId: ids.level, leftLabel: 'Inicial', rightLabel: 'Avanzado',
+      ranges: [{ min: 1, max: 1, tone: 'info', title: 'Ideal para empezar', text: 'El plan arranca por las bases, sin dar nada por sabido.' }, { min: 2, max: 2, tone: 'good', title: 'Buena base', text: 'Vas a ordenar lo que ya sabés y sumar lo que falta.' }, { min: 3, max: 3, tone: 'good', title: 'Listo para profundizar', text: 'Vas directo a las técnicas que marcan la diferencia.' }] }] : []),
+    { id: 'recommended', type: 'stats', items: [
+      { icon: '📖', label: 'Tiempo diario recomendado', value: ids.minutes ? '{{answer:' + ids.minutes + '}} min' : '15 min', badge: 'Recomendado', display: 'slider', stepId: ids.minutes || undefined, scaleMin: 5, scaleMax: 60, percent: 30, minLabel: '5 min', maxLabel: '60 min' },
+      { icon: '✅', label: 'Capítulos por semana', value: '3 capítulos', badge: 'Recomendado', display: 'icons', unitIcon: '📘', filled: 3, total: 10 },
+    ] },
+    { id: 'summary', type: 'planSummary', title: '{{contact:name}}, tu plan está *listo*', items: [ids.level && { stepId: ids.level, label: 'Nivel', icon: '📈' }, ids.goal && { stepId: ids.goal, label: 'Objetivo', icon: '🎯' }, ids.minutes && { stepId: ids.minutes, label: 'Tiempo por día', icon: '⏱️', suffix: 'min' }].filter(Boolean) },
+    { id: 'goals', type: 'goals', title: 'Queremos que logres:', ...(ids.wishes ? { stepId: ids.wishes } : {}), items: ['Avanzar con un paso a paso claro'] },
+    { id: 'features', type: 'features', title: 'Qué vas a recibir:', mockups: [], items: [{ icon: '📘', title: `${productName}, completo`, text: '' }, { icon: '🗓️', title: 'Un plan fácil de seguir', text: '' }, { icon: '📈', title: 'Avances visibles desde las primeras semanas', text: '' }, { icon: '💬', title: 'Ejercicios para aplicarlo', text: '' }] },
+    { id: 'rating', type: 'rating', enabled: false, laurels: true, title: '', text: '', rating: 0 },
+    { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
+    { id: 'guarantee', type: 'guarantee', title: '' },
+    { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
+  ];
 }
 export function createAdvancedQuizTemplate(productName = 'tu próximo objetivo') {
   const steps = [

@@ -1,8 +1,13 @@
 import { useRef, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { CircleCheck, ShieldCheck, Star } from 'lucide-react';
+import { Info, ShieldCheck, Star, Target } from 'lucide-react';
 import { formatMoney } from '@/lib/format.js';
-import { displayRef, evaluate, matches, personalize, resolveRef } from '../../shared/quiz.js';
+import { displayRef, evaluate, gaugeFor, matches, personalize, resolveRef, statPercent } from '../../shared/quiz.js';
+
+// "*word*" in a title is highlighted with the accent color.
+export function Rich({ text }) {
+  return String(text || '').split(/\*([^*]+)\*/).map((part, i) => i % 2 ? <em className="quiz-accent-text" key={i}>{part}</em> : part);
+}
 
 const Img = ({ src, alt = '', className }) => src ? <img className={className} src={src} alt={alt} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} /> : null;
 
@@ -29,22 +34,74 @@ function Goals({ block, context, t }) {
     .map(id => step?.options?.find(o => o.id === id)).filter(o => o && !o.exclusive).map(o => t(o.label));
   const items = [...new Set([...chosen, ...(block.items || []).map(t)])].filter(Boolean).slice(0, 8);
   if (!items.length) return null;
-  return <ul className="quiz-goals">{items.map(item => <li key={item}><CircleCheck aria-hidden="true" />{item}</li>)}</ul>;
+  return <ul className="quiz-goals">{items.map(item => <li key={item}><Target aria-hidden="true" />{item}</li>)}</ul>;
 }
 
+function FeatureItems({ items, t }) {
+  return <ul>{items.map((item, i) => <li key={i}>
+    <span className="quiz-feature-icon" aria-hidden="true">{item.imageUrl ? <Img src={item.imageUrl} /> : item.icon || '✓'}</span>
+    <span><strong>{t(item.title)}</strong>{item.text && <small>{t(item.text)}</small>}</span>
+  </li>)}</ul>;
+}
+// Items are split next to up to two product images (the first one is the legacy imageUrl).
 function Features({ block, t }) {
-  return <div className={`quiz-features ${block.imageUrl ? 'has-image' : ''}`}>
-    <ul>{(block.items || []).map((item, i) => <li key={i}>
-      <span className="quiz-feature-icon" aria-hidden="true">{item.imageUrl ? <Img src={item.imageUrl} /> : item.icon || '✓'}</span>
-      <span><strong>{t(item.title)}</strong>{item.text && <small>{t(item.text)}</small>}</span>
-    </li>)}</ul>
-    <Img src={block.imageUrl} alt={t(block.imageAlt)} className="quiz-features-image" />
+  const images = (block.mockups?.length ? block.mockups : block.imageUrl ? [{ imageUrl: block.imageUrl, imageAlt: block.imageAlt }] : []).filter(m => m?.imageUrl);
+  const items = block.items || [];
+  if (!images.length) return <div className="quiz-features"><FeatureItems items={items} t={t} /></div>;
+  const size = Math.ceil(items.length / images.length);
+  return <div className="quiz-features-rows">{images.map((image, i) => <div className="quiz-features has-image" key={i}>
+    <FeatureItems items={items.slice(i * size, (i + 1) * size)} t={t} />
+    <Img src={image.imageUrl} alt={t(image.imageAlt)} className="quiz-features-image" />
+  </div>)}</div>;
+}
+
+function Level({ value, max = 5 }) {
+  if (typeof value === 'string') return <strong className="quiz-compare-text">{value}</strong>;
+  return <span className="quiz-level" role="img" aria-label={`${value} de ${max}`}>{Array.from({ length: max }, (_, i) => <span key={i} className={i < value ? 'is-on' : ''} />)}</span>;
+}
+function NowAfter({ block, t }) {
+  const sides = [block.now || {}, block.after || {}];
+  return <div className="quiz-compare">
+    <div className="quiz-compare-tabs">{sides.map((side, i) => <span key={i}>{t(side.label) || (i ? 'Después' : 'Ahora')}</span>)}</div>
+    <div className="quiz-compare-images">{sides.map((side, i) => <figure key={i} className={i ? 'is-after' : 'is-now'}>
+      {side.imageUrl ? <Img src={side.imageUrl} alt={t(side.imageAlt)} /> : <span className="quiz-compare-icon" aria-hidden="true">{side.icon || (i ? '😄' : '😕')}</span>}
+    </figure>)}</div>
+    {(block.metrics || []).length > 0 && <div className="quiz-compare-metrics">{sides.map((_, i) => <dl key={i}>{block.metrics.map((m, j) => <div key={j}>
+      <dt>{t(m.label)}</dt><dd><Level value={i ? m.after : m.now} /></dd>
+    </div>)}</dl>)}</div>}
   </div>;
 }
 
+function Gauge({ block, context, t }) {
+  const gauge = gaugeFor(block, context);
+  if (!gauge) return null;
+  return <div className="quiz-gauge">
+    <div className="quiz-gauge-head"><span><small>{t(block.title)}</small><strong>{gauge.display}{block.suffix ? ` ${t(block.suffix)}` : ''}</strong></span>{block.text && <Info aria-hidden="true" />}</div>
+    <div className="quiz-gauge-bar" role="img" aria-label={`${t(block.title)}: ${gauge.display}`}><span style={{ left: `${gauge.percent}%` }} /></div>
+    <div className="quiz-gauge-scale"><span>{t(block.leftLabel)}</span><span>{t(block.rightLabel)}</span></div>
+    {gauge.feedback && <div className={`quiz-gauge-status is-${gauge.feedback.tone}`}>{gauge.feedback.title && <strong>{t(gauge.feedback.title)}</strong>}{gauge.feedback.text && <p>{t(gauge.feedback.text)}</p>}</div>}
+    {block.text && <p className="quiz-gauge-note">{t(block.text)}</p>}
+  </div>;
+}
+
+function Stats({ block, context, t }) {
+  return <div className="quiz-stats">{(block.items || []).map((item, i) => {
+    const percent = statPercent(item, context), total = Math.min(12, item.total || 10), filled = Math.min(total, item.filled ?? Math.round(percent / 100 * total));
+    return <article className="quiz-stat" key={i}>
+      {item.badge && <span className="quiz-stat-badge">{t(item.badge)}</span>}
+      <div className="quiz-stat-head">{item.icon && <span className="quiz-summary-icon" aria-hidden="true">{item.icon}</span>}<span><small>{t(item.label)}</small><strong>{t(item.value)}</strong></span></div>
+      {item.display === 'slider' && <><div className="quiz-stat-slider" role="img" aria-label={`${Math.round(percent)}%`}><span style={{ width: `${percent}%` }} /><i style={{ left: `${percent}%` }} /></div>
+        <div className="quiz-gauge-scale"><span>{t(item.minLabel)}</span><span>{t(item.maxLabel)}</span></div></>}
+      {item.display === 'icons' && <div className="quiz-stat-icons" role="img" aria-label={`${filled} de ${total}`}>{Array.from({ length: total }, (_, j) => <span key={j} className={j < filled ? 'is-on' : ''} aria-hidden="true">{item.unitIcon || '●'}</span>)}</div>}
+    </article>;
+  })}</div>;
+}
+
+const Laurel = ({ flip }) => <svg className={`quiz-laurel ${flip ? 'is-flipped' : ''}`} viewBox="0 0 40 80" aria-hidden="true"><path d="M30 76C14 66 8 50 10 30 11 20 15 11 22 4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />{[[19, 66, -30], [13, 54, -15], [10, 41, 0], [11, 28, 15], [15, 16, 30]].map(([x, y, r], i) => <g key={i}><ellipse cx={x + 6} cy={y} rx="7" ry="3.2" transform={`rotate(${r - 35} ${x + 6} ${y})`} fill="currentColor" /><ellipse cx={x - 5} cy={y - 3} rx="7" ry="3.2" transform={`rotate(${r + 40} ${x - 5} ${y - 3})`} fill="currentColor" opacity=".75" /></g>)}</svg>;
 function Rating({ block, t }) {
   const rating = Number(block.rating) || 0;
   return <div className="quiz-rating">
+    {block.laurels !== false && (block.title || block.text) && <div className="quiz-laurels"><Laurel /><div>{block.title && <h2>{t(block.title)}</h2>}{block.text && <p>{t(block.text)}</p>}</div><Laurel flip /></div>}
     {rating > 0 && <p className="quiz-stars" aria-label={`${rating} de 5`}>{[1, 2, 3, 4, 5].map(n => <Star key={n} aria-hidden="true" className={n <= Math.round(rating) ? 'is-on' : ''} />)}<span>{rating.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span></p>}
     {block.subtitle && <p className="quiz-rating-subtitle">{t(block.subtitle)}</p>}
   </div>;
@@ -77,15 +134,19 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
     const value = b.ref ? resolveRef(b.ref, context) : null;
     const guarantee = view?.content?.guarantee;
     if (b.type === 'guarantee' && (!guarantee || guarantee.enabled === false)) return null;
-    const plain = ['planSummary', 'goals', 'rating'].includes(b.type);
+    const plain = ['planSummary', 'goals', 'rating', 'nowAfter', 'gauge', 'stats', 'features'].includes(b.type);
+    const ownHeading = b.type === 'rating' && b.laurels !== false && (b.title || b.text);
     return <section className={`quiz-block is-${b.type} ${plain ? 'is-plain' : ''}`} key={b.id}>
       {b.type === 'guarantee' ? <div className="quiz-guarantee"><ShieldCheck aria-hidden="true" /><div><h2>{t(b.title) || guarantee.title}</h2><p>{guarantee.text}</p></div></div> : <>
-        {b.title && <h2>{t(b.title)}</h2>}
-        {b.text && b.type !== 'beforeAfter' && <p>{t(b.text)}</p>}
+        {b.title && !ownHeading && b.type !== 'gauge' && <h2><Rich text={t(b.title)} /></h2>}
+        {b.text && !ownHeading && !['beforeAfter', 'gauge'].includes(b.type) && <p>{t(b.text)}</p>}
       </>}
       {b.type === 'planSummary' && <PlanSummary block={b} context={context} t={t} />}
       {b.type === 'goals' && <Goals block={b} context={context} t={t} />}
       {b.type === 'features' && <Features block={b} t={t} />}
+      {b.type === 'nowAfter' && <NowAfter block={b} t={t} />}
+      {b.type === 'gauge' && <Gauge block={b} context={context} t={t} />}
+      {b.type === 'stats' && <Stats block={b} context={context} t={t} />}
       {b.type === 'rating' && <Rating block={b} t={t} />}
       {b.type === 'beforeAfter' && <><BeforeAfter block={b} t={t} />{b.text && <p className="quiz-disclaimer">{t(b.text)}</p>}</>}
       {b.type === 'image' && <Img src={b.imageUrl} alt={t(b.alt)} className="quiz-image" />}
@@ -106,7 +167,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
 export default function QuizResult({ result, context, view, onCheckout, busy }) {
   const t = text => personalize(text, context);
   return <div className="quiz-result">
-    <h1 className="quiz-title">{t(result.title)}</h1>
+    {result.title ? <h1 className="quiz-title"><Rich text={t(result.title)} /></h1> : <h1 className="sr-only">Tu resultado</h1>}
     {result.description && <p className="quiz-description">{t(result.description)}</p>}
     <QuizBlocks blocks={result.blocks} context={context} view={view} onCheckout={onCheckout} />
     <div className={result.stickyCta === false ? 'quiz-result-cta' : 'quiz-cta-bar'}>

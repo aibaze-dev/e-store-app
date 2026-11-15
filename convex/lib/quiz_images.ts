@@ -18,8 +18,15 @@ export function withImagePlan(value: any, copy: any, insertedIds: string[], audi
     if (!step.imageUrl && (step.type === 'intro' || index >= 0)) Object.assign(step, brief(index >= 0 ? copy.steps[index] : copy), { imageLayout: 'top' });
   }
   for (const result of quiz.results) {
+    // Final-page pictures planned by the wizard (`imageScene`) get the same shared brief.
+    let planned = false;
+    for (const block of result.blocks) for (const node of [block.now, block.after, ...(block.mockups || [])]) {
+      if (!node || typeof node !== 'object' || typeof node.imageScene !== 'string') continue;
+      if (!node.imageUrl) { Object.assign(node, brief({ imagePrompt: node.imageScene, title: node.imageAlt || node.label || '', imageAlt: node.imageAlt })); planned = true; }
+      delete node.imageScene;
+    }
     const generated = copy.results.find((r: any) => r.id === result.id);
-    if (!generated || result.blocks.some((b: any) => b.type === 'image') || result.blocks.length >= 40) continue;
+    if (planned || !generated || result.blocks.some((b: any) => b.type === 'image') || result.blocks.length >= 40) continue;
     let id = 'ai_result_image';
     while (result.blocks.some((b: any) => b.id === id)) id += '_';
     const image = brief(generated);

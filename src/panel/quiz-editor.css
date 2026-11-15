@@ -124,3 +124,5 @@
   .qe-inspector { padding: 16px; }
 }
 .qe-flow-card.qe-flow-result { flex-wrap: nowrap; }
+
+.qe-level-select { width: auto; flex-shrink: 0; }

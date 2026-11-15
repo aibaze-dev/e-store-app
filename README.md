@@ -225,3 +225,17 @@ El quiz público se rehízo con la mecánica de un funnel móvil: cada pantalla 
 Volver atrás desde la pantalla siguiente salta la pantalla «Analizando…», que avanza sola. Los quizzes existentes no requieren migración. Hay que desplegar frontend y backend juntos.
 
 Verificación local: `pnpm test` (156 pruebas en total, entre ellas las de feedback, validación, loading, textos personalizados y subida de imágenes) y `pnpm build`. Se revisó en el navegador con datos de prueba temporales a 375 px y 1440 px: player completo, página final y editor. `convex-test` no conserva el tipo de archivo subido, así que la aceptación de una imagen real queda sin cubrir localmente y hay que probarla en el deployment. No se hicieron pagos ni se publicó en la nube.
+
+#### Página final estilo funnel (16/11/2026)
+
+La página final sigue el orden de un funnel móvil, sin precios: el botón sigue llevando al checkout de la tienda.
+
+1. Comparación «Ahora / Con tu plan», con dos imágenes (o emojis) e indicadores en barras del 0 al 5.
+2. Indicador con escala de color. El marcador se mueve según una respuesta numérica o la opción elegida, y muestra un mensaje con tono para cada opción o rango.
+3. Tarjetas «Recomendado» con barra o con íconos (por ejemplo, 3 de 10 capítulos). La barra puede seguir una respuesta numérica.
+4. Título «{{contact:name}}, tu plan está *listo*» (el texto entre asteriscos va resaltado) con el resumen de respuestas.
+5. Objetivos, «Qué vas a recibir» con hasta dos imágenes del producto, prueba social con laureles, antes/después, garantía y FAQ.
+
+**Generar con IA** completa todo esto: comparación, indicador ligado a una pregunta de nivel, recomendaciones de uso, resumen, objetivos y beneficios. También prepara las imágenes de «ahora», «con tu plan» y del producto, que se crean con el mismo flujo de imágenes y se pueden reintentar si fallan. La prueba social y los testimonios no se generan: se cargan solo con datos reales.
+
+Verificación: 158 pruebas pasan (incluida la página final generada por IA y sus imágenes) y el build compila. Se revisó a 375 px y 1440 px con datos de prueba temporales. No se probó contra OpenAI real.
