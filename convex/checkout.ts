@@ -15,7 +15,7 @@ const downsell = v.optional(v.boolean());
 const origin = v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct')));
 const quizToken = v.optional(v.string());
 
-type OpenOrder = { orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[] };
+type OpenOrder = { orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; customerEmail?: string };
 type Snapshot = ReturnType<typeof buildInitialOrder>;
 
 const lineItems = (items: { name: string; price: number }[]) =>
@@ -107,10 +107,12 @@ export const createPostPurchaseOrder = internalMutation({
     if (!store || !landing || store.status !== 'active') fail('Esta oferta ya no está disponible.');
     const children = await ctx.db.query('orders').withIndex('by_parent', q => q.eq('parentOrderId', parent._id)).collect();
     if (children.some(child => child.status === 'paid' || child.status === 'refunded')) fail('Ya compraste esta oferta.');
-    return await openOrder(ctx, {
+    const order = await openOrder(ctx, {
       store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: args.downsell, origin:parent.origin, quizSessionId:parent.quizSessionId,
       build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), args.downsell),
     });
+    // The buyer just paid the parent order: their email is reused instead of asked again.
+    return { ...order, customerEmail: parent.buyer?.email || undefined };
   },
 });
 
@@ -137,6 +139,8 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
   const base = route === 'subdomain' ? `${site.protocol}//${order.subdomain}.${site.host}` : `${site.origin}/l/${order.subdomain}`;
   const session = await createEmbeddedCheckoutSession(secretKey, {
     elements,
+    collectContact: !order.customerEmail,
+    customerEmail: elements ? order.customerEmail : undefined,
     orderId: order.orderId,
     currency: order.currency,
     lineItems: order.lineItems,
@@ -159,13 +163,13 @@ export const start = action({
 });
 
 export const startPostPurchase = action({
-  args: { parentSessionId: v.string(), attemptId, via, downsell },
+  args: { parentSessionId: v.string(), attemptId, via, downsell, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createPostPurchaseOrder, {
       parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell,
     });
-    return await openSession(ctx, order, args.via);
+    return await openSession(ctx, order, args.via, args.elements);
   },
 });
 
@@ -217,7 +221,10 @@ export const handleStripeEvent = internalMutation({
           await setStatus(ctx, transaction, 'paid', { ...stripeIds, paidAt: Date.now() });
           outcome = 'processed';
         }
-        await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? '', name: event.name ?? '' } });
+        // Post-purchase sessions do not ask for a name again: it is taken from the parent order.
+        const order = await ctx.db.get(transaction.orderId);
+        const parent = !event.name && order?.parentOrderId ? await ctx.db.get(order.parentOrderId) : null;
+        await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' } });
         await queueEmail(ctx, transaction._id);
       } else if (transaction && event.type === 'checkout.session.async_payment_failed' && transaction.status === 'pending') {
         // A delayed method (ACH, SEPA…) was declined. The session never expires after this.

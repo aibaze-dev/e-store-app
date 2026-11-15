@@ -9,9 +9,10 @@ import { trackPixel } from '@/lib/pixel.js';
 import { Field, ErrorAlert } from '@/components/Field.jsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { stripeKey } from './StripeCheckout.jsx';
 import { confirmCheckout } from './confirmCheckout.js';
 
+export const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+// Stripe.js is only loaded when a payment form is actually shown.
 let stripe;
 const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b', borderRadius: '10px', fontFamily: 'Arial, sans-serif', fontSizeBase: '16px' } };
 
@@ -27,6 +28,9 @@ export function PersonalDetails({ buyer, setBuyer, disabled, formId }) {
 
 function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onInitiate, payRef }) {
   const state = useCheckoutElements();
+  // Without buyer details (post-purchase) the email comes from the session; asked only if missing.
+  const [email, setEmail] = useState('');
+  const askEmail = !buyer && state.type === 'success' && !state.checkout.email;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
@@ -37,7 +41,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
     if (submitting.current || state.type !== 'success' || !ready) return;
     submitting.current = true; setBusy(true); onPayingChange(true); setError('');
     try {
-      const result = await confirmCheckout(state.checkout, buyer, { total, currency }, onInitiate);
+      const result = await confirmCheckout(state.checkout, buyer, { total, currency }, onInitiate, email);
       if (result.type === 'error') setError(result.error.message);
     } catch { setError('No pudimos confirmar el pago. Revisá tus datos y volvé a intentar.'); }
     finally { submitting.current = false; setBusy(false); onPayingChange(false); }
@@ -45,6 +49,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
   return <form id="checkout-payment" onSubmit={submit} className="space-y-6" aria-busy={busy}>
     <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
     <ErrorAlert>{state.type === 'error' ? 'No pudimos cargar el pago seguro. Recargá la página para reintentar.' : error}</ErrorAlert>
+    {askEmail && <Field label="Email *" hint="Te enviamos ahí el acceso a tu compra.">{ids => <Input {...ids} type="email" name="email" autoComplete="email" required maxLength={254} placeholder="tu@email.com" value={email} disabled={busy} onChange={event => setEmail(event.target.value)} />}</Field>}
     {state.type === 'success' && <PaymentElement options={{ layout: 'tabs' }} onReady={() => setReady(true)} onLoadError={() => setLoadError(true)} />}
     {loadError && <ErrorAlert>No se pudo cargar el medio de pago. Recargá la página para reintentar.</ErrorAlert>}
     {!ready && state.type !== 'error' && !loadError && <p role="status" className="text-sm text-muted-foreground">Cargando medios de pago…</p>}
@@ -89,5 +94,19 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
       {error && <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Reintentar</Button>}
       <Button className="checkout-pay h-16 w-full text-lg" disabled>Pagar {totalLabel}</Button>
     </div>}
+  </div>;
+}
+
+// Payment Element for a session that was already created (downsell and post-purchase offers).
+// `askContact` shows the personal details form; without it the session already knows the buyer.
+export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, onInitiate = () => {} }) {
+  const [buyer, setBuyer] = useState({ email: '', firstName: '', lastName: '', phone: '' });
+  const [paying, setPaying] = useState(false);
+  if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });
+  return <div className="space-y-8 rounded-xl border bg-card p-5 sm:p-6">
+    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" />}
+    <CheckoutElementsProvider key={clientSecret} stripe={stripe} options={{ clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
+      <PaymentForm total={total} currency={currency} buyer={askContact ? buyer : null} totalLabel={totalLabel} onPayingChange={setPaying} onInitiate={onInitiate} />
+    </CheckoutElementsProvider>
   </div>;
 }

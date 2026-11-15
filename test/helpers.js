@@ -45,6 +45,19 @@ export function mockStripe({ fail = false } = {}) {
   return { requests };
 }
 
+// Replaces only the Resend API on top of whatever fetch is installed (for example mockStripe).
+export function mockResend(responses = []) {
+  const previousFetch = globalThis.fetch;
+  const emails = [];
+  vi.stubGlobal('fetch', async (url, init) => {
+    if (!String(url).startsWith('https://api.resend.com/')) return previousFetch(url, init);
+    emails.push({ headers: init.headers, body: JSON.parse(init.body) });
+    const status = responses.length ? responses.shift() : 200;
+    return new Response(JSON.stringify(status === 200 ? { id: `email_${emails.length}` } : { name: 'application_error' }), { status });
+  });
+  return { emails };
+}
+
 let eventCounter = 0;
 export function stripeEvent(type, object, id = `evt_${++eventCounter}`) {
   return { id, type, data: { object } };

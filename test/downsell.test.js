@@ -64,13 +64,22 @@ describe('main product downsell', () => {
     expect(order).toMatchObject({ downsell: true, total: 2025 });
     expect(order.items.map(item => [item.role, item.price])).toEqual([['main', 2025], ['bonus', 0]]);
 
-    // The regular price does not pay for the discounted order, and the discounted one does.
+    // A charge at the regular price does not deliver the discounted order: it is held for review.
     await sendWebhook(t, paid('cs_test_1', 2700));
-    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).status).toBe('pending');
-    await sendWebhook(t, paid('cs_test_1', 2025));
-    const delivery = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).toMatchObject({ status: 'needs_review', deliveries: [] });
+    await start(t, { downsell: true });
+    await sendWebhook(t, paid('cs_test_2', 2025));
+    const delivery = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' });
     expect(delivery.deliveries.map(link => link.url)).toEqual(['https://files.example.com/main.pdf', 'https://files.example.com/bonus.pdf']);
     expect((await admin.query(api.orders.list, {}))[0]).toMatchObject({ downsell: true, total: 2025, status: 'paid' });
+  });
+
+  it('opens the discounted order in a Payment Element session that asks for contact details', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    await start(t, { downsell: true, elements: true });
+    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', 'name_collection[individual][enabled]': 'true', 'phone_number_collection[enabled]': 'true', 'line_items[0][price_data][unit_amount]': '2025' });
+    expect(stripe.requests[0].body.customer_email).toBeUndefined();
   });
 
   it('leaves the regular checkout at full price', async () => {

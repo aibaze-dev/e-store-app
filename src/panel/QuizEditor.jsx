@@ -57,7 +57,7 @@ function SimpleStep({step,quiz,index,onChange}) {
 }
 export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,published}) {
  const [quiz,setQuiz]=useState(()=>clone(initial)),[subdomain,setSubdomain]=useState(address),[tab,setTab]=useState('Contenido');
- const [error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[preview,setPreview]=useState(false),[dirty,setDirty]=useState(false);
+ const [error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
  const set=patch=>{setQuiz(q=>({...q,...patch}));setDirty(true);setStatus('');};
  const errors=validateQuiz(quiz,true);
  const task=async(fn,message)=>{setBusy(true);setError('');setStatus('');try{await fn();setStatus(message);}catch(e){setError(errorText(e,'No se pudo completar la operación.'));}finally{setBusy(false);}};
@@ -67,17 +67,17 @@ export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
  return <div className="quiz-editor qe-simple-editor">
   <header className="qe-heading"><div><p className="qe-eyebrow">Landings / Quiz</p><h1>Tu quiz, paso a paso</h1><p>Generalo con IA, ajustá lo que quieras y publicalo.</p></div><span className="qe-status">{published?'Publicado':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></header>
-  <div className="qe-toolbar">
+  {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onBusy={setBusy} onApply={async proposal=>{
+    await onSave({quiz:clone(proposal),subdomain});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
+   }}/>}
+  {(!aiOpen||preview)&&<div className="qe-toolbar">
    <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz),subdomain});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
    <Button variant="outline" disabled={busy} onClick={()=>{if(errors.length){setError(errors.join('\n'));}else setPreview(!preview);}}>{preview?'Volver a editar':'Probar quiz'}</Button>
    <Button disabled={busy} onClick={publish}>{busy?'Guardando…':'Publicar quiz'}</Button>
-  </div>
+  </div>}
   <ErrorAlert>{error}</ErrorAlert>{status&&<p role="status">{status}</p>}
   {!address&&<div className="qe-card"><QField label="Dirección de tu tienda" value={subdomain} onChange={value=>{setSubdomain(value);setDirty(true);}}/><p className="qe-hint">Elegí un subdominio para guardar y publicar. Se comparte con la landing clásica.</p></div>}
-  {preview?<QuizPreview key={JSON.stringify(quiz)} quiz={quiz} view={view}/>:<>
-   <QuizWizard quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onBusy={setBusy} onApply={async proposal=>{
-    await onSave({quiz:clone(proposal),subdomain});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
-   }}/>
+  {preview?<QuizPreview key={JSON.stringify(quiz)} quiz={quiz} view={view}/>:!aiOpen&&<>
    <nav className="qe-tabs" aria-label="Apartados del editor">{['Contenido','Diseño','Avanzado'].map(name=><button disabled={busy} key={name} onClick={()=>setTab(name)} aria-current={tab===name?'page':undefined}>{name}</button>)}</nav>
    <fieldset disabled={busy} className="qe-main qe-stack">
     {tab==='Contenido'&&<>

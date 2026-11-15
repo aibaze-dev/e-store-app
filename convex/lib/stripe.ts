@@ -8,6 +8,8 @@ export type LineItem = { name: string; amount: number };
 
 export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   orderId: string; currency: string; lineItems: LineItem[]; returnUrl: string; elements?: boolean;
+  // Elements only: ask for name and phone (new buyers) or reuse a known buyer's email.
+  collectContact?: boolean; customerEmail?: string;
 }) {
   const body = new URLSearchParams({
     mode: 'payment',
@@ -17,10 +19,11 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
     client_reference_id: input.orderId,
     'metadata[orderId]': input.orderId,
   });
-  if (input.elements) {
+  if (input.elements && input.collectContact !== false) {
     body.set('name_collection[individual][enabled]', 'true');
     body.set('phone_number_collection[enabled]', 'true');
   }
+  if (input.customerEmail) body.set('customer_email', input.customerEmail);
   input.lineItems.forEach((item, index) => {
     body.set(`line_items[${index}][quantity]`, '1');
     body.set(`line_items[${index}][price_data][currency]`, input.currency.toLowerCase());

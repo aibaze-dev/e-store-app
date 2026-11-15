@@ -1,5 +1,6 @@
 import './classic-landing.css';
-import { CLASSIC_ACCENT, classicAccent } from '../../shared/classic-design.js';
+import { classicTheme } from '../../shared/classic-design.js';
+export { readableOn } from '../../shared/classic-design.js';
 import { formatLandingText } from '../../shared/landing-copy.js';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, Check, ChevronDown, CircleCheck, Gift, ShoppingBag, ShieldCheck, LockKeyhole, Zap, ShoppingCart, Mail, Sparkles, Target, TrendingUp, Dumbbell, Brain, Settings, X, Flame } from 'lucide-react';
@@ -11,12 +12,6 @@ import { Button } from '@/components/ui/button';
 import { normalizeContent, offerTotals, timeAgo } from './content.js';
 
 export const FEATURE_ICONS = { check: Check, book: BookOpen, target: Target, growth: TrendingUp, strength: Dumbbell, brain: Brain, settings: Settings, cart: ShoppingCart, mail: Mail, sparkles: Sparkles };
-
-export function readableOn(hex) {
-  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
-    .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? '#111827' : '#ffffff';
-}
 
 function Cover({ src, name }) {
   const [failed, setFailed] = useState(false);
@@ -80,14 +75,12 @@ export default function ClassicLanding({ view, onCta }) {
     if (promoRef.current) observer.observe(promoRef.current);
     return () => observer.disconnect();
   }, [content.closing.stickyEnabled, hasPromo]);
-  const accent = /^#[0-9a-fA-F]{6}$/.test(content.style.accentColor) ? classicAccent(content.style.accentColor) : CLASSIC_ACCENT;
-  const actionColor = '#' + [1, 3, 5].map(i => Math.round(parseInt(accent.slice(i, i + 2), 16) * .78).toString(16).padStart(2, '0')).join('');
-  const theme = { '--sales-accent': accent, '--sales-on-accent': readableOn(accent), '--classic-action': actionColor, '--classic-on-action': readableOn(actionColor) };
+  const theme = classicTheme(content.style.accentColor);
   const money = value => formatMoney(value, store.currency);
   const totals = offerTotals(offer);
   const guarantee = content.guarantee.enabled && Boolean(content.guarantee.text);
   const guaranteeLabel = content.guarantee.days ? `Garantía de ${content.guarantee.days} días` : content.guarantee.title;
-  const cta = (text, extra = '') => <Button type="button" className={`sales-cta ${extra}`} onClick={onCta} disabled={!onCta}>{text || content.hero.ctaText || 'Comprar ahora'}</Button>;
+  const cta = (text, extra = '') => <Button type="button" className={`sales-cta ${extra}`} onClick={onCta} disabled={!onCta}><span>{text || content.hero.ctaText || 'Comprar ahora'}</span><ArrowRight aria-hidden="true" /></Button>;
   const trust = <div className="sales-trust"><span><Zap aria-hidden="true" />Acceso inmediato</span><span><LockKeyhole aria-hidden="true" />Pago seguro</span>{guarantee && <span><ShieldCheck aria-hidden="true" />{guaranteeLabel}</span>}</div>;
   const savings = totals.savings > 0 && <span className="sales-savings">Ahorrás {money(totals.savings)} ({totals.percent}% OFF)</span>;
   const price = <div className="sales-price">{offer.main.compareAtPrice > offer.main.price && <del>{money(offer.main.compareAtPrice)}</del>}<strong>{money(offer.main.price)}</strong></div>;
@@ -95,7 +88,7 @@ export default function ClassicLanding({ view, onCta }) {
 
   return <div ref={landingRef} className={`sales-landing classic-landing ${content.closing.stickyEnabled ? 'sales-with-sticky' : ''}`} style={theme}>
     {hasPromo && <div ref={promoRef} className="sales-promo"><Flame aria-hidden="true" /><span>{content.promotion.message}</span>{countdown && <time aria-label={`Termina en ${countdown}`}>{clock(countdown)}</time>}<Flame aria-hidden="true" /></div>}
-    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
+    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} variant="classic" product={{ name: offer.main.name, coverUrl: content.hero.imageUrl || offer.main.coverUrl }} />}
     <main>
       <header className="classic-masthead">
         <div className="sales-container classic-masthead-inner">
@@ -104,7 +97,7 @@ export default function ClassicLanding({ view, onCta }) {
             <h1>{content.hero.title || offer.main.name}</h1>
             {content.hero.subtitle && <p>{content.hero.subtitle}</p>}
           </div>
-          <div className="classic-header-offer">{price}{cta()}<span>{offer.main.name}</span></div>
+          <div className="classic-header-offer"><div className="classic-header-price">{price}{savings}</div>{cta()}</div>
         </div>
       </header>
       <section className="sales-hero sales-section" aria-label={offer.main.name}>

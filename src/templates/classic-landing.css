@@ -24,24 +24,24 @@
 .sales-landing.classic-landing .sales-eyebrow { color: var(--classic-action); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
 .sales-landing.classic-landing .sales-heading .sales-eyebrow { display: table; margin: 0 auto 14px; padding: 4px 12px; border-radius: 5px; background: color-mix(in srgb, var(--sales-accent) 10%, white); }
 .sales-landing.classic-landing .sales-soft { background: linear-gradient(180deg, var(--sales-soft), white); }
-.sales-landing.classic-landing .sales-promo { min-height: 38px; background: var(--classic-action); color: var(--classic-on-action); font-size: 11px; letter-spacing: .05em; }
+.sales-landing.classic-landing .sales-promo { min-height: 38px; background: linear-gradient(90deg, var(--classic-banner-start), var(--classic-banner-mid) 50%, var(--classic-cta-end)); color: var(--classic-cta-text); box-shadow: 0 2px 16px color-mix(in srgb, var(--sales-accent) 30%, transparent); font-size: 11px; letter-spacing: .05em; }
 .sales-landing.classic-landing .sales-promo svg { color: inherit; animation: none; }
 .sales-landing.classic-landing .sales-promo time span { min-width: 25px; padding: 1px 5px; border-radius: 3px; }
-.classic-masthead { background: linear-gradient(110deg, var(--classic-action), var(--sales-accent)); color: var(--classic-on-action); padding: 34px 0; }
-.classic-masthead-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); align-items: center; gap: clamp(24px, 4vw, 56px); }
+.classic-masthead { background: linear-gradient(120deg, var(--classic-banner-start), var(--classic-banner-mid) 52%, var(--classic-cta-end)); color: var(--classic-cta-text); padding: 32px 0; }
+.classic-masthead-inner { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: center; gap: clamp(24px, 4vw, 56px); }
 .sales-landing.classic-landing .sales-hero-heading { margin: 0; text-align: left; max-width: 620px; }
 .sales-landing.classic-landing .sales-hero-heading h1 { font-size: clamp(26px, 2.4vw, 30px); line-height: 1.15; }
 .sales-landing.classic-landing .sales-hero-heading p { margin-top: 14px; font-size: 15px; line-height: 1.6; color: inherit; }
 .sales-landing.classic-landing .sales-hero-heading .sales-eyebrow { color: inherit; }
-.classic-header-offer { display: grid; justify-items: center; gap: 12px; width: 100%; max-width: 300px; justify-self: end; min-width: 0; }
+.classic-header-offer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; justify-items: center; gap: 20px; width: 100%; max-width: 500px; justify-self: end; min-width: 0; }
 .classic-header-offer > span { text-align: center; font-size: 12px; }
 .sales-landing.classic-landing .classic-header-offer .sales-price { gap: 8px; }
 .sales-landing.classic-landing .classic-header-offer .sales-price strong { font-size: 34px; }
 .sales-landing.classic-landing .classic-header-offer .sales-price del { color: inherit; font-size: 16px; }
-.sales-landing.classic-landing .sales-cta { width: fit-content; max-width: 100%; margin-inline: auto; min-height: 48px; padding: 13px 26px; border-radius: 8px; background: var(--classic-action); color: var(--classic-on-action); box-shadow: 0 5px 15px color-mix(in srgb, var(--sales-accent) 25%, transparent); font-size: 14px; font-weight: 850; }
-.sales-landing.classic-landing .sales-cta:hover:not(:disabled) { filter: brightness(1.1); }
-.sales-landing.classic-landing .classic-header-offer .sales-cta { background: white; color: var(--classic-action); box-shadow: none; }
-.sales-landing.classic-landing .sales-hero { padding-top: 36px; padding-bottom: 32px; background: linear-gradient(var(--sales-soft), white 70%); }
+.sales-landing.classic-landing .sales-cta { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; min-height: 56px; padding: 16px 30px; border: 1px solid #ffffff26; border-radius: 14px; background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); box-shadow: 0 8px 24px color-mix(in srgb, var(--sales-accent) 36%, transparent), inset 0 1px 0 #ffffff59; font-size: 17px; font-weight: 850; line-height: 1.45; transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease; }
+.sales-landing.classic-landing .sales-cta:hover:not(:disabled) { transform: translateY(-2px); filter: saturate(1.08) brightness(1.03); box-shadow: 0 12px 30px color-mix(in srgb, var(--sales-accent) 45%, transparent), inset 0 1px 0 #ffffff66; }
+.sales-landing.classic-landing .classic-header-offer .sales-cta { width: 100%; padding: 14px 20px; border-radius: 11px; background: white; color: var(--classic-action); box-shadow: 0 8px 20px #3c140047; font-size: 15px; }
+.sales-landing.classic-landing .sales-hero { padding-top: 36px; padding-bottom: 32px; background: radial-gradient(ellipse at 50% 0%, #ffe0c4 0%, var(--sales-soft) 40%, white 80%); }
 .classic-hero-media { display: grid; justify-items: center; align-items: stretch; gap: 20px; max-width: 900px; margin: 0 auto 26px; }
 .classic-hero-media.has-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sales-landing.classic-landing .sales-cover { display: block; aspect-ratio: auto; max-width: 360px; max-height: 480px; object-fit: contain; border-radius: 12px; box-shadow: 0 12px 26px #42240f1a; }
@@ -73,7 +73,7 @@
 .sales-landing.classic-landing .sales-pains li > span { width: 22px; height: 22px; background: var(--sales-soft); color: var(--classic-action); }
 .sales-landing.classic-landing .sales-pains h3 { font-size: 15px; }
 .sales-landing.classic-landing .sales-pain-closing { margin-top: 26px; font-size: 16px; }
-.sales-landing.classic-landing .sales-dark { background: radial-gradient(ellipse at top, #693312, var(--sales-night) 75%); }
+.sales-landing.classic-landing .sales-dark { background: radial-gradient(90% 55% at 50% 0%, #ff5c1a45, transparent 70%), radial-gradient(70% 40% at 50% 100%, #ff8c3c20, transparent 70%), linear-gradient(#160c05, #2b1a0e 55%, #160c05); }
 .sales-landing.classic-landing .sales-bonus-cards { grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); align-items: stretch; gap: 24px; }
 .sales-landing.classic-landing .sales-bonus-card { display: flex; flex-direction: column; gap: 14px; padding: 0; background: transparent; border: 0; box-shadow: none; text-align: center; height: 100%; min-width: 0; }
 .classic-bonus-cover { position: relative; width: min(100%, 230px); }
@@ -128,7 +128,7 @@
 .sales-landing.classic-landing .sales-faq details { border-radius: 6px; border: 0; background: var(--sales-soft); box-shadow: none; }
 .sales-landing.classic-landing .sales-faq summary { min-height: 52px; padding: 14px 20px; }
 .sales-landing.classic-landing .sales-faq details > p { padding: 0 20px 18px; }
-.sales-landing.classic-landing .sales-closing { background: linear-gradient(105deg, var(--sales-night), #813408); }
+.sales-landing.classic-landing .sales-closing { background: radial-gradient(ellipse at 100% 50%, #df520026, transparent 70%), linear-gradient(105deg, #321b0e, #983800); }
 .sales-landing.classic-landing .sales-closing .sales-price { margin-top: 24px; }
 .sales-landing.classic-landing .sales-closing .sales-eyebrow { color: var(--sales-night-muted); }
 .sales-landing.classic-landing .sales-footer { background: var(--sales-night); padding-bottom: 32px; }
@@ -224,4 +224,59 @@
   .sales-landing.classic-landing .sales-sticky-meta p { font-size: 10px; gap: 6px; }
   .sales-landing.classic-landing .sales-sticky-meta strong { font-size: 10px; }
   .sales-landing.classic-landing .sales-guarantee > strong { max-width: 100%; }
+}
+
+/* Reference details: luminous actions, warm surfaces and a compact purchase notice. */
+.classic-header-price { display: grid; justify-items: center; gap: 8px; min-width: 0; }
+.sales-landing.classic-landing .classic-header-price .sales-price { justify-content: center; }
+.sales-landing.classic-landing .classic-header-price .sales-savings { padding: 4px 10px; border-radius: 999px; background: #fff8ee; color: var(--classic-action); font-size: 11px; text-align: center; }
+.sales-landing.classic-landing .sales-hero-heading > .sales-eyebrow { display: inline-flex; align-items: center; margin-bottom: 14px; padding: 5px 12px; border: 1px solid #ffffff4d; border-radius: 999px; background: #ffffff1a; letter-spacing: .09em; }
+.sales-landing.classic-landing .sales-cta > span { min-width: 0; }
+.sales-landing.classic-landing .sales-cta > svg:last-child { transition: transform 180ms ease; }
+.sales-landing.classic-landing .sales-cta:hover:not(:disabled) > svg:last-child { transform: translateX(3px); }
+.sales-landing.classic-landing .sales-cta:active:not(:disabled) { transform: translateY(0); box-shadow: 0 3px 10px color-mix(in srgb, var(--sales-accent) 25%, transparent); }
+.sales-landing.classic-landing .sales-cta:focus-visible { outline: 3px solid var(--sales-ink); outline-offset: 4px; }
+.sales-landing.classic-landing .sales-cta:disabled { filter: none; opacity: .72; box-shadow: none; }
+.sales-landing.classic-landing .sales-summary-card { background: radial-gradient(ellipse at 100% 0%, #ff923d26, transparent 65%), linear-gradient(115deg, #321d0d, #8c3a08); border: 1px solid #b76c334d; box-shadow: 0 12px 30px #482a1226; }
+.sales-landing.classic-landing .sales-guarantee { box-shadow: 0 8px 28px #f56b2012; }
+.sales-landing.classic-landing .sales-shield { background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); box-shadow: 0 6px 14px #f56b2033; }
+.sales-landing.classic-landing .sales-faq details { border: 1px solid transparent; transition: border-color 180ms ease, background-color 180ms ease; }
+.sales-landing.classic-landing .sales-faq details[open] { border-color: var(--sales-border); background: #fffaf5; }
+.sales-landing.classic-landing .sales-sticky { border-top-color: #edc9ad; box-shadow: 0 -8px 28px #482a1210; }
+.sales-landing.classic-landing .sales-sticky .sales-cta { min-height: 56px; border-radius: 12px; }
+.sales-landing.classic-landing .sales-toast-region.classic-purchase-region { left: 16px; right: auto; width: min(350px, calc(100vw - 32px)); }
+.classic-purchase-toast { position: relative; display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 14px 44px 16px 14px; border: 1px solid #482a121f; border-radius: 16px; background: #fff; color: #30251f; box-shadow: 0 12px 32px #482a1233; overflow: hidden; pointer-events: auto; animation: classic-notice-life 6s both; }
+.classic-purchase-cover { display: grid; place-items: center; width: 48px; height: 60px; border-radius: 7px; background: #fff0e3; overflow: hidden; color: var(--classic-action); }
+.classic-purchase-cover img { width: 100%; height: 100%; object-fit: cover; }
+.classic-purchase-cover svg { width: 24px; height: 24px; }
+.classic-purchase-copy { display: grid; gap: 3px; min-width: 0; line-height: 1.4; }
+.classic-purchase-label { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #77604f; }
+.classic-purchase-label > span { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: #29945a; }
+.classic-purchase-copy > strong { font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
+.classic-purchase-product { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--classic-action); font-weight: 700; }
+.classic-purchase-copy small { font-size: 11px; color: #71635a; overflow-wrap: anywhere; }
+.classic-purchase-dismiss { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; color: #71635a; cursor: pointer; }
+.classic-purchase-dismiss svg { width: 15px; height: 15px; }
+.classic-purchase-dismiss:hover { color: #30251f; background: #fff5eb; }
+.classic-purchase-progress { position: absolute; inset: auto 0 0; height: 3px; background: linear-gradient(90deg, var(--classic-cta-start), var(--classic-cta-end)); transform-origin: left; animation: classic-notice-progress 6s linear both; }
+@keyframes classic-notice-life { 0%, 100% { opacity: 0; transform: translateY(-10px); } 6%, 94% { opacity: 1; transform: translateY(0); } }
+@keyframes classic-notice-progress { to { transform: scaleX(0); } }
+/* These dialogs are portaled outside the landing, so they receive the same tokens directly. */
+.classic-offer-dialog { --background: #fffaf5; --foreground: #30251f; --muted-foreground: #71635a; --primary: var(--classic-action); --ring: var(--classic-action); color-scheme: light; border: 1px solid #f5c5a0; border-radius: 22px; background: radial-gradient(ellipse at top right, #ffe3cc, transparent 65%), #fffaf5; box-shadow: 0 24px 80px #321b0e40; font-family: 'Nunito Sans Variable', sans-serif; }
+.classic-offer-dialog [data-slot='dialog-title'] { font-size: 30px; line-height: 1.15; font-weight: 850; }
+.classic-offer-dialog [data-slot='button'][data-variant='default'] { background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); border: 1px solid #ffffff40; border-radius: 14px; font-weight: 850; box-shadow: 0 8px 24px color-mix(in srgb, var(--sales-accent) 32%, transparent), inset 0 1px 0 #ffffff59; }
+@media (max-width: 900px) {
+  .classic-header-offer { grid-template-columns: 1fr; gap: 16px; max-width: 420px; justify-self: center; }
+  .classic-header-price { gap: 6px; }
+}
+@media (max-width: 540px) {
+  .sales-landing.classic-landing .sales-cta { font-size: 16px; padding: 15px 22px; }
+  .sales-landing.classic-landing .sales-toast-region.classic-purchase-region { top: auto; bottom: calc(var(--classic-sticky-height, 0px) + 12px); left: 12px; width: min(350px, calc(100vw - 24px)); }
+  .classic-purchase-toast { gap: 10px; padding-block: 12px 14px; }
+  .classic-offer-dialog [data-slot='dialog-title'] { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sales-landing.classic-landing .sales-cta, .sales-landing.classic-landing .sales-cta > svg, .classic-purchase-toast, .classic-purchase-progress { animation: none; transition: none; }
+  .sales-landing.classic-landing .sales-cta:hover:not(:disabled), .sales-landing.classic-landing .sales-cta:hover:not(:disabled) > svg:last-child { transform: none; }
+  .classic-purchase-progress { display: none; }
 }

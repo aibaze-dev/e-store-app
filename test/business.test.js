@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
 import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
-import { backend, signedIn, mockStripe, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
+import { backend, signedIn, mockStripe, mockResend, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
 
 const ADMIN = 'owner@example.com';
 beforeEach(() => {
@@ -263,17 +263,46 @@ describe('stripe webhook and delivery', () => {
     expect(await rows(t, 'webhookEvents')).toHaveLength(0);
   });
 
-  it('does not confirm unpaid sessions or amounts that differ from the order', async () => {
+  it('waits for delayed payments and confirms them once Stripe reports them paid', async () => {
     const { t } = await campaign();
     mockStripe();
     await start(t);
     await sendWebhook(t, paidSession('cs_test_1', 2700, { payment_status: 'unpaid' }));
-    await sendWebhook(t, paidSession('cs_test_1', 100));
-    await sendWebhook(t, paidSession('cs_test_1', 2700, { currency: 'eur' }));
     expect((await rows(t, 'orders'))[0].status).toBe('pending');
-    expect((await rows(t, 'webhookEvents')).map(event => event.status)).toEqual(['ignored', 'rejected', 'rejected']);
     await sendWebhook(t, stripeEvent('checkout.session.async_payment_succeeded', paidSession('cs_test_1', 2700).data.object));
     expect((await rows(t, 'orders'))[0].status).toBe('paid');
+    expect((await rows(t, 'webhookEvents')).map(event => event.status)).toEqual(['ignored', 'processed']);
+  });
+
+  it('marks declined delayed payments as failed instead of leaving them pending', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700, { payment_status: 'unpaid' }));
+    await sendWebhook(t, stripeEvent('checkout.session.async_payment_failed', { id: 'cs_test_1', payment_status: 'unpaid', payment_intent: 'pi_cs_test_1', amount_total: 2700, currency: 'usd' }));
+    await sendWebhook(t, stripeEvent('checkout.session.async_payment_succeeded', paidSession('cs_test_1', 2700).data.object));
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).toMatchObject({ status: 'failed', deliveries: [] });
+    expect((await admin.query(api.orders.list, {}))[0].status).toBe('failed');
+  });
+
+  it('holds charges that differ from the order for review until they are refunded', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 100));
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    const review = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
+    expect(review).toMatchObject({ status: 'needs_review', deliveries: [], postPurchaseOffer: null });
+    const [order] = await admin.query(api.orders.list, {});
+    expect(order).toMatchObject({ status: 'needs_review', charged: { amount: 100, currency: 'USD' }, stripePaymentIntentId: 'pi_cs_test_1', buyer: { email: 'buyer@example.com' }, email: { status: 'skipped', error: 'not_configured' } });
+    expect((await rows(t, 'webhookEvents')).map(event => event.status)).toEqual(['rejected', 'ignored']);
+
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_2', 2700, { currency: 'eur' }));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' })).status).toBe('needs_review');
+
+    await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_1', refunded: true }));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).status).toBe('refunded');
   });
 
   it('expires abandoned sessions and hides links again after a full refund', async () => {
@@ -291,6 +320,88 @@ describe('stripe webhook and delivery', () => {
     await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_2', refunded: true }));
     const refunded = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' });
     expect(refunded).toMatchObject({ status: 'refunded', deliveries: [], postPurchaseOffer: null });
+  });
+});
+
+describe('purchase emails through Resend', () => {
+  beforeEach(() => {
+    vi.stubEnv('RESEND_API_KEY', 're_test_only');
+    vi.stubEnv('EMAIL_FROM', 'Tienda <ventas@example.com>');
+  });
+  afterEach(() => { vi.useRealTimers(); });
+  // Scheduled jobs only run under fake timers, so they are switched on after the campaign exists.
+  const settle = t => t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  it('emails the delivery links to the buyer once, after the verified payment', async () => {
+    const { t, admin, ids } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const resend = mockResend();
+    await start(t, [ids.upsellA]);
+    const event = paidSession('cs_test_1', 3600, { customer_details: { email: 'buyer@example.com', name: '<b>Ana</b>' } });
+    await sendWebhook(t, event);
+    await sendWebhook(t, event);
+    await settle(t);
+
+    expect(resend.emails).toHaveLength(1);
+    const [{ headers, body }] = resend.emails;
+    expect(headers.Authorization).toBe('Bearer re_test_only');
+    expect(headers['Idempotency-Key']).toMatch(/^paid-/);
+    expect(body).toMatchObject({ from: 'Tienda <ventas@example.com>', to: ['buyer@example.com'], subject: 'Tus accesos de Campaña inversión' });
+    for (const url of ['main.pdf', 'bonus.pdf', 'upsellA.pdf']) {
+      expect(body.html).toContain(`https://files.example.com/${url}`);
+      expect(body.text).toContain(`https://files.example.com/${url}`);
+    }
+    expect(body.html).toContain('&lt;b&gt;Ana&lt;/b&gt;');
+    expect(body.html).not.toContain('<b>Ana</b>');
+    expect((await admin.query(api.orders.list, {}))[0].email).toEqual({ status: 'sent', error: '' });
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).emailed).toBe(true);
+  });
+
+  it('retries temporary Resend failures and gives up on permanent ones', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const resend = mockResend([500, 429, 200, 422]);
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    await settle(t);
+    expect(resend.emails).toHaveLength(3);
+    expect(new Set(resend.emails.map(email => email.headers['Idempotency-Key'])).size).toBe(1);
+    expect((await admin.query(api.orders.list, {}))[0].email.status).toBe('sent');
+
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_2', 2700));
+    await settle(t);
+    expect(resend.emails).toHaveLength(4);
+    expect((await admin.query(api.orders.list, {}))[0].email).toEqual({ status: 'failed', error: 'application_error' });
+  });
+
+  it('alerts the admins instead of the buyer when the charge needs review', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const resend = mockResend();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 100));
+    await settle(t);
+    expect(resend.emails).toHaveLength(1);
+    expect(resend.emails[0].body.to).toEqual(['owner@example.com', 'second@example.com']);
+    expect(resend.emails[0].body.subject).toBe('Revisar cobro en Campaña inversión');
+    expect(resend.emails[0].body.text).not.toContain('files.example.com');
+  });
+
+  it('does not email a purchase that was refunded before the email went out', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const resend = mockResend();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_1', refunded: true }));
+    await settle(t);
+    expect(resend.emails).toHaveLength(0);
+    expect((await admin.query(api.orders.list, {}))[0].email).toEqual({ status: 'skipped', error: 'status_changed' });
   });
 });
 
@@ -329,6 +440,22 @@ describe('post-purchase offer', () => {
     expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).postPurchaseOffer).toBeNull();
     await expect(startPost(t, 'cs_test_1')).rejects.toThrow();
     await expect(startPost(t, 'cs_test_3')).rejects.toThrow();
+  });
+
+  it('opens a Payment Element session that reuses the buyer of the first purchase', async () => {
+    const { t, admin } = await campaign();
+    const stripe = mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    await t.action(api.checkout.startPostPurchase, { parentSessionId: 'cs_test_1', attemptId: attempt(), via: 'path', elements: true });
+    const { body } = stripe.requests[1];
+    expect(body).toMatchObject({ ui_mode: 'elements', customer_email: 'buyer@example.com' });
+    expect(body['name_collection[individual][enabled]']).toBeUndefined();
+    expect(body['phone_number_collection[enabled]']).toBeUndefined();
+
+    // Stripe does not ask the name again, so the order keeps the one from the first purchase.
+    await sendWebhook(t, paidSession('cs_test_2', 4700, { customer_details: { email: 'buyer@example.com', name: null } }));
+    expect((await admin.query(api.orders.list, {}))[0]).toMatchObject({ isPostPurchase: true, status: 'paid', buyer: { email: 'buyer@example.com', name: 'Compradora' } });
   });
 
   it('is not offered when the store has it disabled', async () => {

@@ -17,9 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ErrorAlert, PageSkeleton } from '@/components/Field.jsx';
-import StripeCheckout, { stripeKey } from './StripeCheckout.jsx';
 import ExitIntentModal from './ExitIntentModal.jsx';
-import CheckoutPayment from './CheckoutPayment.jsx';
+import CheckoutPayment, { SessionPayment, stripeKey } from './CheckoutPayment.jsx';
 import DownsellModal from './DownsellModal.jsx';
 import { downsellCopy } from './downsell.js';
 import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } from './CheckoutSignals.jsx';
@@ -188,7 +187,7 @@ function DownsellOffer({ view, via }) {
     if (busy) return;
     setBusy(true); setError('');
     try {
-      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], attemptId: attemptFor('downsell'), via, downsell: true, origin, ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
+      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], attemptId: attemptFor('downsell'), via, downsell: true, elements: true, origin, ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
       trackPixel(store.metaPixelId, 'InitiateCheckout', { value: downsell.price / 100, currency: store.currency });
       setClientSecret(result.clientSecret);
     } catch (failure) { setError(errorText(failure, 'No se pudo iniciar el pago. Volvé a intentar.')); }
@@ -233,7 +232,7 @@ function DownsellOffer({ view, via }) {
           </dl>
         </div>
       </section>
-      {clientSecret ? <StripeCheckout clientSecret={clientSecret} /> : <div className="space-y-3">
+      {clientSecret ? <SessionPayment clientSecret={clientSecret} total={downsell.price} currency={store.currency} totalLabel={money(downsell.price)} askContact /> : <div className="space-y-3">
         {!stripeKey && <Alert><AlertDescription>Los pagos todavía no están habilitados en este sitio.</AlertDescription></Alert>}
         <ErrorAlert>{error}</ErrorAlert>
         <Button size="lg" className="h-14 w-full text-base" onClick={pay} disabled={busy || !stripeKey}>
@@ -258,12 +257,18 @@ function PostPurchaseOffer({ offer, currency, sessionId, via }) {
     if (state.busy) return;
     setState({ ...state, busy: true, error: '' });
     try {
-      const result = await start({ parentSessionId: sessionId, attemptId: attemptFor(`${sessionId}:${state.stage}`), via, ...(downsell ? { downsell: true } : {}) });
+      const result = await start({ parentSessionId: sessionId, attemptId: attemptFor(`${sessionId}:${state.stage}`), via, elements: true, ...(downsell ? { downsell: true } : {}) });
       setState({ ...state, busy: false, clientSecret: result.clientSecret });
     } catch (failure) { setState({ ...state, busy: false, error: errorText(failure, 'No se pudo iniciar el pago. Volvé a intentar.') }); }
   }
 
-  if (state.clientSecret) return <StripeCheckout clientSecret={state.clientSecret} />;
+  if (state.clientSecret) {
+    const total = downsell ? offer.downsellPrice : offer.price;
+    return <section className="space-y-4" aria-label="Pago de la oferta">
+      <h2 className="text-2xl font-semibold tracking-tight">Sumá {offer.name} por {formatMoney(total, currency)}</h2>
+      <SessionPayment clientSecret={state.clientSecret} total={total} currency={currency} totalLabel={formatMoney(total, currency)} />
+    </section>;
+  }
   return <PostPurchaseContent offer={offer} currency={currency} downsell={downsell}
     busy={state.busy} error={state.error} canPurchase={Boolean(stripeKey)} onAccept={accept}
     onDecline={() => setState({ ...state, error: '', stage: !downsell && offer.downsellPrice ? 'downsell' : 'declined' })} />;

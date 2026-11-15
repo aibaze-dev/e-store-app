@@ -52,7 +52,7 @@ Los botones principales son **Guardar borrador**, **Probar quiz** y **Publicar q
 
 ### Generar con IA
 
-El asistente destacado usa el mismo servicio de IA del servidor que la landing clásica:
+Al abrir el editor, el asistente de IA aparece abierto como primer paso. Los controles de edición y publicación se muestran al elegir **Editar a mano** o después de aplicar una propuesta. Usa el mismo servicio de IA del servidor que la landing clásica:
 
 1. Público: para quién es el quiz.
 2. Objetivo: qué queremos descubrir del visitante.

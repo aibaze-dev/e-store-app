@@ -13,3 +13,5 @@
 .qe-proposal-list { display: grid; gap: 8px; list-style: decimal; padding-left: 22px; font-size: 14px; }
 .qe-wizard-actions { justify-content: space-between; }
 @media(max-width:640px) { .qe-simple-editor .qe-toolbar > button { flex: 1 1 auto; } .qe-ai-card.is-closed { flex-wrap: wrap; } .qe-ai-card.is-closed > div { flex-basis: calc(100% - 50px); } }
+
+.qe-ai-card form { display: grid; gap: 16px; }

@@ -27,6 +27,18 @@ describe('Spanish checkout confirmation', () => {
     expect(stripe.confirm).not.toHaveBeenCalled();
     expect((await confirmCheckout(checkout(), { ...buyer, firstName: '  ' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
   });
+  it('confirms a post-purchase session with the email Stripe already has, or asks for it', async () => {
+    const known = { ...checkout(), email: 'ana@example.com' };
+    expect(await confirmCheckout(known, null, { total: 1699000, currency: 'ARS' }, vi.fn())).toEqual({ type: 'success' });
+    expect(known.confirm).toHaveBeenCalledWith(undefined);
+    expect(known.updateIndividualName).not.toHaveBeenCalled();
+
+    const unknown = { ...checkout(), email: null };
+    expect((await confirmCheckout(unknown, null, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
+    expect(unknown.confirm).not.toHaveBeenCalled();
+    await confirmCheckout(unknown, null, { total: 1699000, currency: 'ARS' }, vi.fn(), ' ana@example.com ');
+    expect(unknown.confirm).toHaveBeenCalledWith({ email: 'ana@example.com' });
+  });
   it('rejects incomplete international phone numbers before contacting Stripe', async () => {
     const stripe = checkout();
     expect((await confirmCheckout(stripe, { ...buyer, phone: '1234' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');

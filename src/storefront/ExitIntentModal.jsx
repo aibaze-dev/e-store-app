@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
-import { readableOn } from '@/templates/ClassicLanding.jsx';
+import { classicTheme } from '../../shared/classic-design.js';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { claimExitIntent, exitIntentCopy, leftDocument } from './exitIntent.js';
@@ -32,12 +32,12 @@ export default function ExitIntentModal({ view, step, onCta }) {
   const copy = exitIntentCopy(view, step, amount => formatMoney(amount, view.store.currency));
   const accent = view.content.style?.accentColor;
   // The landing paints its buttons with the store's accent; the checkout uses the app theme.
-  const theme = step === 'landing' && /^#[0-9a-fA-F]{6}$/.test(accent || '') ? { '--primary': accent, '--primary-foreground': readableOn(accent) } : undefined;
+  const theme = step === 'landing' ? classicTheme(accent) : undefined;
   const useCta = () => { viaCta.current = true; setOpen(false); };
 
   // The dialog stays mounted so it can hand the focus back when it closes.
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogContent style={theme} onCloseAutoFocus={event => {
+    <DialogContent className={step === 'landing' ? 'classic-offer-dialog' : undefined} style={theme} onCloseAutoFocus={event => {
       event.preventDefault();
       const usedCta = viaCta.current;
       viaCta.current = false;

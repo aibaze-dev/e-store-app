@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, LoaderCircle, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LoaderCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -12,8 +12,7 @@ const QUESTIONS = [
   { key: 'goal', label: '¿Qué querés descubrir de esa persona?', placeholder: 'Su experiencia, qué le cuesta y para qué quiere usar IA, para presentarle mi guía.' },
 ];
 
-export default function QuizWizard({ quiz, view, disabled, onGenerate, onApply, onBusy }) {
-  const [open, setOpen] = useState(false);
+export default function QuizWizard({ quiz, view, disabled, onGenerate, onApply, onBusy, open, onOpenChange: setOpen }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ audience: '', goal: '', tone: 'Cercano', length: 7 });
   const [busy, setBusy] = useState(false);
@@ -44,7 +43,7 @@ export default function QuizWizard({ quiz, view, disabled, onGenerate, onApply, 
   return <section className="landing-wizard qe-ai-card" aria-busy={busy}>
     <div className="landing-wizard-header">
       <div><h2>Generá tu quiz con IA</h2><span>{proposal ? 'Revisá tu nuevo quiz' : `Paso ${step + 1} de 3`}</span></div>
-      <Button type="button" variant="ghost" size="icon" aria-label="Cerrar asistente" disabled={busy} onClick={() => setOpen(false)}><X aria-hidden="true" /></Button>
+      <Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Editar a mano</Button>
     </div>
     {proposal ? <div className="qe-stack">
       <p>La propuesta reemplaza el recorrido del borrador. La versión publicada sigue igual hasta que publiques los cambios.</p>
@@ -58,7 +57,7 @@ export default function QuizWizard({ quiz, view, disabled, onGenerate, onApply, 
       </div>
     </div> : <form onSubmit={submit}>
       <div className="landing-wizard-progress" role="progressbar" aria-label="Avance del asistente" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step + 1}><span style={{ width: `${(step + 1) / 3 * 100}%` }} /></div>
-      {question ? <Field key={question.key} label={question.label}>{ids => <Textarea {...ids} autoFocus required maxLength={1500} placeholder={question.placeholder} value={answers[question.key]} disabled={busy} onChange={e => set(question.key, e.target.value)} />}</Field> : <>
+      {question ? <Field key={question.key} label={question.label}>{ids => <Textarea {...ids} autoFocus={step > 0} required maxLength={1500} placeholder={question.placeholder} value={answers[question.key]} disabled={busy} onChange={e => set(question.key, e.target.value)} />}</Field> : <>
         <Field label="¿Cuántas preguntas?">{ids => <NativeSelect {...ids} value={answers.length} onChange={e => set('length', Number(e.target.value))} disabled={busy}><option value={5}>Corto · 5 preguntas</option><option value={7}>Recomendado · 7 preguntas</option><option value={12}>Completo · 12 preguntas</option></NativeSelect>}</Field>
         <Field label="Tono">{ids => <NativeSelect {...ids} value={answers.tone} onChange={e => set('tone', e.target.value)} disabled={busy}><option>Cercano</option><option>Profesional</option><option>Enérgico</option></NativeSelect>}</Field>
         <p className="qe-hint">Usamos {view?.offer.main.name || 'el producto de tu tienda'}. Conservamos tu marca y las secciones comerciales compatibles. La propuesta crea un recorrido nuevo, sin arrastrar reglas ni cálculos anteriores. Podés revisarla antes de guardar.</p>
