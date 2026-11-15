@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, product, content, mockStripe, sendWebhook, stripeEvent, WEBHOOK_SECRET } from './helpers';
-import { createQuizTemplate, validateQuiz, assertQuiz, evaluate, contextFor, initialSession, advanceSession, validateAnswer, newStep, nextStep, resultFor, applicableQuestions } from '../shared/quiz.js';
+import { createAdvancedQuizTemplate as createQuizTemplate, createQuizTemplate as createFunnelTemplate, feedbackFor, personalize, validateQuiz, assertQuiz, evaluate, contextFor, initialSession, advanceSession, validateAnswer, newStep, nextStep, resultFor, applicableQuestions } from '../shared/quiz.js';
 vi.mock('../convex/lib/analytics_ip', async original => ({...await original(),requestIp:vi.fn(async()=> '192.0.2.1')}));
 const token=()=>crypto.randomUUID()+crypto.randomUUID();
 const command=(session,value,direction='next')=>({revision:session.revision,commandId:crypto.randomUUID(),value,direction});
@@ -101,5 +101,63 @@ describe('simplified quiz authoring and shared presentation', () => {
   q.steps=[null];expect(validateQuiz(q,true).length).toBeGreaterThan(0);
   const unscored=tiny();unscored.steps[0].type='multiple';unscored.steps[0].options.forEach(o=>delete o.score);
   expect(evaluate({op:'ref',ref:'score:choice'},contextFor(unscored,{choice:['option1']}))).toBeNull();
+ });
+});
+
+describe('funnel quiz: images, live feedback, loading and final page', () => {
+ it('ships a valid default funnel that completes into the final page', () => {
+  const q = createFunnelTemplate('Guía');
+  expect(validateQuiz(q, true)).toEqual([]);
+  let s = initialSession(q);
+  while (s.currentStep) { const step = q.steps.find(x => x.id === s.currentStep); s = advanceSession(q, s, command(s, step.type === 'loading' ? null : step.type === 'intro' ? 'new' : answerFor(step))); }
+  expect(s.resultId).toBe('general');
+  expect(q.results[0].blocks.some(b => b.type === 'offer')).toBe(false);
+ });
+ it('evaluates option and range feedback, including open bounds and units', () => {
+  const q = createFunnelTemplate();
+  const minutes = q.steps.find(s => s.id === 'minutes');
+  expect(feedbackFor(minutes, 2).tone).toBe('warn');
+  expect(feedbackFor(minutes, 30).tone).toBe('good');
+  expect(feedbackFor(minutes, 91).tone).toBe('bad');
+  expect(feedbackFor(minutes, '')).toBeNull();
+  const open = { type: 'measure', units: [{ id: 'kg', factor: 1 }, { id: 'g', factor: 0.001 }], feedbackRanges: [{ max: 1, tone: 'info', title: 'Poco' }, { min: 1.5, tone: 'good', title: 'Bien' }] };
+  expect(feedbackFor(open, { value: 500, unit: 'g' }).title).toBe('Poco');
+  expect(feedbackFor(open, { value: 2, unit: 'kg' }).title).toBe('Bien');
+  expect(feedbackFor(open, { value: 1.2, unit: 'kg' })).toBeNull();
+  expect(feedbackFor(q.steps.find(s => s.id === 'obstacle'), 'time').tone).toBe('good');
+ });
+ it('rejects invalid tones, ranges, loading settings and final-page references', () => {
+  const broken = mutate => { const q = createFunnelTemplate(); mutate(q); return validateQuiz(q, true).join(' '); };
+  expect(broken(q => { q.steps.find(s => s.id === 'minutes').feedbackRanges[0].tone = 'red'; })).toMatch(/feedback/);
+  expect(broken(q => { Object.assign(q.steps.find(s => s.id === 'minutes').feedbackRanges[0], { min: 9, max: 2 }); })).toMatch(/feedback/);
+  expect(broken(q => { q.steps.find(s => s.id === 'obstacle').options[0].feedback.tone = 'x'; })).toMatch(/feedback/);
+  expect(broken(q => { q.steps.find(s => s.type === 'loading').durationMs = 60000; })).toMatch(/segundos/);
+  expect(broken(q => { q.steps.find(s => s.id === 'goal').imageLayout = 'floating'; })).toMatch(/imagen/);
+  expect(broken(q => { q.results[0].blocks[0].items.push({ stepId: 'missing', label: 'x' }); })).toMatch(/resumen/);
+  expect(broken(q => { q.results[0].blocks.find(b => b.type === 'goals').stepId = 'minutes'; })).toMatch(/objetivos/);
+ });
+ it('going back skips the automatic loading screen', () => {
+  const q = createFunnelTemplate();
+  let s = initialSession(q);
+  while (s.currentStep !== 'contact') { const step = q.steps.find(x => x.id === s.currentStep); s = advanceSession(q, s, command(s, step.type === 'loading' ? null : step.type === 'intro' ? 'new' : answerFor(step))); }
+  s = advanceSession(q, s, command(s, null, 'back'));
+  expect(s.currentStep).toBe('social');
+ });
+ it('personalises copy without printing missing variables', () => {
+  const q = createFunnelTemplate();
+  expect(personalize(q.results[0].title, contextFor(q, {}))).toBe('Tu plan está listo');
+  expect(personalize(q.results[0].title, contextFor(q, { contact: { name: 'Ana', email: '' } }))).toBe('Ana, tu plan está listo');
+ });
+ it('only admins upload step images; non-images are rejected and deleted', async () => {
+  const f = await fixture();
+  await expect(f.t.mutation(api.quizzes.imageUploadUrl, {})).rejects.toThrow();
+  expect(typeof await f.admin.mutation(api.quizzes.imageUploadUrl, {})).toBe('string');
+  // convex-test does not keep the uploaded content type, so the accepted path is not covered here.
+  const image = await f.t.run(ctx => ctx.storage.store(new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' })));
+  await expect(f.t.mutation(api.quizzes.imageUrl, { storageId: image })).rejects.toThrow();
+  expect(await f.t.run(ctx => ctx.storage.getUrl(image))).not.toBeNull();
+  const html = await f.t.run(ctx => ctx.storage.store(new Blob(['<script>x</script>'], { type: 'text/html' })));
+  expect(await f.admin.mutation(api.quizzes.imageUrl, { storageId: html })).toEqual({ error: expect.stringMatching(/imagen/) });
+  expect(await f.t.run(ctx => ctx.storage.getUrl(html))).toBeNull();
  });
 });

@@ -2,9 +2,10 @@ import { makeFunctionReference as ref } from 'convex/server';
 
 // Function references by name, so the build does not depend on generated bindings.
 export const api = {
-  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival'].map(name=>[name,ref(`quizzes:${name}`)])),
+  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival','imageUploadUrl','imageUrl'].map(name=>[name,ref(`quizzes:${name}`)])),
   purchasePresentation:{get:ref('purchase_presentation:get'),save:ref('purchase_presentation:save')},
   quizWizard: {generate:ref('quiz_wizard:generate')},
+  quizImages: {generate:ref('quiz_images:generate')},
   analytics: { recordView: ref('analytics:recordView'), report: ref('analytics:report') },
   auth: { getCurrentUser: ref('auth:getCurrentUser') },
   products: { list: ref('products:list'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update') },

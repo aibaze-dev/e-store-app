@@ -1,6 +1,10 @@
 // Shared, deterministic quiz language. Never evaluates user JavaScript.
-export const STEP_TYPES = ['intro', 'single', 'multiple', 'text', 'number', 'measure', 'date', 'info', 'contact', 'summary', 'transition'];
-export const BLOCK_TYPES = ['text', 'image', 'video', 'answers', 'metric', 'scale', 'comparison', 'line', 'bar', 'benefits', 'offer', 'testimonials', 'faq', 'guarantee', 'promotion'];
+export const STEP_TYPES = ['intro', 'single', 'multiple', 'text', 'number', 'measure', 'date', 'info', 'contact', 'summary', 'transition', 'loading'];
+export const BLOCK_TYPES = ['text', 'image', 'video', 'answers', 'metric', 'scale', 'comparison', 'line', 'bar', 'benefits', 'offer', 'testimonials', 'faq', 'guarantee', 'promotion', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter'];
+// Feedback tones shown inside a step: green, amber, red and neutral.
+export const TONES = ['good', 'warn', 'bad', 'info'];
+export const IMAGE_LAYOUTS = ['top', 'hero-bottom', 'side', 'none'];
+export const OPTION_LAYOUTS = ['list', 'grid', 'image-right'];
 export const QUESTION_TYPES = ['single', 'multiple', 'text', 'number', 'measure', 'date'];
 export const OPS = ['add', 'subtract', 'multiply', 'divide', 'power', 'min', 'max', 'round', 'days'];
 export const clone = value => JSON.parse(JSON.stringify(value));
@@ -78,7 +82,14 @@ export function displayRef(ref, context) {
   if (typeof value === 'object' && !Array.isArray(value)) return 'value' in value ? `${value.value} ${step?.units?.find(u => u.id === value.unit)?.label || ''}` : '';
   return typeof value === 'number' ? String(Math.round(value * 10000) / 10000) : String(value);
 }
-export function interpolate(text, context) { return String(text || '').replace(/\{\{((?:answer|score|calc|contact):[a-zA-Z0-9_-]+)\}\}/g, (_, ref) => displayRef(ref, context)); }
+export function interpolate(text, context, empty) { return String(text || '').replace(/\{\{((?:answer|score|calc|contact):[a-zA-Z0-9_-]+)\}\}/g, (_, ref) => { const value = resolveRef(ref, context); return empty !== undefined && (value == null || value === '') ? empty : displayRef(ref, context); }); }
+// Public copy: a missing variable disappears instead of printing "Sin resultado", and the
+// punctuation around it is tidied ("{{contact:name}}, tu plan" → "Tu plan").
+export function personalize(text, context) {
+  const value = interpolate(text, context, '').replace(/^[\s,;:.]+/, '').replace(/\s*,\s*([!?.]|$)/g, '$1').replace(/[ \t]{2,}/g, ' ').trim();
+  // Only a sentence that starts with a variable needs its first letter fixed ("ana, …").
+  return /^\s*\{\{/.test(String(text || '')) ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
 export function effectiveStep(step, context) { const variant = step.variants?.find(v => matches(v.when, context)); return variant ? { ...step, ...variant.content } : step; }
 export function visibleSteps(quiz, answers) { const context = contextFor(quiz, answers); return quiz.steps.filter(s => s.enabled !== false && matches(s.when, context)); }
 export function firstStep(quiz) { return visibleSteps(quiz, {})[0]?.id ?? null; }
@@ -91,6 +102,18 @@ export function nextStep(quiz, stepId, answers) {
   return quiz.steps.slice(start).find(s => s.enabled !== false && matches(s.when, context))?.id ?? null;
 }
 export function resultFor(quiz, answers) { const context = contextFor(quiz, answers); return quiz.results.find(r => !r.default && matches(r.when, context)) || quiz.results.find(r => r.default); }
+// Feedback configured on the step itself: per option (single) or per numeric range (number/measure).
+// Ranges use the base unit and open bounds; the first match wins.
+export function feedbackFor(step, value) {
+  if (!step || value == null || value === '') return null;
+  const usable = f => f && TONES.includes(f.tone) && (f.title || f.text) ? f : null;
+  if (step.type === 'single' || (step.type === 'intro' && step.options?.length)) return usable(step.options?.find(o => o.id === value)?.feedback);
+  if (step.type !== 'number' && step.type !== 'measure') return null;
+  const number = step.type === 'measure' ? answerValue(step, value) : finite(value);
+  if (number == null) return null;
+  return usable((step.feedbackRanges || []).find(r => (finite(r.min) == null || number >= r.min) && (finite(r.max) == null || number <= r.max)));
+}
+export function hasOptionFeedback(step) { return Boolean(step?.options?.some(o => o.feedback && (o.feedback.title || o.feedback.text))); }
 export function validDate(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value; }
 export function validateAnswer(step, value) {
   const fail = message => { throw new Error(message); };
@@ -167,6 +190,14 @@ function validateQuizStructure(input, publishing) {
       opts.forEach(o => { check(typeof o.label === 'string' && o.label.trim(), `${s.id}: opción sin texto.`); if (o.score != null) check(finite(o.score) != null, `${s.id}: puntuación inválida.`); });
       check((s.minSelections ?? 0) >= 0 && (s.maxSelections ?? opts.length) <= opts.length && (s.minSelections ?? 0) <= (s.maxSelections ?? opts.length), `${s.id}: límites de selección inválidos.`);
     }
+    if (s.imageLayout != null) check(IMAGE_LAYOUTS.includes(s.imageLayout), `${s.id}: posición de imagen inválida.`);
+    if (s.layout != null) check(OPTION_LAYOUTS.includes(s.layout), `${s.id}: presentación de opciones inválida.`);
+    for (const o of s.options || []) if (o?.feedback != null) check(typeof o.feedback === 'object' && TONES.includes(o.feedback.tone), `${s.id}: feedback de opción inválido.`);
+    if (s.feedbackRanges != null) {
+      check(Array.isArray(s.feedbackRanges) && s.feedbackRanges.length <= 12, `${s.id}: máximo 12 rangos de feedback.`);
+      for (const r of Array.isArray(s.feedbackRanges) ? s.feedbackRanges : []) check(r && TONES.includes(r.tone) && (r.min == null || finite(r.min) != null) && (r.max == null || finite(r.max) != null) && (r.min == null || r.max == null || r.min <= r.max), `${s.id}: rango de feedback inválido.`);
+    }
+    if (s.type === 'loading') check(finite(s.durationMs) != null && s.durationMs >= 1000 && s.durationMs <= 20000 && Array.isArray(s.items) && s.items.length <= 8 && s.items.every(i => typeof i === 'string'), `${s.id}: configurá entre 1 y 20 segundos y hasta 8 mensajes.`);
     if (s.type === 'measure') { ids(s.units || [], s.id); check(s.units?.length > 0 && s.units.length <= 8 && s.units.every(u => finite(u.factor) != null && u.factor > 0 && u.label), `${s.id}: unidades inválidas.`); }
     if (s.min != null || s.max != null) check((s.min == null || finite(s.min) != null) && (s.max == null || finite(s.max) != null) && (s.min == null || s.max == null || s.min <= s.max), `${s.id}: límites numéricos inválidos.`);
     if (s.minDate) check(validDate(s.minDate), `${s.id}: fecha mínima inválida.`);
@@ -202,7 +233,11 @@ function validateQuizStructure(input, publishing) {
     check(Array.isArray(list) && list.length <= 40, `${label}: máximo 40 bloques.`);
     if (!Array.isArray(list)) return;
     ids(list, label);
-    list.forEach(b => { check(BLOCK_TYPES.includes(b.type), `${label}: bloque inválido.`); group(b.when, label); if (b.ref) check(refs.has(b.ref), `${label}: referencia desconocida.`); if (b.type === 'scale') check(finite(b.min) != null && finite(b.max) != null && b.min < b.max, `${label}: escala inválida.`); (b.points || []).forEach(p => expression(p.expression, label)); });
+    list.forEach(b => { check(BLOCK_TYPES.includes(b.type), `${label}: bloque inválido.`); group(b.when, label); if (b.ref) check(refs.has(b.ref), `${label}: referencia desconocida.`); if (b.type === 'scale') check(finite(b.min) != null && finite(b.max) != null && b.min < b.max, `${label}: escala inválida.`); (b.points || []).forEach(p => expression(p.expression, label));
+      if (b.type === 'planSummary') check(Array.isArray(b.items) && b.items.length <= 6 && b.items.every(i => q.steps.some(s => s.id === i?.stepId)), `${label}: el resumen usa pantallas inexistentes (máximo 6).`);
+      if (b.type === 'goals') check((!b.stepId || q.steps.some(s => s.id === b.stepId && ['single', 'multiple'].includes(s.type))) && (b.items == null || (Array.isArray(b.items) && b.items.length <= 10)), `${label}: los objetivos deben salir de una pregunta con opciones.`);
+      if (['features', 'beforeAfter'].includes(b.type)) check(Array.isArray(b.items) && b.items.length <= 10, `${label}: máximo 10 elementos.`);
+      if (b.type === 'rating' && b.rating != null) check(finite(b.rating) != null && b.rating >= 0 && b.rating <= 5, `${label}: la puntuación va de 0 a 5.`); });
   };
   q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, s.id); });
   q.results.forEach(r => { group(r.when, r.id); blocks(r.blocks, r.id); });
@@ -210,7 +245,7 @@ function validateQuizStructure(input, publishing) {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
       if (['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText'].includes(key) || /Url$/.test(key)) check(typeof child === 'string', `Texto inválido en ${key}.`);
-      if (['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired'].includes(key)) check(typeof child === 'boolean', `Opción inválida en ${key}.`);
+      if (['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted'].includes(key)) check(typeof child === 'boolean', `Opción inválida en ${key}.`);
       if (typeof child === 'string') {
         check(child.length <= 6000, `Texto demasiado largo en ${key}.`);
         if (/Url$/.test(key) && child) { try { check(new URL(child).protocol === 'https:', `Usá una URL HTTPS en ${key}.`); } catch { errors.push(`URL inválida en ${key}.`); } }
@@ -225,10 +260,57 @@ function validateQuizStructure(input, publishing) {
 }
 export function assertQuiz(value, publishing = false) { const errors = validateQuiz(value, publishing); if (errors.length) throw new Error(errors.slice(0, 8).join('\n')); return clone(value); }
 const constant = value => ({ op: 'const', value });
+const STEP_DEFAULTS = {
+  loading: { title: 'Analizando tus respuestas…', description: '', buttonText: 'Continuar', durationMs: 5000, items: ['Analizando tus respuestas', 'Eligiendo lo más importante para vos', 'Armando tu plan'] },
+  info: { title: 'Un mensaje para vos', buttonText: 'Continuar', imageLayout: 'hero-bottom' },
+  number: { feedbackRanges: [] },
+  measure: { feedbackRanges: [] },
+};
 export function newStep(type, id) {
-  return { id, type, title: 'Nueva pantalla', description: '', enabled: true, required: QUESTION_TYPES.includes(type), buttonText: 'Continuar', layout: 'list', autoAdvance: type === 'single', options: ['single', 'multiple'].includes(type) ? [{ id: 'option1', label: 'Primera opción', score: 1 }, { id: 'option2', label: 'Segunda opción', score: 2 }] : [], ...(type === 'measure' ? { units: [{ id: 'unit', label: 'Unidades', factor: 1 }] } : {}), ...(type === 'contact' ? { nameRequired: true, emailRequired: true, consentText: 'Quiero recibir novedades por email.' } : {}) };
+  return { id, type, title: 'Nueva pantalla', description: '', enabled: true, required: QUESTION_TYPES.includes(type), buttonText: 'Continuar', layout: 'list', imageLayout: 'top', autoAdvance: type === 'single', options: ['single', 'multiple'].includes(type) ? [{ id: 'option1', label: 'Primera opción', score: 1 }, { id: 'option2', label: 'Segunda opción', score: 2 }] : [], ...(type === 'measure' ? { units: [{ id: 'unit', label: 'Unidades', factor: 1 }] } : {}), ...(type === 'contact' ? { nameRequired: true, emailRequired: true, consentText: 'Quiero recibir novedades por email.' } : {}), ...(STEP_DEFAULTS[type] || {}) };
 }
+const option = (id, label, icon, extra = {}) => ({ id, label, icon, ...extra });
+// Default funnel: questions with images/icons, text-only breaks, live feedback, a loading
+// screen, contact capture and a personalised final page that leads to the store checkout.
 export function createQuizTemplate(productName = 'tu próximo objetivo') {
+  const steps = [
+    { ...newStep('intro', 'welcome'), title: `Tu plan personalizado con ${productName}`, description: 'Respondé unas preguntas rápidas (menos de 2 minutos). Empezá eligiendo tu punto de partida:', required: true, autoAdvance: true,
+      options: [option('new', 'Estoy empezando', '🌱', { score: 1 }), option('some', 'Ya probé algunas cosas', '🚶', { score: 2 }), option('experienced', 'Quiero profundizar', '🚀', { score: 3 })] },
+    { ...newStep('single', 'goal'), title: '¿Cuál es tu objetivo principal?',
+      options: [option('learn', 'Aprender desde cero', '📚', { score: 1 }), option('improve', 'Mejorar lo que ya hago', '📈', { score: 2 }), option('habit', 'Crear un hábito constante', '🔁', { score: 3 })] },
+    { ...newStep('info', 'goal_info'), title: '¡Tenemos justo lo que necesitás!', description: 'Miles de personas empezaron exactamente donde estás vos.\n\nVamos a armar un plan simple, con pasos cortos que podés sostener.',
+      variants: [{ when: { mode: 'all', conditions: [{ ref: 'answer:goal', operator: 'eq', value: 'habit' }] }, content: { title: 'La constancia se entrena', description: 'Con 10 minutos por día alcanza para crear el hábito. Tu plan va a priorizar acciones pequeñas y repetibles.' } }] },
+    { ...newStep('multiple', 'wishes'), title: '¿Qué más te gustaría lograr?', description: 'Elegí todas las que apliquen', minSelections: 1,
+      options: [option('confidence', 'Sentirme más seguro/a', '💪'), option('time', 'Aprovechar mejor mi tiempo', '⏱️'), option('results', 'Ver resultados concretos', '🎯'), option('enjoy', 'Disfrutar el proceso', '😊'), option('none', 'Nada de lo anterior', '✖️', { exclusive: true })] },
+    { ...newStep('single', 'obstacle'), title: '¿Qué te frenó hasta ahora?', autoAdvance: false,
+      options: [
+        option('time', 'Falta de tiempo', '⌛', { feedback: { tone: 'good', title: '¡Lo tenemos en cuenta!', text: 'Tu plan usa sesiones cortas que entran en cualquier agenda.' } }),
+        option('info', 'Demasiada información suelta', '🧩', { feedback: { tone: 'good', title: 'Orden ante todo', text: 'Vas a seguir un paso a paso claro, sin perderte en lo que no suma.' } }),
+        option('motivation', 'Me cuesta mantener la motivación', '🔋', { feedback: { tone: 'info', title: 'Es lo más común', text: 'Por eso el plan marca pequeños logros que te mantienen avanzando.' } }),
+      ] },
+    { ...newStep('number', 'minutes'), title: '¿Cuántos minutos por día podés dedicarle?', description: 'Ingresá un número aproximado.', min: 1, max: 240, suffix: 'min', placeholder: '15',
+      feedbackRanges: [
+        { min: 1, max: 4, tone: 'warn', title: 'Es poquito, pero suma', text: 'Con tan poco tiempo vas a avanzar despacio. Si podés, apuntá a 10 minutos.' },
+        { min: 5, max: 30, tone: 'good', title: '¡Ideal!', text: 'Es el rango donde más se avanza sin abandonar.' },
+        { min: 31, max: 90, tone: 'info', title: 'Muy bien', text: 'Vas a poder avanzar rápido. Recordá hacer pausas.' },
+        { min: 91, max: 240, tone: 'bad', title: 'Te pasaste un poco', text: 'Más tiempo no siempre es mejor: con menos y constante alcanza.' },
+      ] },
+    { ...newStep('info', 'social'), title: 'No estás solo/a', description: 'La mayoría de las personas que empiezan con este plan tienen tu mismo punto de partida.\n\nLo importante es dar el primer paso: ya lo estás haciendo.' },
+    { ...newStep('loading', 'analyzing') },
+    { ...newStep('contact', 'contact'), title: '¿A dónde te enviamos tu plan?', description: 'Lo vas a ver en la próxima pantalla.', required: true, consentText: 'Quiero recibir consejos y novedades por email.' },
+  ];
+  return { version: 1, identity: { name: 'Tu guía', logoUrl: '', color: '#2e8b62', background: '#f6f3ef', textColor: '#1c2530', backText: 'Atrás', skipText: 'Omitir', termsUrl: '', privacyUrl: '' }, steps, calculations: [],
+    results: [{ id: 'general', default: true, title: '{{contact:name}}, tu plan está listo', description: 'Lo armamos con tus respuestas. Esto es lo que vas a lograr:', stickyCta: true, buttonText: 'Quiero mi plan', blocks: [
+      { id: 'summary', type: 'planSummary', title: '', items: [{ stepId: 'welcome', label: 'Nivel', icon: '📈' }, { stepId: 'goal', label: 'Objetivo', icon: '🎯' }, { stepId: 'minutes', label: 'Tiempo por día', icon: '⏱️', suffix: 'min' }] },
+      { id: 'goals', type: 'goals', title: 'Queremos que logres:', stepId: 'wishes', items: ['Avanzar con un paso a paso claro'] },
+      { id: 'features', type: 'features', title: 'Qué vas a recibir:', imageUrl: '', items: [{ icon: '📘', title: `${productName}, completo`, text: '' }, { icon: '🗓️', title: 'Un plan fácil de seguir', text: '' }, { icon: '✅', title: 'Resultados visibles desde las primeras semanas', text: '' }] },
+      { id: 'rating', type: 'rating', enabled: false, title: '', text: '', rating: 0 },
+      { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
+      { id: 'guarantee', type: 'guarantee', title: '' },
+      { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
+    ] }] };
+}
+export function createAdvancedQuizTemplate(productName = 'tu próximo objetivo') {
   const steps = [
     { ...newStep('intro', 'welcome'), title: `Encontrá cómo empezar con ${productName}`, description: 'Respondé a tu ritmo y descubrí qué parte de esta propuesta encaja con vos.', buttonText: 'Empezar' },
     { ...newStep('single', 'experience'), title: '¿Cuál es tu punto de partida?', options: [{ id: 'new', label: 'Estoy empezando', score: 1 }, { id: 'some', label: 'Ya probé algunas cosas', score: 2 }, { id: 'experienced', label: 'Quiero profundizar', score: 3 }] },
@@ -272,7 +354,9 @@ export function advanceSession(quiz, session, command, now = Date.now()) {
   if (command.revision !== session.revision) throw new Error('La sesión cambió. Recuperá el avance antes de reintentar.');
   let answers = clone(session.answers), history = [...session.history], currentStep = session.currentStep;
   if (command.direction === 'back') {
-    const previous = history.pop();
+    let previous = history.pop();
+    // Loading screens advance on their own, so going back skips them.
+    while (previous && history.length && quiz.steps.find(s => s.id === previous)?.type === 'loading') previous = history.pop();
     if (!previous) throw new Error('No hay una pantalla anterior.');
     const index = quiz.steps.findIndex(s=>s.id===previous);
     answers = Object.fromEntries(Object.entries(answers).filter(([id])=>quiz.steps.findIndex(s=>s.id===id)<=index));

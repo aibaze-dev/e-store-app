@@ -62,7 +62,8 @@ function Thumb({ src, name, className = 'size-16' }) {
 }
 
 export function Checkout({ view, via }) {
-  const origin=useLocation().state?.origin || 'direct';
+  const location = useLocation();
+  const origin=location.state?.origin || 'direct';
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { promotion: view.content?.promotion });
   const [selected, setSelected] = useState([]);
@@ -101,7 +102,7 @@ export function Checkout({ view, via }) {
     <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
       <section className="min-w-0 space-y-8">
         <h1 ref={headingRef} tabIndex={-1} className="sr-only">Finalizá tu compra</h1>
-        <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
+        <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={origin==='quiz'?location.state?.buyer:undefined} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
         {trust}
       </section>
 

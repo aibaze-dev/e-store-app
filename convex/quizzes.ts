@@ -34,6 +34,17 @@ export const get = query({args:{storeId:v.id('stores')},handler:async(ctx,{store
 export const save = mutation({args:{storeId:v.id('stores'),subdomain:v.string(),quiz:v.any()},handler:async(ctx,args)=>{
  await requireAdmin(ctx);return saveQuizDraft(ctx,args.storeId,args.subdomain,args.quiz);
 }});
+// Step images: the browser uploads straight to Convex storage and the quiz keeps the served
+// HTTPS URL. Only raster images up to 5 MB; anything else is deleted right away. Rejections
+// are returned, not thrown: throwing would roll back the deletion with the transaction.
+const IMAGE_TYPES=['image/jpeg','image/png','image/webp','image/gif','image/avif'];
+export const imageUploadUrl = mutation({args:{},handler:async ctx=>{await requireAdmin(ctx);return ctx.storage.generateUploadUrl();}});
+export const imageUrl = mutation({args:{storageId:v.id('_storage')},handler:async(ctx,{storageId})=>{
+ await requireAdmin(ctx);const file=await ctx.db.system.get(storageId);
+ if(!file)fail('No se encontró la imagen subida.');
+ if(!IMAGE_TYPES.includes(file.contentType??'')||file.size>5*1024*1024){await ctx.storage.delete(storageId);return {error:'Subí una imagen JPG, PNG, WebP, GIF o AVIF de hasta 5 MB.'};}
+ const url=await ctx.storage.getUrl(storageId);if(!url)fail('No se pudo obtener la imagen.');return {url};
+}});
 export const publish = mutation({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
  await requireAdmin(ctx);return publishQuiz(ctx,storeId);
 }});

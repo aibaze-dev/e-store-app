@@ -64,7 +64,7 @@ La propuesta reemplaza el recorrido del borrador: elimina reglas, cálculos y pe
 
 La acción de IA no guarda ni publica por sí sola. Su salida pasa por la validación del motor. Una respuesta inválida o un fallo del proveedor mantiene el borrador anterior. Requiere `OPENAI_API_KEY`; `OPENAI_MODEL` es opcional y comparte el valor predeterminado del servidor. Sin credenciales, el formulario manual sigue funcionando.
 
-No se generan imágenes, testimonios, estadísticas, fórmulas de salud ni modificaciones de precios. La IA redacta una presentación de los productos existentes; no crea un producto personalizado.
+El asistente también genera imágenes de portada, preguntas/intermedios y resultado. No genera testimonios, estadísticas, fórmulas de salud ni modificaciones de precios. La IA redacta una presentación de los productos existentes; no crea un producto personalizado.
 
 ## Pantallas y reglas
 
@@ -147,3 +147,22 @@ Se verificaron con pruebas automatizadas las reglas, fórmulas, datos faltantes,
 La revisión visual local usó datos de ejemplo y callbacks simulados para guardar/generar: escritorio y móvil, editor simple, asistente, selección múltiple exclusiva, unidades, campos opcionales y resumen calculado. La vista previa usa el motor en memoria y no crea sesiones, contactos, órdenes ni eventos reales.
 
 Suscripciones, un checkout nuevo y creación de productos personalizados quedan fuera de este cambio. El despliegue y la comprobación con servicios reales quedan separados de esta entrega local.
+
+
+## Imágenes del quiz con IA (16/11/2026)
+
+Al pulsar **Generar quiz**, la generación de textos prepara escenas específicas y una dirección visual común. El panel genera después las imágenes de portada, preguntas/intermedios y resultado, de a dos, muestra progreso y miniaturas y permite probar el recorrido con las imágenes. Conserva las imágenes ya configuradas en la portada y los bloques de imagen del resultado. No genera imágenes para cada opción de respuesta, contacto ni pantalla de carga.
+
+Cada imagen se solicita desde `convex/quiz_images.ts` a la Images API de OpenAI y se guarda como JPEG en Convex Storage (máximo 5 MB); el quiz conserva la URL HTTPS estable y texto alternativo. Reutiliza `OPENAI_API_KEY`; `OPENAI_IMAGE_MODEL` permite cambiar el modelo, cuyo predeterminado es `gpt-image-2.6-flare`. La clave necesita acceso al modelo de imágenes. Las llamadas usan calidad medium, 1536×1024 y compresión JPEG 85. Referencia del contrato: https://developers.openai.com/api/reference/resources/images/methods/generate.
+
+La generación no guarda ni publica el quiz. Las imágenes terminadas permanecen en la propuesta si alguna falla. **Reintentar imágenes pendientes** solicita únicamente las faltantes y no regenera los textos. Se puede guardar el borrador parcial; el reintento del asistente está disponible mientras su propuesta siga abierta. Recargar antes de guardar pierde esa propuesta. Los archivos generados se almacenan antes de aplicar; descartar la propuesta no elimina automáticamente esos archivos, igual que ocurre con imágenes subidas.
+
+La acción de imágenes comprueba administrador y tienda antes de llamar al proveedor, limita el prompt y el tiempo de espera, valida el formato recibido y no expone mensajes internos del proveedor. No toma respuestas ni contactos de visitantes. No reemplaza las portadas de productos ni cambia precios, reglas o publicación. Frontend y backend deben desplegarse juntos. No necesita migración de documentos.
+
+## Quiz tipo funnel (16/11/2026)
+
+- `shared/quiz.js`: `feedbackFor(step, value)` evalúa el feedback por opción (`option.feedback`) o por rangos (`step.feedbackRanges`, en unidad base y con límites abiertos). Agrega el tipo `loading` (`durationMs`, `items`), `imageLayout` y `layout`, y los bloques `planSummary`, `goals`, `features`, `rating` y `beforeAfter`, todos validados en el servidor. `personalize()` omite las variables vacías en los textos públicos. `createQuizTemplate()` crea el funnel nuevo; `createAdvancedQuizTemplate()` conserva el ejemplo con fórmulas que usan las pruebas del motor. Volver atrás salta los `loading`.
+- Player: `src/storefront/Quiz.jsx` (estructura), `QuizStep.jsx` (pantallas) y `QuizResult.jsx` (página final y bloques heredados). La animación de entrada del contenedor usa solo opacidad: un `transform` dejaría el botón fijo atrapado dentro de la columna.
+- Editor: `src/panel/QuizBuilder.jsx` (recorrido, edición de cada pantalla y vista previa) y `src/panel/QuizAdvanced.jsx` (reglas, fórmulas y bloques heredados, que antes estaban en `QuizEditor.jsx`).
+- `quizzes:imageUploadUrl` / `quizzes:imageUrl` (admin): el segundo devuelve `{url}` o `{error}`. Una imagen inválida se borra sin lanzar error, porque lanzarlo revertiría el borrado dentro de la transacción.
+- Checkout: `CheckoutPayment` acepta `initialBuyer`, que se usa con `origin: 'quiz'`.

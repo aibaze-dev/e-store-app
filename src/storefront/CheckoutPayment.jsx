@@ -57,9 +57,10 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
   </form>;
 }
 
-export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken }) {
+export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer }) {
   const start = useAction(api.checkout.start);
-  const [buyer, setBuyer] = useState({ email: '', firstName: '', lastName: '', phone: '' });
+  // A quiz may hand over the name and email the visitor already typed; they stay editable.
+  const [buyer, setBuyer] = useState(() => ({ email: '', firstName: '', lastName: '', phone: '', ...Object.fromEntries(Object.entries(initialBuyer ?? {}).filter(([key, value]) => ['email', 'firstName'].includes(key) && typeof value === 'string')) }));
   const [paying, setPaying] = useState(false);
   const [session, setSession] = useState(null);
   const [error, setError] = useState('');

@@ -201,3 +201,27 @@ El formulario se organiza en el orden de lectura y agrega cinco bloques opcional
 Verificación local: pruebas de guardado/publicación y rechazo de URLs inseguras, compilación, revisión visual a 1440/390/320 px con fixtures temporales, FAQ y CTA, edición con preview en vivo, guardado simulado del formulario y fallbacks de imágenes. La verificación de tipos adicional detectó errores preexistentes en los módulos de quiz y la inferencia de `promotion.timerMode`; también se reprodujeron con las versiones anteriores de `content.js` y `landings.ts`. No se hicieron pagos reales ni publicación cloud. Para habilitar los campos nuevos hay que desplegar frontend y backend juntos; no requiere migrar landings existentes.
 
 Ajuste responsive de la clásica: marcos de portada parejos sin recortar imágenes, valores de bonos alineados, encabezado del equipo alineado al texto, grillas equilibradas con cantidades impares y métricas compactas. La barra fija mide su altura para reservar espacio y no tapar el pie, incluso con textos largos; los avisos se ubican debajo del banner. El preview conserva un viewport de 1040/390 px y se escala al espacio disponible. Verificado localmente a 320, 390, 768, 1024, 1440 y 1920 px, incluyendo textos largos, imágenes de diferentes proporciones, FAQ dentro del iframe y pie visible. Las 131 pruebas y el build pasan; sin despliegue.
+
+Detalle visual de la referencia: CTA naranja–ámbar con sombras cálidas, estados de interacción y foco; banner y cabecera con degradados, fondos crema/chocolate y diálogos de oferta con la misma paleta. El aviso de compra de ejemplo incorpora portada, nombre del producto, cierre táctil de 44 px y progreso; en móvil queda centrado 12 px sobre la barra fija. Conserva los tiempos y preferencias de actividad, y respeta movimiento reducido. Paletas personalizadas conservadas. Validación: 141 pruebas, build, CTA/FAQ/diálogo de oferta y revisión sin desbordes a 320, 390, 768, 1024 y 1440 px. Sin despliegue.
+
+### Imágenes del quiz generadas con IA
+
+**Generar quiz** ahora prepara y genera imágenes para portada, preguntas/intermedios y resultado con un estilo común. El asistente muestra progreso y miniaturas; si alguna falla, conserva la propuesta y permite reintentar solo las pendientes. Mantiene las imágenes ya configuradas en portada y los bloques de imagen del resultado. No genera imágenes por opción de respuesta. Los JPEG se almacenan en Convex Storage y se guardan con el borrador al aplicarlo; publicar sigue siendo una acción aparte.
+
+Usa `OPENAI_API_KEY` y `OPENAI_IMAGE_MODEL` opcional (predeterminado `gpt-image-2.6-flare`). Frontend y backend deben desplegarse juntos; no requiere migración. Detalles de persistencia y límites en [SYSTEM_CONTEXT.md](./SYSTEM_CONTEXT.md).
+
+Verificación local: 156 pruebas pasan, incluidas 9 de imágenes; build correcto. Flujo de generación parcial, reintento, preview y guardado verificado en navegador a 1440, 390 y 320 px, sin desbordes. OpenAI se simuló: no se efectuaron llamadas pagas ni despliegue. El chequeo TypeScript adicional detecta errores existentes de tipos en emails, quiz/quiz_records y storefront; no reportó errores en los nuevos módulos de imágenes. Persiste la advertencia del bundle principal mayor de 500 kB.
+
+### Quiz tipo funnel (16/11/2026)
+
+El quiz público se rehízo con la mecánica de un funnel móvil: cada pantalla con su imagen, pantallas de solo texto intercaladas, feedback dinámico dentro del mismo paso, una pantalla «Analizando…» y una página final personalizada que lleva al checkout existente (sin precios ni planes en el quiz).
+
+- **Tipos de pantalla del editor:** una respuesta, varias respuestas, solo texto, número con feedback, analizando y nombre/email. Los tipos anteriores siguen funcionando.
+- **Feedback por paso:** en preguntas de una respuesta, cada opción puede tener un mensaje (🟢 bien, 🟡 atención, 🔴 te pasaste, 🔵 dato) que aparece al elegirla. En pasos numéricos se configuran rangos «desde / hasta» que se evalúan en vivo mientras la persona escribe. Todo se configura en la misma pantalla.
+- **Imágenes:** por pantalla (arriba, grande abajo o al costado en escritorio) y por opción (lista, imagen a la derecha o grilla). Se suben a Convex Storage (JPG, PNG, WebP, GIF o AVIF de hasta 5 MB, solo administradores) o se pega una URL HTTPS.
+- **Página final:** resumen con las respuestas, objetivos marcados, «qué vas a recibir», puntuación, antes/después, garantía de la tienda y FAQ. Las secciones se reordenan y se ocultan. El botón lleva a `/checkout` con nombre y email del quiz precargados.
+- **Editor:** recorrido a la izquierda (arrastrar para ordenar, duplicar, ocultar y eliminar), edición de la pantalla en el centro y vista previa de teléfono en vivo a la derecha. Las reglas, saltos, cálculos y perfiles quedan en «Avanzado».
+
+Volver atrás desde la pantalla siguiente salta la pantalla «Analizando…», que avanza sola. Los quizzes existentes no requieren migración. Hay que desplegar frontend y backend juntos.
+
+Verificación local: `pnpm test` (156 pruebas en total, entre ellas las de feedback, validación, loading, textos personalizados y subida de imágenes) y `pnpm build`. Se revisó en el navegador con datos de prueba temporales a 375 px y 1440 px: player completo, página final y editor. `convex-test` no conserva el tipo de archivo subido, así que la aceptación de una imagen real queda sin cubrir localmente y hay que probarla en el deployment. No se hicieron pagos ni se publicó en la nube.
