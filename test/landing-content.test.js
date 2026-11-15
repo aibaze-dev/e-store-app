@@ -1,9 +1,16 @@
 import { formatLandingText } from '../shared/landing-copy.js';
+import { classicTheme } from '../shared/classic-design.js';
 import { describe, it, expect } from 'vitest';
 import { normalizeContent, mergeGeneratedContent, offerTotals, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
 import { content } from './helpers';
 
 describe('sales template content', () => {
+  it('upgrades the legacy palette while preserving a personalized brand color', () => {
+    expect(classicTheme('#f59e0b')).toEqual(classicTheme());
+    expect(classicTheme('invalid')).toEqual(classicTheme());
+    expect(classicTheme('#2040a0')).toMatchObject({ '--sales-accent': '#2040a0', '--classic-cta-end': '#2040a0', '--classic-cta-text': '#ffffff' });
+    expect(classicTheme('#eeeeee')['--classic-cta-text']).toBe('#111827');
+  });
   it('loads legacy lists without mutating published content and fills missing sections', () => {
     const old = { ...content, benefits: { title: 'Beneficios', items: ['Una guía clara'] } };
     const normalized = normalizeContent(old);
