@@ -1,6 +1,6 @@
 import { formatLandingText } from '../shared/landing-copy.js';
 import { describe, it, expect } from 'vitest';
-import { normalizeContent, offerTotals, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
+import { normalizeContent, mergeGeneratedContent, offerTotals, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
 import { content } from './helpers';
 
 describe('sales template content', () => {
@@ -30,6 +30,17 @@ describe('sales template content', () => {
     expect(formatLandingText(normalized.promotion.spotsText, { cantidad: 7 })).toBe('Quedan 7 cupos a este precio');
     expect(formatLandingText('{nombre}: {nombre} {desconocido}', { nombre: '{cantidad}' })).toBe('{cantidad}: {cantidad} {desconocido}');
     expect(normalizeContent({ activity: { viewersText: '' } }).activity.viewersText).toBe('');
+  });
+  it('replaces generated examples without losing manual testimonials, metrics or visibility', () => {
+    const real = { name: 'Ana', quote: 'Texto original', format: 'chat' };
+    const old = normalizeContent({ socialProof: { enabled: false, rating: 4.8, items: [real, { name: 'Viejo', quote: 'Ejemplo anterior', isExample: true }] } });
+    const generated = { socialProof: { title: 'Ejemplos', items: [{ name: 'Nuevo', quote: 'Ejemplo nuevo', isExample: true }] } };
+    const merged = mergeGeneratedContent(old, generated);
+    expect(merged.socialProof).toMatchObject({ enabled: false, rating: 4.8, items: [real, generated.socialProof.items[0]] });
+    expect(mergeGeneratedContent(merged, generated)).toEqual(merged);
+    expect(old.socialProof.items[1].name).toBe('Viejo');
+    const full = normalizeContent({ socialProof: { items: Array.from({ length: 12 }, () => ({ ...real })) } });
+    expect(mergeGeneratedContent(full, generated).socialProof.items).toEqual(full.socialProof.items);
   });
   it('calculates bundle savings from reference values without changing the charge', () => {
     const offer = { main: { price: 1699000, compareAtPrice: 8495000 }, bonuses: [{ referenceValue: 1499000 }] };

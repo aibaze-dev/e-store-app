@@ -32,7 +32,7 @@ const SCHEMA = object({
   faq: object({ items: list({ question: text, answer: text }) }),
   guarantee: object({ title: text, text }),
   closing: object({ title: text, ctaText: text }),
-  socialProof: object({ eyebrow: text, title: text, subtitle: text }),
+  socialProof: object({ eyebrow: text, title: text, subtitle: text, items: list({ name: text, quote: text, openingMessage: text, closingMessage: text }) }),
   promotion: object({ message: text, timerLabel: text, spotsText: text }),
   activity: object({ viewersText: text, salesText: text, purchaseText: text, purchaseLocationText: text }),
   postPurchase: object({ eyebrow: text, title: text, subtitle: text, description: text, ctaText: text, declineText: text, downsellTitle: text, downsellText: text, downsellCtaText: text }),
@@ -44,7 +44,7 @@ const SYSTEM = `Sos redactor publicitario de páginas de venta de ebooks. Escrib
 
 Reglas:
 - Escribí en el mismo idioma y variedad regional que las respuestas del vendedor.
-- Usá solo la información recibida. No inventes testimonios, cifras, estadísticas, credenciales, premios, precios, descuentos, plazos ni resultados garantizados.
+- Usá solo la información recibida, salvo los testimonios ilustrativos solicitados en socialProof. No inventes cifras, estadísticas, credenciales, premios, precios, descuentos, plazos ni resultados garantizados.
 - No prometas resultados médicos, financieros ni legales.
 - Texto plano: sin markdown, sin emojis y sin comillas alrededor de los textos.
 - Límites: título principal hasta 90 caracteres; subtítulos hasta 220; botones hasta 30; títulos de sección hasta 60; títulos de elementos hasta 70; descripciones hasta 220; respuestas hasta 350.
@@ -52,7 +52,7 @@ Reglas:
 - faq: 4 a 6 preguntas. Podés afirmar que es un producto digital, que el pago es único y seguro, y que el acceso se entrega apenas se confirma el pago. No afirmes nada más sobre entrega, formatos, soporte o reembolsos que no figure en los datos.
 - guarantee: si el vendedor informa días de garantía, redactá un título y un texto breve con esos días exactos. Si no informa garantía, devolvé título y texto vacíos y no la menciones en ningún otro texto.
 - closing: una última invitación a comprar, distinta del título principal.
-- socialProof: solo el antetítulo (eyebrow), título y subtítulo que presentan experiencias de lectores. No escribas conversaciones, nombres, testimonios ni métricas.
+- socialProof: escribí el antetítulo (eyebrow), título, subtítulo y 4 testimonios ficticios para un carrusel de ejemplos. Cada item lleva name (nombre de pila inventado, hasta 60 caracteres), openingMessage (pregunta breve del vendedor, hasta 120), quote (respuesta del lector, entre 120 y 300 caracteres) y closingMessage (agradecimiento breve, hasta 120). Adaptalos al ebook, al público, sus problemas y los beneficios descritos; variá nombres, situaciones y redacción. Usá un tono natural de conversación, sin exageraciones ni resultados garantizados. Usá encabezados neutros como «Testimonios» u «Opiniones sobre el ebook», sin etiquetas de ejemplo, demo o IA y sin afirmar que sean reseñas verificadas. No inventes métricas, estrellas, compras verificadas ni imágenes.
 - promotion: mensaje breve de la oferta (message, hasta 120 caracteres), etiqueta del contador (timerLabel, hasta 120) y frase de cupos (spotsText, hasta 240). spotsText debe contener exactamente el marcador {cantidad}. No inventes cupos, fechas, duraciones ni descuentos; no prometas que el precio cambiará cuando termine el contador.
 - activity: frases de hasta 240 caracteres. viewersText y salesText deben contener {cantidad}; purchaseText debe contener {nombre}; purchaseLocationText debe contener {ciudad}. Conservá esos marcadores en español aunque redactes en otro idioma. No los sustituyas por valores, nombres ni lugares. Las cantidades y la actividad las proporciona la aplicación.
 - postPurchase y postPurchaseBenefits: si se informa un producto post-compra, redactá una oferta para quien ya compró el ebook principal. Usá únicamente el nombre y descripción del producto adicional, diferenciándolo de los bonos gratis. Se cobra aparte y puede rechazarse. Escribí presentación, descripción, botones y hasta 6 beneficios sustentados en los datos. Si se informa downsell, redactá su título, texto y botón sin inventar porcentaje ni precio. No extiendas la garantía del principal a este producto. postPurchaseVideo: escribí solo un título para la presentación en video de ese producto. No escribas URL de video ni cambies opciones. Sin producto post-compra devolvé textos vacíos y la lista vacía; sin downsell devolvé sus tres textos vacíos.
@@ -102,9 +102,16 @@ export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: 
     // A guarantee is only written when the seller stated one.
     ...(guaranteeDays && guarantee.text ? { guarantee: { ...guarantee, days: guaranteeDays } } : {}),
     closing: { title: clip(raw?.closing?.title, 160), ctaText: clip(raw?.closing?.ctaText, 60) },
-    // Merge headings only: the seller's conversations, metrics and visibility stay intact.
+    // Example provenance is assigned here, never trusted to the model.
     ...(typeof raw?.socialProof?.title === 'string' ? {
-      socialProof: { ...heading(raw.socialProof), eyebrow: clip(raw.socialProof.eyebrow, 120) },
+      socialProof: {
+        ...heading(raw.socialProof), eyebrow: clip(raw.socialProof.eyebrow, 120),
+        items: items(raw.socialProof.items, 6).map(item => ({
+          name: clip(item?.name, 120), quote: clip(item?.quote, 1200),
+          openingMessage: clip(item?.openingMessage, 1200), closingMessage: clip(item?.closingMessage, 1200),
+          format: 'chat' as const, isExample: true,
+        })).filter(item => item.name && item.quote),
+      },
     } : {}),
     promotion: {
       message: copyText(raw?.promotion?.message, 'Oferta limitada', 120),
@@ -176,6 +183,7 @@ export const generate = action({
     });
     const draft = raw ? draftFromModel(raw, days, offer.postPurchase) : null;
     if (!draft || !draft.hero.title) fail('No se pudieron generar los textos. Volvé a intentar en unos minutos.');
+    if (!draft.socialProof || draft.socialProof.items.length < 2) fail('No se pudieron generar los testimonios del carrusel. Volvé a intentar.');
     return draft;
   },
 });

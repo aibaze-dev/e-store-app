@@ -1,3 +1,5 @@
+import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
+import { forStore, setAddress } from './lib/landing_records';
 import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS } from '../shared/landing-copy.js';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 import { v } from 'convex/values';
@@ -8,8 +10,9 @@ import { cleanSubdomain, cleanText, cleanUrl, fail } from './lib/validation';
 import { landingContent } from './schema';
 
 const TEMPLATES = ['classic'];
+const landingKind = v.optional(v.union(v.literal('classic'),v.literal('quiz')));
 
-function cleanContent(content: typeof landingContent.type) {
+export function cleanContent(content: typeof landingContent.type) {
   const section = (value: { enabled?: boolean; subtitle?: string } | undefined) => ({
     enabled: value?.enabled ?? true,
     subtitle: cleanText(value?.subtitle ?? '', 'Subtítulo de sección', 400),
@@ -83,6 +86,7 @@ function cleanContent(content: typeof landingContent.type) {
         if (item.format === 'chat' && !quote) fail('Agregá el mensaje del lector en cada conversación.');
         if (!quote && !imageUrl) fail('Agregá el texto o una captura de cada testimonio.');
         return { name, quote, ...(imageUrl ? { imageUrl } : {}), format: item.format ?? 'quote',
+          ...(item.isExample ? { isExample: true } : {}),
           openingMessage: cleanText(item.openingMessage ?? '', 'Mensaje inicial', 1200),
           closingMessage: cleanText(item.closingMessage ?? '', 'Mensaje de cierre', 1200),
         };
@@ -135,53 +139,76 @@ function cleanContent(content: typeof landingContent.type) {
 }
 
 export const getForStore = query({
-  args: { storeId: v.id('stores') },
-  handler: async (ctx, { storeId }) => {
+  args: { storeId: v.id('stores'), type: landingKind },
+  handler: async (ctx, { storeId, type = 'classic' }) => {
     await requireAdmin(ctx);
-    return await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).unique();
+    return await forStore(ctx, storeId, type);
   },
 });
 
 // Draft preview for the panel; the public site only ever reads `published`.
 export const preview = query({
-  args: { storeId: v.id('stores') },
-  handler: async (ctx, { storeId }) => {
+  args: { storeId: v.id('stores'), type: landingKind },
+  handler: async (ctx, { storeId, type = 'classic' }) => {
     await requireAdmin(ctx);
     const store = await ctx.db.get(storeId);
-    const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).unique();
+    const landing = await forStore(ctx, storeId, type);
     if (!store || !landing) return null;
+    if(type==='quiz') return {quiz:landing.quizDraft,view:await buildLandingView(ctx,store,landing,landing.draft)};
     const view = await buildLandingView(ctx, store, landing, landing.draft);
     return view && { ...view, postPurchaseOffer: await buildPostPurchaseView(ctx, store, landing.draft) };
   },
 });
 
 export const saveDraft = mutation({
-  args: { storeId: v.id('stores'), subdomain: v.string(), template: v.string(), draft: landingContent },
+  args: { storeId: v.id('stores'), subdomain: v.string(), type:landingKind, template: v.optional(v.string()), draft: v.optional(landingContent), quiz:v.optional(v.any()) },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    if(args.type==='quiz')return saveQuizDraft(ctx,args.storeId,args.subdomain,args.quiz);
+    if(!args.draft)fail('Falta el contenido clásico.');
+    const template=args.template??'classic';
     if (!(await ctx.db.get(args.storeId))) fail('La tienda ya no existe.');
-    if (!TEMPLATES.includes(args.template)) fail('Plantilla: elegí una plantilla disponible.');
-    const subdomain = cleanSubdomain(args.subdomain);
+    if (!TEMPLATES.includes(template)) fail('Plantilla: elegí una plantilla disponible.');
+    const subdomain = await setAddress(ctx, args.storeId, args.subdomain);
     const draft = cleanContent(args.draft);
-    const existing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', args.storeId)).unique();
-    const taken = await ctx.db.query('landings').withIndex('by_subdomain', q => q.eq('subdomain', subdomain)).first();
-    if (taken && taken._id !== existing?._id) fail('Subdominio: ya lo usa otra tienda. Elegí otro.');
+    const existing = await forStore(ctx, args.storeId);
+    await ctx.db.patch(args.storeId, { purchaseDraft: draft });
     if (existing) {
-      await ctx.db.patch(existing._id, { subdomain, template: args.template, draft });
+      await ctx.db.patch(existing._id, { subdomain, template, draft });
       return existing._id;
     }
-    return await ctx.db.insert('landings', { storeId: args.storeId, subdomain, template: args.template, draft });
+    return await ctx.db.insert('landings', { storeId: args.storeId, subdomain, template, draft });
   },
 });
 
 export const publish = mutation({
-  args: { storeId: v.id('stores') },
-  handler: async (ctx, { storeId }) => {
+  args: { storeId: v.id('stores'), type: landingKind },
+  handler: async (ctx, { storeId, type = 'classic' }) => {
     await requireAdmin(ctx);
-    const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).unique();
+    if(type==='quiz')return publishQuiz(ctx,storeId);
+    const landing = await forStore(ctx, storeId, type);
     if (!landing) fail('Guardá el borrador antes de publicar.');
     if (!landing.draft.hero.title) fail('Para publicar, completá el título principal.');
+    await ctx.db.patch(storeId, { purchasePublished: landing.draft });
     await ctx.db.patch(landing._id, { published: landing.draft, publishedAt: Date.now() });
     return landing._id;
   },
 });
+
+export const list = query({ args: { storeId: v.id('stores') }, handler: async (ctx, {storeId}) => {
+  await requireAdmin(ctx); return ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).collect();
+}});
+export const unpublish = mutation({ args: { storeId: v.id('stores'), type: v.union(v.literal('classic'), v.literal('quiz')) }, handler: async (ctx, {storeId,type}) => {
+  await requireAdmin(ctx); const row = await forStore(ctx,storeId,type);
+  if(row) await ctx.db.patch(row._id,{ published: undefined, publicationId: undefined, publishedAt: undefined });
+}});
+// Run repeatedly in batches; existing IDs, content and order references remain intact.
+export const migrate = mutation({ args: { cursor: v.union(v.string(),v.null()) }, handler: async (ctx,{cursor}) => {
+  await requireAdmin(ctx);
+  const page = await ctx.db.query('stores').paginate({cursor,numItems:50});
+  for(const store of page.page) {
+    const classic=await forStore(ctx,store._id);
+    if(classic) await ctx.db.patch(store._id,{subdomain:store.subdomain ?? classic.subdomain,purchaseDraft:store.purchaseDraft ?? classic.draft,...((store.purchasePublished ?? classic.published) ? {purchasePublished:store.purchasePublished ?? classic.published}: {})});
+  }
+  return {cursor:page.continueCursor,done:page.isDone};
+}});

@@ -45,7 +45,7 @@ describe('minimal visit history', () => {
     expect(history[0]).toMatchObject({ storeId, page: 'landing', day: dateKey(Date.now(), business.timeZone), ipHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
     expect(history[0]._creationTime).toBeGreaterThan(0);
     expect(JSON.stringify(history)).not.toContain('192.0.2.1');
-    expect(Object.keys(history[0]).sort()).toEqual(['_creationTime', '_id', 'day', 'eventId', 'ipHash', 'page', 'storeId'].sort());
+    expect(Object.keys(history[0]).sort()).toEqual(['_creationTime', '_id', 'day', 'eventId', 'ipHash', 'origin', 'page', 'storeId'].sort());
   });
 
   it('deduplicates browser reloads and a lost ACK end-to-end with confirmed server responses', async () => {

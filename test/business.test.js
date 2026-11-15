@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
-import { normalizeContent } from '../src/templates/content.js';
+import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
 import { backend, signedIn, mockStripe, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
 
 const ADMIN = 'owner@example.com';
@@ -516,7 +516,7 @@ describe('landing copy assistant', () => {
     faq: { items: [{ question: '¿Es digital?', answer: 'Sí.' }, { question: '¿Sin respuesta?', answer: '' }] },
     guarantee: { title: 'Garantía', text: 'Probalo 7 días.' },
     closing: { title: 'Empezá hoy', ctaText: 'x'.repeat(200) },
-    socialProof: { eyebrow: 'Experiencias', title: 'Lo que cuentan los lectores', subtitle: '', items: [{ name: 'Inventado', quote: 'Genial' }], rating: 5 },
+    socialProof: { eyebrow: 'Experiencias', title: 'Lo que cuentan los lectores', subtitle: '', items: Array.from({ length: 4 }, (_, i) => ({ name: `Lector ${i + 1}`, quote: 'Me ayudó a ordenar mis ideas.', openingMessage: '¿Cómo te fue?', closingMessage: 'Gracias por compartir.' })), rating: 5 },
     promotion: { message: 'Conseguí tu guía', timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}', enabled: false, remainingSpots: 999 },
     activity: { viewersText: '{cantidad} lectores mirando la guía', salesText: '{cantidad} compras confirmadas', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'En {ciudad}', notifications: false },
     postPurchase: { eyebrow: 'Seguí aprendiendo', title: 'Avanzá con el curso', subtitle: 'Un paso más', description: 'Profundizá lo aprendido.', ctaText: 'Sumar el curso', declineText: 'Seguir sin el curso', downsellTitle: 'Tu curso con descuento', downsellText: 'Una oportunidad adicional', downsellCtaText: 'Aceptar descuento', price: 1 },
@@ -561,7 +561,11 @@ describe('landing copy assistant', () => {
     expect(draft.faq.items).toEqual([{ question: '¿Es digital?', answer: 'Sí.' }]);
     expect(draft.guarantee).toEqual({ title: 'Garantía', text: 'Probalo 7 días.', days: 7 });
     expect(draft.closing.ctaText).toHaveLength(60);
-    expect(draft.socialProof).toEqual({ eyebrow: 'Experiencias', title: 'Lo que cuentan los lectores', subtitle: '' });
+    expect(draft.socialProof).toMatchObject({ eyebrow: 'Experiencias', title: 'Lo que cuentan los lectores', subtitle: '' });
+    expect(draft.socialProof.items).toHaveLength(4);
+    expect(draft.socialProof.items.every(item => item.isExample && item.format === 'chat')).toBe(true);
+    expect(draft.socialProof.rating).toBeUndefined();
+    expect(requests[0].body.response_format.json_schema.schema.properties.socialProof.required).toContain('items');
     expect(draft.promotion).toEqual({ message: 'Conseguí tu guía', timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}' });
     expect(draft.activity).toEqual({ viewersText: '{cantidad} lectores mirando la guía', salesText: '{cantidad} compras confirmadas', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'En {ciudad}' });
     expect(await rows(t, 'landings')).toEqual(before);
@@ -572,10 +576,14 @@ describe('landing copy assistant', () => {
     current.postPurchaseVideo = { enabled: false, url: 'https://example.com/my-video.mp4', title: 'Mi video' };
     current.postPurchaseBenefits.enabled = false;
     current.socialProof.items = [{ name: 'Ana', quote: 'Me ayudó.', format: 'chat', openingMessage: '¿Cómo te fue?', closingMessage: 'Gracias.' }];
-    const merged = { ...current, ...Object.fromEntries(Object.entries(draft).map(([key, patch]) => [key, { ...current[key], ...patch }])) };
+    const merged = mergeGeneratedContent(current, draft);
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: merged });
     const saved = await admin.query(api.landings.getForStore, { storeId });
-    expect(saved.draft.socialProof.items).toEqual(current.socialProof.items);
+    expect(saved.draft.socialProof.items).toEqual([...current.socialProof.items, ...draft.socialProof.items]);
+    expect(saved.published.socialProof.items).toEqual([]);
+    await admin.mutation(api.landings.publish, { storeId });
+    const live = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });
+    expect(live.content.socialProof.items).toEqual(saved.draft.socialProof.items);
     expect(saved.draft.postPurchaseVideo).toEqual({ ...current.postPurchaseVideo, title: 'Conocé el curso' });
     expect(saved.draft.postPurchaseBenefits.enabled).toBe(false);
     expect(saved.draft.promotion).toMatchObject({ enabled: false, remainingSpots: 7, timerMode: 'date', endsAt: 1_900_000_000_000 });

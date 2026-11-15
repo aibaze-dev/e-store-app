@@ -16,7 +16,7 @@ export const landingContent = v.object({
   hero: v.object({ title: v.string(), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string() }),
   benefits: v.object({ ...sectionFields, title: v.string(), items: v.array(v.union(v.string(), feature)) }),
   painPoints: v.optional(v.object({ closingText: v.optional(v.string()), ...sectionFields, title: v.string(), items: v.array(v.union(v.string(), feature)) })),
-  socialProof: v.optional(v.object({ eyebrow: v.optional(v.string()), rating: v.optional(v.number()), customers: v.optional(v.number()), satisfaction: v.optional(v.number()), ...sectionFields, title: v.string(), items: v.array(v.object({ name: v.string(), quote: v.string(), imageUrl: v.optional(v.string()), format: v.optional(v.union(v.literal('quote'), v.literal('chat'))), openingMessage: v.optional(v.string()), closingMessage: v.optional(v.string()) })) })),
+  socialProof: v.optional(v.object({ eyebrow: v.optional(v.string()), rating: v.optional(v.number()), customers: v.optional(v.number()), satisfaction: v.optional(v.number()), ...sectionFields, title: v.string(), items: v.array(v.object({ name: v.string(), quote: v.string(), imageUrl: v.optional(v.string()), format: v.optional(v.union(v.literal('quote'), v.literal('chat'))), openingMessage: v.optional(v.string()), closingMessage: v.optional(v.string()), isExample: v.optional(v.boolean()) })) })),
   bonuses: v.object({ ...sectionFields, title: v.string() }),
   faq: v.object({ ...sectionFields, title: v.string(), items: v.array(v.object({ question: v.string(), answer: v.string() })) }),
   guarantee: v.object({ ...sectionFields, title: v.string(), text: v.string(), days: v.optional(v.number()) }),
@@ -82,6 +82,7 @@ export default defineSchema({
   pageViews: defineTable({
     storeId: v.id('stores'),
     page: v.union(v.literal('landing'), v.literal('checkout')),
+    origin: v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct'))),
     day: v.string(),
     ipHash: v.optional(v.string()),
     eventId: v.string(),
@@ -110,7 +111,10 @@ export default defineSchema({
     downsell: v.optional(storeDownsell),
     tracking: v.object({ metaPixelId: v.string() }),
     checkout: v.optional(storeCheckout),
-  }),
+    subdomain: v.optional(v.string()),
+    purchaseDraft: v.optional(landingContent),
+    purchasePublished: v.optional(landingContent),
+  }).index('by_subdomain', ['subdomain']),
 
   landings: defineTable({
     storeId: v.id('stores'),
@@ -119,6 +123,8 @@ export default defineSchema({
     draft: landingContent,
     published: v.optional(landingContent),
     publishedAt: v.optional(v.number()),
+    quizDraft: v.optional(v.any()),
+    publicationId: v.optional(v.id('quizPublications')),
   }).index('by_store', ['storeId']).index('by_subdomain', ['subdomain']),
 
   // Items are a copy of what was sold; never rebuild a purchase from the current store.
@@ -127,6 +133,8 @@ export default defineSchema({
     landingId: v.id('landings'),
     parentOrderId: v.optional(v.id('orders')),
     attemptId: v.string(),
+    origin: v.optional(v.union(v.literal('classic'), v.literal('quiz'), v.literal('direct'))),
+    quizSessionId: v.optional(v.id('quizSessions')),
     // Sold at the store's downsell discount; the items hold the price actually charged.
     downsell: v.optional(v.boolean()),
     buyer: v.optional(v.object({ email: v.string(), name: v.string() })),
@@ -155,6 +163,14 @@ export default defineSchema({
     .index('by_store_session', ['storeId', 'sessionId'])
     .index('by_store_seen', ['storeId', 'seenAt']),
 
+  quizPublications: defineTable({ storeId: v.id('stores'), landingId: v.id('landings'), content: v.any() }).index('by_store', ['storeId']),
+  quizSessions: defineTable({
+    storeId: v.id('stores'), landingId: v.id('landings'), publicationId: v.id('quizPublications'),
+    tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
+    stepEvents: v.optional(v.array(v.object({stepId:v.string(),at:v.number()}))), firstCompletedAt:v.optional(v.number()), contactCapturedAt:v.optional(v.number()),
+    history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
+    contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),
+  }).index('by_token', ['tokenHash']).index('by_store', ['storeId']),
   webhookEvents: defineTable({
     stripeEventId: v.string(),
     type: v.string(),

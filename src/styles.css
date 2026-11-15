@@ -343,6 +343,7 @@
 .sales-viewers > span { background: #34c759; }
 .sales-landing .sales-pain-closing { text-align: center; margin-top: 40px; color: var(--sales-ink); font-size: 18px; font-weight: 850; }
 .sales-carousel { max-width: 430px; margin: auto; }
+.sales-testimonial-stars { display: block; margin-top: 6px; color: #b7791f; font-size: 20px; letter-spacing: 2px; line-height: 1.2; }
 .sales-carousel-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin-top: 8px; }
 .sales-carousel-controls button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 50%; }
 .sales-carousel-controls button > span { width: 9px; height: 9px; border-radius: 50%; background: #d1d6de; }

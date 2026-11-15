@@ -11,7 +11,7 @@ const tracker = createVisitTracker({
 });
 
 // Mounted only on real public pages, never in the editor/preview template.
-export function useViewTracking(subdomain, page, storeId) {
+export function useViewTracking(subdomain, page, storeId, origin = page === 'landing' ? 'classic' : 'direct') {
   const record = useMutation(api.analytics.recordView);
   useEffect(() => {
     let active = true;
@@ -20,7 +20,7 @@ export function useViewTracking(subdomain, page, storeId) {
     const send = () => {
       if (!active || document.visibilityState === 'hidden') return;
       clearTimeout(retry);
-      void tracker.track({ subdomain, page, storeId }, record).then(confirmed => {
+      void tracker.track({ subdomain, page, storeId: `${storeId}:${origin}` }, args => record({...args,origin})).then(confirmed => {
         if (!confirmed) scheduleRetry();
       }).catch(() => {
         // Failed deliveries remain retryable with the same event ID.
@@ -39,5 +39,5 @@ export function useViewTracking(subdomain, page, storeId) {
       document.removeEventListener('visibilitychange', send);
       window.removeEventListener('online', send);
     };
-  }, [subdomain, page, storeId, record]);
+  }, [subdomain, page, storeId, record, origin]);
 }

@@ -1,3 +1,6 @@
+import LandingsPage from './LandingsPage.jsx';
+import QuizEditor from './QuizEditor.jsx';
+import QuizContacts from './QuizContacts.jsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useConvexAuth, useQuery } from 'convex/react';
@@ -35,10 +38,11 @@ const NAV_GROUPS = [
     { path: 'downsell', label: 'Downsell', icon: BadgePercent },
   ] },
   { id: 'experience', label: 'Experiencia de compra', items: [
-    { path: 'landing', label: 'Diseño de landing', icon: PanelTop },
+    { path: 'landings', label: 'Landings', icon: PanelTop },
     { path: 'checkout', label: 'Checkout', icon: CreditCard },
   ] },
   { id: 'management', label: 'Gestión', items: [
+    { path: 'contactos', label: 'Contactos y respuestas', icon: BookOpen },
     { path: 'cobros', label: 'Cobros y entregas', icon: ShoppingCart },
     { path: 'configuracion', label: 'Configuración', icon: Settings2 },
   ] },
@@ -165,6 +169,9 @@ function Workspace({ user }) {
         <Route path="tiendas/:storeId/upsells" element={<Navigate to={`${basePath}/productos#upsells`} replace />} />
         <Route path="tiendas/:storeId/post-compra" element={<StoreFormPage section="post" />} />
         <Route path="tiendas/:storeId/downsell" element={<StoreFormPage section="downsell" />} />
+        <Route path="tiendas/:storeId/landings" element={<LandingsPage />} />
+        <Route path="tiendas/:storeId/quiz" element={<QuizEditor />} />
+        <Route path="tiendas/:storeId/contactos" element={<QuizContacts />} />
         <Route path="tiendas/:storeId/landing" element={<LandingEditPage />} />
         <Route path="tiendas/:storeId/checkout" element={<StoreCheckoutPage />} />
         <Route path="tiendas/:storeId/cobros" element={<OrdersPage />} />

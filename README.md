@@ -23,11 +23,15 @@ El frontend usa `VITE_CONVEX_URL` para queries/mutations y `VITE_CONVEX_SITE_URL
 
 ## Publicación
 
-Con `CONVEX_DEPLOY_KEY` de producción configurada:
+Para guardar los cambios, subirlos a `origin main` y publicar en Convex, con las variables de despliegue en `.env`:
 
 ```sh
-pnpm run deploy
+npm run deploy -- "mensaje del commit"
 ```
+
+Ejecuta `git add .`, `git commit -am "mensaje del commit"`, `git push origin main` y `node --env-file=.env --run=deploy:convex`, en ese orden. El script carga explícitamente `.env` antes del último paso para que sus variables lleguen al proceso de despliegue. Se detiene si cualquier paso falla, incluido un commit sin cambios. El mensaje es obligatorio.
+
+Para publicar sin crear un commit ni hacer push, con las variables ya cargadas en el entorno: `pnpm run deploy:convex`.
 
 El componente oficial `@convex-dev/static-hosting` construye Vite, despliega Convex y sube `dist`. La app queda en `https://<deployment>.convex.site`. El router registra `/api/auth/*` antes del catch-all del sitio. No agregar `httpPrefix` al componente: duplicaría el prefijo de auth. Las nuevas HTTP actions deben declarar explícitamente su ruta `/api/...`. Las queries/mutations del cliente usan la URL `.convex.cloud`.
 
@@ -94,7 +98,7 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 
 La landing usa una plantilla fija de venta con un formulario de 16 secciones y vista previa en vivo (celular/escritorio). Incluye presentación, bonos, beneficios, problemas, testimonios de texto o captura, resumen de compra, pasos, garantía, FAQ, cierre, botón fijo, promoción e identidad. Las secciones opcionales se pueden ocultar; las listas vacías no se muestran. Las imágenes se configuran por URL.
 
-El asistente de textos (`landing_wizard:generate`) hace cinco preguntas (público, problema, resultado, diferencial, tono y garantía) y completa presentación, beneficios, problemas, pasos, preguntas frecuentes, garantía, cierre, textos de promoción y actividad y encabezados de testimonios usando además el nombre, la descripción y los bonos de la tienda. Al terminar, el panel carga el resultado en el formulario, lo guarda como borrador y abre la vista previa; publicar sigue siendo un paso aparte. No inventa ni reemplaza conversaciones de testimonios, métricas, cupos, fechas, opciones activadas, imágenes, precios ni enlaces, y solo redacta garantía si se indican los días. Las respuestas se envían a OpenAI. Está cubierto con OpenAI simulado; no se probó contra la API real.
+El asistente de textos (`landing_wizard:generate`) hace cinco preguntas (público, problema, resultado, diferencial, tono y garantía) y completa presentación, beneficios, problemas, pasos, preguntas frecuentes, garantía, cierre, textos de promoción y actividad y encabezados de testimonios usando además el nombre, la descripción y los bonos de la tienda. Al terminar, el panel carga el resultado en el formulario, lo guarda como borrador y abre la vista previa; publicar sigue siendo un paso aparte. Genera además 4 testimonios ficticios en formato conversación, adaptados al ebook y al público, que se muestran en el carrusel con cinco estrellas en todos los formatos, sin etiquetas de ejemplo o IA. El marcador interno `isExample` se conserva para reemplazar los textos generados al regenerar; no se muestra en la landing. Se pueden editar; al regenerar se reemplazan los ejemplos anteriores y se conservan los testimonios agregados a mano, hasta el límite de 12 elementos. No inventa ni reemplaza métricas, cupos, fechas, opciones activadas, imágenes, precios ni enlaces, y solo redacta garantía si se indican los días. Las respuestas se envían a OpenAI. Está cubierto con OpenAI simulado; no se probó contra la API real.
 
 La landing pública y su checkout muestran el popup «Pará un segundo» (`src/storefront/ExitIntentModal.jsx`) cuando el mouse sale del documento por cualquier borde, con un mínimo de 10 segundos entre apariciones. Los eventos anteriores a ese intervalo se ignoran, sin programar una apertura ni reiniciar la espera. El intervalo se cuenta desde la última apertura y se comparte en memoria por tienda entre landing y checkout durante la navegación. No hay límite de apariciones por sesión ni por pestaña; mientras está abierto no se vuelve a disparar. No se activa con gestos táctiles ni en la vista previa del panel. El copy está centralizado en `src/storefront/exitIntent.js` y se arma con la oferta real (bonos, ahorro y garantía solo si están configurados).
 

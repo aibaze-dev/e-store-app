@@ -1,3 +1,4 @@
+import { checkoutRecord, forStore } from './lib/landing_records';
 import { ConvexError, v } from 'convex/values';
 import { makeFunctionReference, paginationOptsValidator } from 'convex/server';
 import { action, internalQuery, mutation } from './lib/functions';
@@ -7,12 +8,12 @@ import { createReport, dateKey, validRange } from '../shared/analytics';
 import business from '../src/config/businessData.json';
 
 export const recordView = mutation({
-  args: { subdomain: v.string(), page: v.union(v.literal('landing'), v.literal('checkout')), eventId: v.string() },
-  handler: async (ctx, { subdomain, page, eventId }) => {
+  args: { subdomain: v.string(), page: v.union(v.literal('landing'), v.literal('checkout')), eventId: v.string(), origin:v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct'))) },
+  handler: async (ctx, { subdomain, page, eventId, origin }) => {
     if (!/^[a-z0-9-]{1,63}$/.test(subdomain) || !/^[a-zA-Z0-9-]{16,64}$/.test(eventId)) return null;
-    const landing = await ctx.db.query('landings').withIndex('by_subdomain', q => q.eq('subdomain', subdomain)).first();
-    const store = landing?.published ? await ctx.db.get(landing.storeId) : null;
-    if (!store || store.status !== 'active') return null;
+    const store=(await checkoutRecord(ctx,subdomain))?.store;
+    if(!store)return null;
+    if(page==='landing'){const landing=await forStore(ctx,store._id,origin==='quiz'?'quiz':'classic');if(!landing || !(landing.published || landing.publicationId))return null;}
     const exists = await ctx.db.query('pageViews').withIndex('by_store_event', q => q.eq('storeId', store._id).eq('eventId', eventId)).first();
     if (exists) return { status: 'duplicate' as const, day: exists.day };
     // A separate key is optional; the existing server secret is domain-separated above.
@@ -24,7 +25,7 @@ export const recordView = mutation({
     const recent = await ctx.db.query('pageViews').withIndex('by_store_ip', q => q.eq('storeId', store._id).eq('ipHash', ipHash).gte('_creationTime', now - 60_000)).take(120);
     if (recent.length >= 120) return null;
     const day = dateKey(now, business.timeZone);
-    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId });
+    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId, origin:origin ?? (page==='landing'?'classic':'direct') });
     return { status: 'recorded' as const, day };
   },
 });

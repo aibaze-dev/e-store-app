@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronDown, Eye, LoaderCircle, Monitor, Plus, Smartphone, T
 import { api } from '@/lib/api.js';
 import { errorText, formatDate } from '@/lib/format.js';
 import { landingUrls } from '@/lib/site.js';
-import { normalizeContent } from '@/templates/content.js';
+import { normalizeContent, mergeGeneratedContent } from '@/templates/content.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -91,7 +91,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
   const applyGenerated = async generated => {
     const next = {
       subdomain: form.subdomain || slug(store.name),
-      content: { ...content, ...Object.fromEntries(Object.entries(generated).map(([key, patch]) => [key, { ...content[key], ...patch }])) },
+      content: mergeGeneratedContent(content, generated),
     };
     setError(''); setNotice(''); setForm(next); setShowPreview(true);
     try {
@@ -166,7 +166,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
         </Section>
         <Section id="benefits" number="03" title="Qué vas a encontrar" description="Beneficios con ícono, título y descripción">{features('benefits', 'beneficio')}</Section>
         <Section id="painPoints" number="04" title="¿Te sentís identificado?" description="Los problemas que resuelve tu ebook">{features('painPoints', 'problema')}{field('painPoints', 'closingText', 'Frase de cierre', { maxLength: 240 })}</Section>
-        <Section id="socialProof" number="05" title="Testimonios" description="Conversaciones, experiencias y capturas de tus lectores">
+        <Section id="socialProof" number="05" title="Prueba social · Testimonios" description="Carrusel de testimonios con cinco estrellas">
           {sectionHeading('socialProof')}
           {field('socialProof', 'eyebrow', 'Texto superior (opcional)', { maxLength: 120, placeholder: 'Testimonios reales' })}
           {content.socialProof.items.length === 0 && <p className="text-sm text-muted-foreground">Agregá un testimonio para mostrar esta sección en la landing. Podés usar una captura de la conversación.</p>}
@@ -183,7 +183,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
             {item.format !== 'chat' && itemField('socialProof', index, 'imageUrl', 'Captura (URL, opcional)', { type: 'url', placeholder: 'https://' })}
             {remove('socialProof', index, 'testimonio')}
           </fieldset>)}
-          <p className="text-xs text-muted-foreground">Transcribí conversaciones reales o agregá una captura. La conversación muestra solo los mensajes que completás.</p>
+          <p className="text-xs text-muted-foreground">Todos los testimonios muestran cinco estrellas. Podés editar los textos y agregar conversaciones o capturas; los testimonios cargados a mano se conservan al volver a generar.</p>
           {add('socialProof', 'testimonio', { name: '', quote: '', imageUrl: '', format: 'chat', openingMessage: '', closingMessage: '' }, 12)}
         </Section>
         <Section id="summary" number="06" title="Resumen de la compra" description="Producto, bonos, precio y ahorro en un solo lugar">{sectionHeading('summary')}<p className="text-xs leading-6 text-muted-foreground">El contenido se completa con la oferta y la garantía de esta tienda.</p></Section>

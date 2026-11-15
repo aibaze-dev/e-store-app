@@ -1,3 +1,4 @@
+import Quiz, { readQuizToken } from './Quiz.jsx';
 import PostPurchaseContent from '@/templates/PostPurchaseContent.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -48,9 +49,9 @@ function Landing({ view }) {
   const Template = templateFor(view.template);
   // The popup's button does what the landing's own button does, and the checkout takes the focus.
   return <>
-    <Template view={view} onCta={() => navigate('checkout')} />
-    <ExitIntentModal view={view} step="landing" onCta={() => navigate('checkout', { state: { focusHeading: true } })} />
-    {view.downsell && <DownsellModal view={view} step="landing" onAccept={() => navigate('oferta')} />}
+    <Template view={view} onCta={() => navigate('checkout', {state:{origin:'classic'}})} />
+    <ExitIntentModal view={view} step="landing" onCta={() => navigate('checkout', { state: { focusHeading: true, origin:'classic' } })} />
+    {view.downsell && <DownsellModal view={view} step="landing" onAccept={() => navigate('oferta', {state:{origin:'classic'}})} />}
   </>;
 }
 
@@ -61,7 +62,8 @@ function Thumb({ src, name, className = 'size-16' }) {
 }
 
 export function Checkout({ view, via }) {
-  useViewTracking(view.subdomain, 'checkout', view.store.id);
+  const origin=useLocation().state?.origin || 'direct';
+  useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { promotion: view.content?.promotion });
   const [selected, setSelected] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -92,14 +94,14 @@ export function Checkout({ view, via }) {
   return <div className="checkout-page min-h-screen bg-muted/40">
     <header className="border-b bg-card"><div className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-4 text-sm font-semibold sm:px-6">
       <LockKeyhole className="size-4 text-primary" aria-hidden="true" />Pago seguro
-      <Link to=".." className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">Volver a la oferta</Link>
+      <Link to={origin==='quiz'?'../quiz/resultado':'..'} className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">Volver a la oferta</Link>
     </div></header>
     <CheckoutActivityBar shoppers={shoppers} />
     <div className="px-5 pt-5 lg:hidden"><CheckoutOfferTimer timeLeft={timeLeft} label={view.content?.promotion?.timerLabel} /></div>
     <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
       <section className="min-w-0 space-y-8">
         <h1 ref={headingRef} tabIndex={-1} className="sr-only">Finalizá tu compra</h1>
-        <CheckoutPayment view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
+        <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
         {trust}
       </section>
 
@@ -161,13 +163,15 @@ export function Checkout({ view, via }) {
       {content.footer.termsUrl && <a href={content.footer.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}
     </nav>}
     {exitIntent}
-    {view.downsell && <DownsellModal view={view} step="checkout" onAccept={() => navigate('../oferta')} />}
+    {view.downsell && <DownsellModal view={view} step="checkout" onAccept={() => navigate('../oferta', {state:{origin}})} />}
   </div>;
 }
 
 // The downsell: the main product with its bonuses and without extras, at the store's
 // discount. The amounts shown come from the server, which charges the same ones.
 function DownsellOffer({ view, via }) {
+  const origin=useLocation().state?.origin || 'direct';
+  useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { timeLeft } = useSimulatedCheckoutSignals(`${view.subdomain}:oferta`);
   const start = useAction(api.checkout.start);
   const attemptFor = useAttempt();
@@ -183,7 +187,7 @@ function DownsellOffer({ view, via }) {
     if (busy) return;
     setBusy(true); setError('');
     try {
-      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], attemptId: attemptFor('downsell'), via, downsell: true });
+      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], attemptId: attemptFor('downsell'), via, downsell: true, origin, ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
       trackPixel(store.metaPixelId, 'InitiateCheckout', { value: downsell.price / 100, currency: store.currency });
       setClientSecret(result.clientSecret);
     } catch (failure) { setError(errorText(failure, 'No se pudo iniciar el pago. Volvé a intentar.')); }
@@ -193,7 +197,7 @@ function DownsellOffer({ view, via }) {
   return <div className="min-h-screen bg-muted/40">
     <header className="border-b bg-card"><div className="mx-auto flex max-w-xl items-center gap-2 px-5 py-4 text-sm font-semibold sm:px-6">
       <LockKeyhole className="size-4 text-primary" aria-hidden="true" />Pago seguro
-      <Link to=".." className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">Volver a la oferta</Link>
+      <Link to={origin==='quiz'?'../quiz/resultado':'..'} className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">Volver a la oferta</Link>
     </div></header>
     <main className="mx-auto max-w-xl space-y-6 px-5 py-8 sm:px-6">
       <div className="space-y-3 text-center">
@@ -305,13 +309,14 @@ function ThankYou({ via }) {
 }
 
 function LandingRoutes({ subdomain, via }) {
-  const view = useQuery(api.storefront.getLanding, { subdomain });
-  if (view === undefined) return <Page><PageSkeleton label="Cargando" /></Page>;
-  if (view === null) return <Unavailable />;
+  const classic = useQuery(api.storefront.getLanding, { subdomain });
+  const view = useQuery(api.storefront.getCheckout, { subdomain });
+  if (view === undefined || classic === undefined) return <Page><PageSkeleton label="Cargando" /></Page>;
   return <Routes>
-    <Route index element={<Landing view={view} />} />
-    <Route path="checkout" element={<Checkout view={view} via={via} />} />
-    <Route path="oferta" element={view.downsell ? <DownsellOffer view={view} via={via} /> : <Navigate to=".." replace />} />
+    <Route index element={classic ? <Landing view={classic} /> : <Unavailable />} />
+    <Route path="quiz/*" element={<Quiz subdomain={subdomain} view={view}/>} />
+    <Route path="checkout" element={view ? <Checkout view={view} via={via} /> : <Unavailable />} />
+    <Route path="oferta" element={view?.downsell ? <DownsellOffer view={view} via={via} /> : <Unavailable />} />
     <Route path="*" element={<Unavailable />} />
   </Routes>;
 }

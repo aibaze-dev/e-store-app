@@ -1,3 +1,4 @@
+import { forStore, publicStore, checkoutRecord, purchaseContent } from './lib/landing_records';
 import { v } from 'convex/values';
 import { mutation, query, type QueryCtx } from './lib/functions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
@@ -7,10 +8,10 @@ import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
 export const getLanding = query({
   args: { subdomain: v.string() },
   handler: async (ctx, { subdomain }) => {
-    const landing = await ctx.db.query('landings').withIndex('by_subdomain', q => q.eq('subdomain', subdomain.toLowerCase())).first();
-    if (!landing?.published) return null;
-    const store = await ctx.db.get(landing.storeId);
+    const store = await publicStore(ctx, subdomain);
     if (!store || store.status !== 'active') return null;
+    const landing = await forStore(ctx, store._id);
+    if (!landing?.published) return null;
     return await buildLandingView(ctx, store, landing, landing.published);
   },
 });
@@ -21,8 +22,7 @@ const PRESENCE_KEEP_MS = 600_000;
 const PRESENCE_LIMIT = 200;
 
 async function liveStore(ctx: QueryCtx, subdomain: string) {
-  const landing = await ctx.db.query('landings').withIndex('by_subdomain', q => q.eq('subdomain', subdomain.toLowerCase())).first();
-  const store = landing?.published ? await ctx.db.get(landing.storeId) : null;
+  const store = (await checkoutRecord(ctx, subdomain))?.store;
   return store && store.status === 'active' && store.checkout?.liveVisitors ? store : null;
 }
 
@@ -82,7 +82,7 @@ export const getDelivery = query({
     if (paid && !order.parentOrderId && store?.status === 'active' && store.postPurchase.enabled && store.postPurchase.productId) {
       const children = await ctx.db.query('orders').withIndex('by_parent', q => q.eq('parentOrderId', order._id)).collect();
       if (!children.some(child => child.status === 'paid' || child.status === 'refunded')) {
-        postPurchaseOffer = await buildPostPurchaseView(ctx, store, landing?.published);
+        postPurchaseOffer = await buildPostPurchaseView(ctx, store, await purchaseContent(ctx, store));
       }
     }
 
@@ -100,3 +100,8 @@ export const getDelivery = query({
     };
   },
 });
+
+export const getCheckout = query({args:{subdomain:v.string()},handler:async(ctx,{subdomain})=>{
+ const record=await checkoutRecord(ctx,subdomain); if(!record)return null;
+ return buildLandingView(ctx,record.store,record.landing,await purchaseContent(ctx,record.store));
+}});

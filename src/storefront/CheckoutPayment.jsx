@@ -52,7 +52,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
   </form>;
 }
 
-export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef }) {
+export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken }) {
   const start = useAction(api.checkout.start);
   const [buyer, setBuyer] = useState({ email: '', firstName: '', lastName: '', phone: '' });
   const [paying, setPaying] = useState(false);
@@ -61,7 +61,7 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
   const [retry, setRetry] = useState(0);
   const attempts = useRef(new Map());
   const selection = JSON.stringify([...selected].sort());
-  const key = `${view.subdomain}:${via}:${selection}:${total}:${view.store.currency}`;
+  const key = `${origin}:${quizToken||''}:${view.subdomain}:${via}:${selection}:${total}:${view.store.currency}`;
   useEffect(() => {
     if (!stripeKey) return;
     let ignore = false;
@@ -70,11 +70,11 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
       let attempt = attempts.current.get(key);
       if (!attempt) { attempt = { id: crypto.randomUUID() }; attempts.current.set(key, attempt); }
       // Reuse the pending request/session for this selection, including retries and Strict Mode.
-      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true }).catch(failure => { attempt.promise = null; throw failure; });
+      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...(quizToken?{quizToken}:{}) }).catch(failure => { attempt.promise = null; throw failure; });
       attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, failure => { if (!ignore) setError(errorText(failure, 'No pudimos cargar el pago. Volvé a intentar.')); });
     }, 250);
     return () => { ignore = true; clearTimeout(timer); };
-  }, [key, selection, view.subdomain, via, start, retry]);
+  }, [key, selection, view.subdomain, via, start, retry, origin, quizToken]);
   const ready = session?.key === key;
   const setProcessing = value => { setPaying(value); onPayingChange(value); };
   if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });

@@ -1,3 +1,4 @@
+import { forStore } from './lib/landing_records';
 import { v } from 'convex/values';
 import { mutation, query, type MutationCtx } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
@@ -88,7 +89,8 @@ export const list = query({
     const stores = await ctx.db.query('stores').order('desc').collect();
     return await Promise.all(stores.map(async store => {
       const main = await ctx.db.get(store.offer.mainProductId);
-      const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', store._id)).unique();
+      const classic = await forStore(ctx, store._id), quiz = await forStore(ctx, store._id, 'quiz');
+      const landing = classic?.published ? classic : quiz?.publicationId ? quiz : classic ?? quiz;
       return {
         _id: store._id,
         name: store.name,
@@ -97,7 +99,7 @@ export const list = query({
         price: store.offer.price,
         mainProductName: main?.name ?? '',
         subdomain: landing?.subdomain ?? '',
-        published: Boolean(landing?.published),
+        published: Boolean(landing?.published || landing?.publicationId),
       };
     }));
   },

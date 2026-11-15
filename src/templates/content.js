@@ -29,6 +29,16 @@ export function normalizeContent(content = {}) {
   return normalized;
 }
 
+// Regeneration replaces AI examples while retaining manually supplied testimonials.
+export function mergeGeneratedContent(content, generated) {
+  const merged = { ...content, ...Object.fromEntries(Object.entries(generated).map(([key, patch]) => [key, { ...content[key], ...patch }])) };
+  if (generated.socialProof?.items) {
+    const existing = (content.socialProof?.items ?? []).filter(item => !item.isExample);
+    merged.socialProof.items = [...existing, ...generated.socialProof.items].slice(0, 12);
+  }
+  return normalizeContent(merged);
+}
+
 export function offerTotals(offer) {
   const bonusValue = offer.bonuses.reduce((total, bonus) => total + (bonus.referenceValue || 0), 0);
   const reference = Math.max(offer.main.price, offer.main.compareAtPrice || 0) + bonusValue;

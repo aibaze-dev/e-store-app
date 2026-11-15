@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 
+function TestimonialStars() {
+  return <span className="sales-testimonial-stars" role="img" aria-label="5 de 5 estrellas">★★★★★</span>;
+}
+
 export function Rating({ value, customers }) {
   if (!value) return null;
   return <div className="sales-rating" aria-label={`Calificación: ${value} de 5${customers ? `, ${customers} clientes` : ''}`}>
@@ -15,22 +19,24 @@ export default function Testimonials({ section }) {
   const item = section.items[current];
   const move = delta => setIndex((current + delta + section.items.length) % section.items.length);
   return <>
-    {item && <div className="sales-carousel" role="region" aria-roledescription="carrusel" aria-label="Testimonios" onKeyDown={event => {
+    {item && <div className="sales-carousel" role="region" aria-roledescription="carrusel" aria-label="Testimonios" tabIndex={0} onKeyDown={event => {
       if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
       if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
     }}>
-      <div className="sales-testimonials" aria-live="polite" aria-atomic="true">
-        {item.format === 'chat' ? <figure className="sales-chat" aria-label={`Conversación con ${item.name}`}>
-          <figcaption className="sales-chat-header"><span className="sales-chat-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span><strong>{item.name}</strong></figcaption>
-          <div className="sales-chat-messages">
-            {item.openingMessage && <p className="sales-chat-sent">{item.openingMessage}</p>}
-            <blockquote className="sales-chat-received">{item.quote}</blockquote>
-            {item.closingMessage && <p className="sales-chat-sent">{item.closingMessage}</p>}
-          </div>
-        </figure> : <figure className={item.imageUrl ? 'sales-testimonial-image' : 'sales-testimonial'}>
-          {item.imageUrl ? <a href={item.imageUrl} target="_blank" rel="noreferrer"><img src={item.imageUrl} alt={`Testimonio de ${item.name}`} loading="lazy" /></a> : <Quote aria-hidden="true" />}
-          {item.quote && <blockquote>{item.quote}</blockquote>}<figcaption>{item.name}</figcaption>
-        </figure>}
+      <div aria-live="polite" aria-atomic="true">
+        <div className="sales-testimonials">
+          {item.format === 'chat' ? <figure className="sales-chat" aria-label={`Conversación con ${item.name}`}>
+            <figcaption className="sales-chat-header"><span className="sales-chat-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span><span><strong>{item.name}</strong><TestimonialStars /></span></figcaption>
+            <div className="sales-chat-messages">
+              {item.openingMessage && <p className="sales-chat-sent">{item.openingMessage}</p>}
+              <blockquote className="sales-chat-received">{item.quote}</blockquote>
+              {item.closingMessage && <p className="sales-chat-sent">{item.closingMessage}</p>}
+            </div>
+          </figure> : <figure className={item.imageUrl ? 'sales-testimonial-image' : 'sales-testimonial'}>
+            {item.imageUrl ? <a href={item.imageUrl} target="_blank" rel="noreferrer"><img src={item.imageUrl} alt={`Testimonio de ${item.name}`} loading="lazy" /></a> : <Quote aria-hidden="true" />}
+            {item.quote && <blockquote>{item.quote}</blockquote>}<figcaption>{item.name}<TestimonialStars /></figcaption>
+          </figure>}
+        </div>
       </div>
       {section.items.length > 1 && <div className="sales-carousel-controls">
         <button type="button" onClick={() => move(-1)} aria-label="Testimonio anterior"><ChevronLeft aria-hidden="true" /></button>
