@@ -5,6 +5,7 @@ import { internal } from './_generated/api';
 import { action, internalMutation, type Doc, type Id, type MutationCtx } from './lib/functions';
 import { buildDownsellOrder, buildInitialOrder, buildPostPurchaseOrder } from './lib/pricing';
 import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
+import { queueEmail } from './emails';
 import { fail } from './lib/validation';
 
 const via = v.union(v.literal('subdomain'), v.literal('path'));
@@ -203,18 +204,25 @@ export const handleStripeEvent = internalMutation({
       }
       const paidEvent = event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded';
       if (transaction && paidEvent && event.paymentStatus === 'paid' && transaction.status === 'pending') {
-        if (event.amountTotal !== transaction.amount || event.currency?.toUpperCase() !== transaction.currency) {
+        const stripeIds = { stripeCheckoutSessionId: event.sessionId, stripePaymentIntentId: event.paymentIntentId };
+        if (event.amountTotal !== transaction.amount || event.currency?.toUpperCase() !== transaction.currency.toUpperCase()) {
+          // Money was taken but does not match the order: links stay hidden and the admins are alerted.
           console.error('Stripe amount does not match the order', event.eventId);
+          await setStatus(ctx, transaction, 'needs_review', {
+            ...stripeIds,
+            charged: { amount: event.amountTotal ?? 0, currency: (event.currency ?? '').toUpperCase() },
+          });
           outcome = 'rejected';
         } else {
-          await setStatus(ctx, transaction, 'paid', {
-            stripeCheckoutSessionId: event.sessionId,
-            stripePaymentIntentId: event.paymentIntentId,
-            paidAt: Date.now(),
-          });
-          await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? '', name: event.name ?? '' } });
+          await setStatus(ctx, transaction, 'paid', { ...stripeIds, paidAt: Date.now() });
           outcome = 'processed';
         }
+        await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? '', name: event.name ?? '' } });
+        await queueEmail(ctx, transaction._id);
+      } else if (transaction && event.type === 'checkout.session.async_payment_failed' && transaction.status === 'pending') {
+        // A delayed method (ACH, SEPA…) was declined. The session never expires after this.
+        await setStatus(ctx, transaction, 'failed', { stripeCheckoutSessionId: event.sessionId, stripePaymentIntentId: event.paymentIntentId });
+        outcome = 'processed';
       } else if (transaction && event.type === 'checkout.session.expired' && transaction.status === 'pending') {
         await setStatus(ctx, transaction, 'expired');
         outcome = 'processed';
@@ -222,7 +230,8 @@ export const handleStripeEvent = internalMutation({
     } else if (event.type === 'charge.refunded' && event.refunded && event.paymentIntentId) {
       const transaction = await ctx.db.query('transactions')
         .withIndex('by_payment_intent', q => q.eq('stripePaymentIntentId', event.paymentIntentId)).first();
-      if (transaction && transaction.status === 'paid') {
+      // A charge under review can also be settled by refunding it in Stripe.
+      if (transaction && (transaction.status === 'paid' || transaction.status === 'needs_review')) {
         await setStatus(ctx, transaction, 'refunded');
         outcome = 'processed';
       }

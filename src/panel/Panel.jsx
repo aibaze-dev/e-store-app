@@ -1,6 +1,6 @@
-import LandingsPage from './LandingsPage.jsx';
-import QuizEditor from './QuizEditor.jsx';
-import QuizContacts from './QuizContacts.jsx';
+const LandingsPage = lazy(() => import('./LandingsPage.jsx'));
+const QuizEditor = lazy(() => import('./QuizEditor.jsx'));
+const QuizContacts = lazy(() => import('./QuizContacts.jsx'));
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useConvexAuth, useQuery } from 'convex/react';
@@ -169,9 +169,9 @@ function Workspace({ user }) {
         <Route path="tiendas/:storeId/upsells" element={<Navigate to={`${basePath}/productos#upsells`} replace />} />
         <Route path="tiendas/:storeId/post-compra" element={<StoreFormPage section="post" />} />
         <Route path="tiendas/:storeId/downsell" element={<StoreFormPage section="downsell" />} />
-        <Route path="tiendas/:storeId/landings" element={<LandingsPage />} />
-        <Route path="tiendas/:storeId/quiz" element={<QuizEditor />} />
-        <Route path="tiendas/:storeId/contactos" element={<QuizContacts />} />
+        <Route path="tiendas/:storeId/landings" element={<Suspense fallback={<PageSkeleton label="Cargando" />}><LandingsPage /></Suspense>} />
+        <Route path="tiendas/:storeId/quiz" element={<Suspense fallback={<PageSkeleton label="Cargando" />}><QuizEditor /></Suspense>} />
+        <Route path="tiendas/:storeId/contactos" element={<Suspense fallback={<PageSkeleton label="Cargando" />}><QuizContacts /></Suspense>} />
         <Route path="tiendas/:storeId/landing" element={<LandingEditPage />} />
         <Route path="tiendas/:storeId/checkout" element={<StoreCheckoutPage />} />
         <Route path="tiendas/:storeId/cobros" element={<OrdersPage />} />

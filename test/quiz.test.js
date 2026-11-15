@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, product, content, mockStripe, sendWebhook, stripeEvent, WEBHOOK_SECRET } from './helpers';
 import { createQuizTemplate, validateQuiz, assertQuiz, evaluate, contextFor, initialSession, advanceSession, validateAnswer, newStep, nextStep, resultFor, applicableQuestions } from '../shared/quiz.js';
+vi.mock('../convex/lib/analytics_ip', async original => ({...await original(),requestIp:vi.fn(async()=> '192.0.2.1')}));
 const token=()=>crypto.randomUUID()+crypto.randomUUID();
 const command=(session,value,direction='next')=>({revision:session.revision,commandId:crypto.randomUUID(),value,direction});
 const answerFor=step=>({single:step.options?.[0]?.id,multiple:[step.options?.[0]?.id],number:15,measure:{value:2,unit:'hours'},date:'2026-12-01',text:'Organizarme',contact:{name:'Ana',email:'ana@example.com',consent:false}}[step.type]??null);
@@ -22,7 +23,83 @@ describe('quiz persistence and checkout',()=>{
  it('publishes independently, keeps classic compatibility, shared amount and direct checkout',async()=>{const f=await fixture();await f.admin.mutation(api.landings.saveDraft,{storeId:f.storeId,subdomain:'guide',template:'classic',draft:content});await f.admin.mutation(api.landings.publish,{storeId:f.storeId});await publish(f);expect(await f.admin.query(api.landings.list,{storeId:f.storeId})).toHaveLength(2);expect((await f.admin.query(api.landings.getForStore,{storeId:f.storeId})).template).toBe('classic');await f.admin.mutation(api.landings.unpublish,{storeId:f.storeId,type:'classic'});expect(await f.t.query(api.storefront.getLanding,{subdomain:'guide'})).toBeNull();expect((await f.t.query(api.storefront.getCheckout,{subdomain:'guide'})).offer.main.price).toBe(2700);mockStripe();await f.t.action(api.checkout.start,{subdomain:'guide',upsellProductIds:[],attemptId:crypto.randomUUID(),via:'path'});const orders=await f.t.run(ctx=>ctx.db.query('orders').collect());expect(orders[0]).toMatchObject({origin:'direct',total:2700});});
  it('recovers privately, deduplicates retries, pins publication, blocks unpublished sessions',async()=>{const f=await fixture();await publish(f);const key=token();let data=await f.t.mutation(api.quizzes.start,{subdomain:'guide',token:key});const args={token:key,...command(data.session,'option1')};data=await f.t.mutation(api.quizzes.saveAnswer,args);expect(await f.t.mutation(api.quizzes.saveAnswer,args)).toEqual(data);expect(await f.t.query(api.quizzes.recover,{token:key})).toEqual(data);await expect(f.t.query(api.quizzes.recover,{token:token()})).rejects.toThrow();await expect(f.t.mutation(api.quizzes.saveAnswer,{...args,commandId:crypto.randomUUID()})).rejects.toThrow(/cambió/);let q=tiny();q.steps[0].title='Nueva publicación';await publish(f,q);expect((await f.t.query(api.quizzes.recover,{token:key})).quiz.steps[0].title).not.toBe('Nueva publicación');await f.admin.mutation(api.landings.unpublish,{storeId:f.storeId,type:'quiz'});await expect(f.t.query(api.quizzes.recover,{token:key})).rejects.toThrow(/publicado/);await expect(f.t.mutation(api.quizzes.start,{subdomain:'guide',token:key})).rejects.toThrow();});
  it('stores contact without marketing consent, attributes paid orders without leaking answers to Stripe, deletes answers',async()=>{const f=await fixture();await publish(f);const key=token();const completed=await complete(f,key);expect(completed.session.resultId).toBe('general');const stripe=mockStripe();const args={subdomain:'guide',origin:'quiz',quizToken:key,upsellProductIds:[],attemptId:crypto.randomUUID(),via:'path'};await f.t.action(api.checkout.start,args);await f.t.action(api.checkout.start,args);let orders=await f.t.run(ctx=>ctx.db.query('orders').collect());expect(orders).toHaveLength(1);expect(orders[0]).toMatchObject({origin:'quiz',total:2700});expect(JSON.stringify(stripe.requests)).not.toContain('ana@example.com');expect(JSON.stringify(stripe.requests)).not.toContain(key);const list=await f.admin.query(api.quizzes.sessions,{storeId:f.storeId,cursor:null});expect(list.page[0].consent.accepted).toBe(false);expect(list.page[0].contact.email).toBe('ana@example.com');expect(list.page[0].tokenHash).toBeUndefined();await sendWebhook(f.t,stripeEvent('checkout.session.completed',{id:'cs_test_1',payment_status:'paid',amount_total:2700,currency:'usd',customer_details:{email:'buyer@example.com',name:'Buyer'}}));const detail=await f.admin.query(api.quizzes.detail,{sessionId:list.page[0]._id});expect(detail.orders[0].status).toBe('paid');await f.admin.mutation(api.quizzes.remove,{sessionId:detail._id});await expect(f.t.query(api.quizzes.recover,{token:key})).rejects.toThrow();orders=await f.t.run(ctx=>ctx.db.query('orders').collect());expect(orders[0]).toMatchObject({origin:'quiz',status:'paid'});expect(orders[0].quizSessionId).toBeUndefined();});
- it('rejects forged origin, incomplete session, cross-store token, and anonymous admin operations',async()=>{const f=await fixture();await publish(f);const key=token();await f.t.mutation(api.quizzes.start,{subdomain:'guide',token:key});mockStripe();const args={subdomain:'guide',origin:'quiz',quizToken:key,upsellProductIds:[],attemptId:crypto.randomUUID(),via:'path'};await expect(f.t.action(api.checkout.start,args)).rejects.toThrow(/Completá/);await expect(f.t.action(api.checkout.start,{...args,quizToken:undefined})).rejects.toThrow();for(const [name,payload]of [['get',{storeId:f.storeId}],['sessions',{storeId:f.storeId,cursor:null}],['funnel',{storeId:f.storeId}]])await expect(f.t.query(api.quizzes[name],payload)).rejects.toThrow();await expect(f.t.mutation(api.quizzes.save,{storeId:f.storeId,subdomain:'guide',quiz:tiny()})).rejects.toThrow();await expect(f.t.mutation(api.quizzes.publish,{storeId:f.storeId})).rejects.toThrow();const second=await f.admin.mutation(api.stores.create,{name:'Otra',status:'active',currency:'usd',offer:{mainProductId:f.main,price:2700,bonuses:[],upsells:[]},postPurchase:{enabled:false,price:0},tracking:{metaPixelId:''}});await f.admin.mutation(api.quizzes.save,{storeId:second,subdomain:'other',quiz:tiny()});await f.admin.mutation(api.quizzes.publish,{storeId:second});await expect(f.t.mutation(api.quizzes.start,{subdomain:'other',token:key})).rejects.toThrow(/otra tienda/);});
+ it('rejects forged origin, incomplete session, cross-store token, and anonymous admin operations',async()=>{const f=await fixture();await publish(f);await expect(f.t.action(api.quizzes.funnel,{storeId:f.storeId})).rejects.toThrow();const key=token();await f.t.mutation(api.quizzes.start,{subdomain:'guide',token:key});mockStripe();const args={subdomain:'guide',origin:'quiz',quizToken:key,upsellProductIds:[],attemptId:crypto.randomUUID(),via:'path'};await expect(f.t.action(api.checkout.start,args)).rejects.toThrow(/Completá/);await expect(f.t.action(api.checkout.start,{...args,quizToken:undefined})).rejects.toThrow();for(const [name,payload]of [['get',{storeId:f.storeId}],['sessions',{storeId:f.storeId,cursor:null}]])await expect(f.t.query(api.quizzes[name],payload)).rejects.toThrow();await expect(f.t.mutation(api.quizzes.save,{storeId:f.storeId,subdomain:'guide',quiz:tiny()})).rejects.toThrow();await expect(f.t.mutation(api.quizzes.publish,{storeId:f.storeId})).rejects.toThrow();const second=await f.admin.mutation(api.stores.create,{name:'Otra',status:'active',currency:'usd',offer:{mainProductId:f.main,price:2700,bonuses:[],upsells:[]},postPurchase:{enabled:false,price:0},tracking:{metaPixelId:''}});await f.admin.mutation(api.quizzes.save,{storeId:second,subdomain:'other',quiz:tiny()});await f.admin.mutation(api.quizzes.publish,{storeId:second});await expect(f.t.mutation(api.quizzes.start,{subdomain:'other',token:key})).rejects.toThrow(/otra tienda/);});
  it('migrates legacy records idempotently preserving IDs, URLs, drafts and published content',async()=>{const f=await fixture();const id=await f.t.run(ctx=>ctx.db.insert('landings',{storeId:f.storeId,subdomain:'legacy',template:'classic',draft:content,published:content}));await f.admin.mutation(api.landings.migrate,{cursor:null});await f.admin.mutation(api.landings.migrate,{cursor:null});expect((await f.admin.query(api.landings.getForStore,{storeId:f.storeId}))._id).toBe(id);expect((await f.t.query(api.storefront.getCheckout,{subdomain:'legacy'})).content.hero.title).toBe(content.hero.title);});
  it('AI returns validated review-only proposal, handles invalid output and provider failure',async()=>{const f=await fixture();const q=tiny();const args={storeId:f.storeId,quiz:q,audience:'Lectores',goal:'Aprender',tone:'Cercano',length:3};await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow(/configurada/);vi.stubEnv('OPENAI_API_KEY','test');const result={title:'Inicio',description:'Conocé tu guía',steps:[{type:'single',title:'¿Qué buscás?',description:'Elegí',options:[{label:'Aprender',description:''},{label:'Practicar',description:''}]}],results:[{id:'general',title:'Tu propuesta',description:'Revisá el contenido'}]};vi.stubGlobal('fetch',async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(result)}}]})));const proposal=await f.admin.action(api.quiz_wizard.generate,args);expect(validateQuiz(proposal,true)).toEqual([]);expect(proposal.steps).toHaveLength(3);expect(await f.admin.query(api.landings.list,{storeId:f.storeId})).toHaveLength(0);result.steps[0].type='javascript';await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow();vi.stubGlobal('fetch',async()=>{throw new Error('offline');});await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow(/válida/);});
+});
+
+describe('simplified quiz authoring and shared presentation', () => {
+ it('generates a replacement proposal without accumulating questions or touching the published version', async () => {
+  const f=await fixture();const q=createQuizTemplate('Guía');await publish(f,q);
+  vi.stubEnv('OPENAI_API_KEY','test');
+  const output={title:'Encontrá tu camino',description:'Respondé unas preguntas',steps:Array.from({length:5},(_,i)=>({type:'single',title:`Pregunta ${i+1}`,description:'Elegí una opción',options:[{label:'A',description:''},{label:'B',description:''}]})),results:[{id:'general',title:'Tu propuesta',description:'Conocé el contenido'}]};
+  vi.stubGlobal('fetch',async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(output)}}]})));
+  const args={storeId:f.storeId,quiz:q,audience:'Principiantes',goal:'Conocer sus objetivos',tone:'Cercano',length:5,mode:'replace'};
+  const proposal=await f.admin.action(api.quiz_wizard.generate,args);
+  expect(proposal.steps.filter(s=>s.type==='single')).toHaveLength(5);
+  expect(proposal.steps).toHaveLength(8);
+  expect(proposal.steps.some(s=>s.id==='minutes')).toBe(false);
+  expect(proposal.calculations).toEqual([]);
+  expect(proposal.identity).toEqual(q.identity);
+  expect(proposal.results[0].blocks.some(b=>b.type==='offer')).toBe(true);
+  expect(validateQuiz(proposal,true)).toEqual([]);
+  expect((await f.t.query(api.quizzes.publicConfig,{subdomain:'guide'})).steps).toEqual(q.steps);
+  expect((await f.admin.query(api.quizzes.get,{storeId:f.storeId})).quiz.steps).toEqual(q.steps);
+  output.steps.pop();await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow(/cantidad/);
+ });
+ it('supports type-aware operations while legacy calls still resolve classic',async()=>{
+  const f=await fixture();await f.admin.mutation(api.landings.saveDraft,{storeId:f.storeId,subdomain:'guide',type:'quiz',quiz:tiny()});
+  await f.admin.mutation(api.landings.publish,{storeId:f.storeId,type:'quiz'});
+  expect((await f.admin.query(api.landings.getForStore,{storeId:f.storeId,type:'quiz'})).publicationId).toBeTruthy();
+  expect(await f.admin.query(api.landings.getForStore,{storeId:f.storeId})).toBeNull();
+  expect((await f.admin.query(api.landings.preview,{storeId:f.storeId,type:'quiz'})).quiz).toEqual(tiny());
+ });
+ it('separates shared draft from published content and supports a quiz-only store',async()=>{
+  const f=await fixture();await publish(f);
+  const draft=structuredClone((await f.admin.query(api.purchase_presentation.get,{storeId:f.storeId})).draft);
+  draft.footer.brandName='Mi marca';
+  await f.admin.mutation(api.purchase_presentation.save,{storeId:f.storeId,draft,publish:false});
+  expect((await f.t.query(api.storefront.getCheckout,{subdomain:'guide'})).content.footer.brandName).not.toBe('Mi marca');
+  await f.admin.mutation(api.purchase_presentation.save,{storeId:f.storeId,draft,publish:true});
+  expect((await f.t.query(api.storefront.getCheckout,{subdomain:'guide'})).content.footer.brandName).toBe('Mi marca');
+  await expect(f.t.mutation(api.purchase_presentation.save,{storeId:f.storeId,draft,publish:true})).rejects.toThrow();
+ });
+ it('counts each step and completion once despite retries, going back and recompleting',async()=>{
+  const f=await fixture();await publish(f);const key=token();let d=await complete(f,key);
+  d=await f.t.mutation(api.quizzes.saveAnswer,{token:key,...command(d.session,null,'back')});
+  const args={token:key,...command(d.session,{name:'Ana',email:'ana@example.com',consent:false})};
+  await f.t.mutation(api.quizzes.saveAnswer,args);await f.t.mutation(api.quizzes.saveAnswer,args);
+  await f.t.mutation(api.quizzes.checkoutArrival,{token:key});await f.t.mutation(api.quizzes.checkoutArrival,{token:key});
+  const report=await f.admin.action(api.quizzes.funnel,{storeId:f.storeId});
+  expect(report).toMatchObject({started:1,completed:1,contacts:1,checkout:1});
+  expect(Object.fromEntries(report.steps)).toEqual({choice:1,contact:1});
+  const row=(await f.admin.query(api.quizzes.sessions,{storeId:f.storeId,cursor:null})).page[0];
+  await expect(f.t.query(api.quizzes.detail,{sessionId:row._id})).rejects.toThrow();
+  await expect(f.t.mutation(api.quizzes.remove,{sessionId:row._id})).rejects.toThrow();
+  expect(row.ipHash).toBeUndefined();
+ });
+ it('retains bonuses, extras, downsell, post-purchase attribution and delivery after webhooks',async()=>{
+  const f=await fixture();const extra=await f.admin.mutation(api.products.create,product('Extra','extra'));
+  await f.t.run(async ctx=>{await ctx.db.patch(f.storeId,{offer:{mainProductId:f.main,price:2700,bonuses:[{productId:extra,referenceValue:900}],upsells:[{productId:extra,price:500,displayOrder:0}]},postPurchase:{enabled:true,productId:extra,price:700},downsell:{enabled:true,percent:20,modalTitle:'Oferta',modalSubtitle:'',acceptText:'Aceptar',declineText:'Salir',pageTitle:'Oferta',pageSubtitle:''}});});
+  await publish(f);const key=token();await complete(f,key);mockStripe();
+  const args={subdomain:'guide',origin:'quiz',quizToken:key,upsellProductIds:[extra],via:'path'};
+  await f.t.action(api.checkout.start,{...args,attemptId:crypto.randomUUID()});
+  let orders=await f.t.run(ctx=>ctx.db.query('orders').collect());
+  expect(orders[0].total).toBe(3200);expect(orders[0].items.map(i=>i.role)).toEqual(['main','bonus','upsell']);
+  await sendWebhook(f.t,stripeEvent('checkout.session.completed',{id:'cs_test_1',payment_status:'paid',amount_total:3200,currency:'usd'}));
+  await f.t.action(api.checkout.startPostPurchase,{parentSessionId:'cs_test_1',attemptId:crypto.randomUUID(),via:'path'});
+  orders=await f.t.run(ctx=>ctx.db.query('orders').collect());
+  expect(orders[1]).toMatchObject({origin:'quiz',quizSessionId:orders[0].quizSessionId,total:700,parentOrderId:orders[0]._id});
+  await sendWebhook(f.t,stripeEvent('checkout.session.completed',{id:'cs_test_2',payment_status:'paid',amount_total:700,currency:'usd'}));
+  expect((await f.t.query(api.storefront.getDelivery,{sessionId:'cs_test_2'})).status).toBe('paid');
+  await f.t.action(api.checkout.start,{...args,upsellProductIds:[],downsell:true,attemptId:crypto.randomUUID()});
+  orders=await f.t.run(ctx=>ctx.db.query('orders').collect());expect(orders[2]).toMatchObject({origin:'quiz',total:2160,downsell:true});
+ });
+ it('rejects malformed structures and missing required contacts and preserves missing scores',()=>{
+  const q=tiny();expect(()=>validateAnswer(q.steps[1],null)).toThrow();
+  q.steps[0].id='constructor';expect(validateQuiz(q,true).join()).toMatch(/identificadores/);
+  q.steps=[null];expect(validateQuiz(q,true).length).toBeGreaterThan(0);
+  const unscored=tiny();unscored.steps[0].type='multiple';unscored.steps[0].options.forEach(o=>delete o.score);
+  expect(evaluate({op:'ref',ref:'score:choice'},contextFor(unscored,{choice:['option1']}))).toBeNull();
+ });
 });

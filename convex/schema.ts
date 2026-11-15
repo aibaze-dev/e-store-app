@@ -5,6 +5,8 @@ export const deliverable = v.object({ title: v.string(), url: v.string() });
 
 const sectionFields = { enabled: v.optional(v.boolean()), subtitle: v.optional(v.string()) };
 const feature = v.object({ title: v.string(), description: v.string(), icon: v.string() });
+const storyFields = { ...sectionFields, eyebrow: v.optional(v.string()), title: v.string() };
+const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.string()) };
 
 export const landingContent = v.object({
   postPurchase: v.optional(v.object({
@@ -13,7 +15,12 @@ export const landingContent = v.object({
   })),
   postPurchaseBenefits: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   postPurchaseVideo: v.optional(v.object({ enabled: v.boolean(), title: v.string(), url: v.string() })),
-  hero: v.object({ title: v.string(), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string() }),
+  hero: v.object({ title: v.string(), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()) }),
+  introduction: v.optional(v.object({ ...storyFields, text: v.string() })),
+  transformation: v.optional(v.object({ ...storyFields, ...storyImage })),
+  about: v.optional(v.object({ ...storyFields, ...storyImage, text: v.string(), signature: v.optional(v.string()) })),
+  showcase: v.optional(v.object({ ...storyFields, ...storyImage })),
+  comparison: v.optional(v.object({ ...storyFields, items: v.array(v.object({ title: v.string(), description: v.string(), highlighted: v.boolean() })) })),
   benefits: v.object({ ...sectionFields, title: v.string(), items: v.array(v.union(v.string(), feature)) }),
   painPoints: v.optional(v.object({ closingText: v.optional(v.string()), ...sectionFields, title: v.string(), items: v.array(v.union(v.string(), feature)) })),
   socialProof: v.optional(v.object({ eyebrow: v.optional(v.string()), rating: v.optional(v.number()), customers: v.optional(v.number()), satisfaction: v.optional(v.number()), ...sectionFields, title: v.string(), items: v.array(v.object({ name: v.string(), quote: v.string(), imageUrl: v.optional(v.string()), format: v.optional(v.union(v.literal('quote'), v.literal('chat'))), openingMessage: v.optional(v.string()), closingMessage: v.optional(v.string()), isExample: v.optional(v.boolean()) })) })),
@@ -69,9 +76,14 @@ export const storeCheckout = v.object({
   upsellReferences: v.array(v.object({ productId: v.id('products'), value: v.number() })),
 });
 
+// failed: a delayed payment method (ACH, SEPA…) was declined after checkout.
+// needs_review: Stripe charged an amount or currency that differs from the order.
 export const paymentStatus = v.union(
   v.literal('pending'), v.literal('paid'), v.literal('expired'), v.literal('refunded'),
+  v.literal('failed'), v.literal('needs_review'),
 );
+
+export const emailStatus = v.union(v.literal('pending'), v.literal('sent'), v.literal('failed'), v.literal('skipped'));
 
 export const itemRole = v.union(
   v.literal('main'), v.literal('bonus'), v.literal('upsell'), v.literal('post_purchase'),
@@ -142,7 +154,7 @@ export default defineSchema({
     currency: v.string(),
     total: v.number(),
     items: v.array(v.object({ productId: v.id('products'), name: v.string(), role: itemRole, price: v.number() })),
-  }).index('by_attempt', ['attemptId']).index('by_parent', ['parentOrderId']).index('by_store', ['storeId']),
+  }).index('by_attempt', ['attemptId']).index('by_parent', ['parentOrderId']).index('by_store', ['storeId']).index('by_quiz', ['quizSessionId']),
 
   // Shown in the panel as "Cobros y entregas". Deliveries are only exposed once paid.
   transactions: defineTable({
@@ -153,6 +165,10 @@ export default defineSchema({
     stripeCheckoutSessionId: v.optional(v.string()),
     stripePaymentIntentId: v.optional(v.string()),
     paidAt: v.optional(v.number()),
+    // What Stripe actually charged when it did not match the order (status needs_review).
+    charged: v.optional(v.object({ amount: v.number(), currency: v.string() })),
+    // Delivery email to the buyer, or the review alert to the admins, sent through Resend.
+    email: v.optional(v.object({ status: emailStatus, attempts: v.number(), updatedAt: v.number(), error: v.optional(v.string()) })),
     deliveries: v.array(v.object({ productName: v.string(), title: v.string(), url: v.string() })),
   }).index('by_order', ['orderId'])
     .index('by_session', ['stripeCheckoutSessionId'])
@@ -166,11 +182,11 @@ export default defineSchema({
   quizPublications: defineTable({ storeId: v.id('stores'), landingId: v.id('landings'), content: v.any() }).index('by_store', ['storeId']),
   quizSessions: defineTable({
     storeId: v.id('stores'), landingId: v.id('landings'), publicationId: v.id('quizPublications'),
-    tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
+    ipHash:v.optional(v.string()), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
     stepEvents: v.optional(v.array(v.object({stepId:v.string(),at:v.number()}))), firstCompletedAt:v.optional(v.number()), contactCapturedAt:v.optional(v.number()),
     history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
     contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),
-  }).index('by_token', ['tokenHash']).index('by_store', ['storeId']),
+  }).index('by_token', ['tokenHash']).index('by_store', ['storeId']).index('by_store_ip',['storeId','ipHash']),
   webhookEvents: defineTable({
     stripeEventId: v.string(),
     type: v.string(),

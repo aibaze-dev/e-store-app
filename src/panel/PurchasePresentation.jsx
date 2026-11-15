@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/lib/api.js';
-import { QField } from './QuizEditor.jsx';
+import { QField } from './QuizFields.jsx';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/Field.jsx';
 import { errorText } from '@/lib/format.js';

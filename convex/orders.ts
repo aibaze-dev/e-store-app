@@ -28,6 +28,8 @@ export const list = query({
         paidAt: transaction?.paidAt ?? null,
         stripePaymentIntentId: transaction?.stripePaymentIntentId ?? '',
         deliveries: transaction?.deliveries ?? [],
+        charged: transaction?.charged ?? null,
+        email: transaction?.email ? { status: transaction.email.status, error: transaction.email.error ?? '' } : null,
       };
     }));
   },

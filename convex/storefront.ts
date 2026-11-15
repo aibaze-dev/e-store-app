@@ -88,6 +88,7 @@ export const getDelivery = query({
 
     return {
       status: transaction.status,
+      emailed: paid && (transaction.email?.status === 'pending' || transaction.email?.status === 'sent'),
       isPostPurchase: Boolean(order.parentOrderId),
       storeName: store?.name ?? '',
       subdomain: landing?.subdomain ?? '',

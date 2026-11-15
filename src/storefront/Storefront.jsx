@@ -1,6 +1,7 @@
-import Quiz, { readQuizToken } from './Quiz.jsx';
+import { readQuizToken } from './quiz-session.js';
+const Quiz = lazy(() => import('./Quiz.jsx'));
 import PostPurchaseContent from '@/templates/PostPurchaseContent.jsx';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAction, useQuery } from 'convex/react';
 import { BookOpen, Check, CreditCard, ExternalLink, Gift, LoaderCircle, LockKeyhole, Plus, ShieldCheck, Zap } from 'lucide-react';
@@ -287,16 +288,20 @@ function ThankYou({ via }) {
     <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight"><LoaderCircle className="animate-spin" aria-hidden="true" />Estamos confirmando tu pago</h1>
     <p className="leading-7 text-muted-foreground" role="status">Suele tardar unos segundos. No cierres esta página: tus links aparecen acá apenas se confirme.</p>
   </Page>;
+  if (delivery.status === 'needs_review') return <Page>
+    <h1 className="text-3xl font-semibold tracking-tight">Estamos revisando tu pago</h1>
+    <p className="leading-7 text-muted-foreground">Recibimos el pago, pero necesitamos verificarlo antes de entregar tus links. Te vamos a contactar al email que usaste en la compra.</p>
+  </Page>;
   if (delivery.status !== 'paid') return <Page>
     <h1 className="text-3xl font-semibold tracking-tight">{delivery.status === 'refunded' ? 'Esta compra fue reembolsada' : 'El pago no se completó'}</h1>
-    <p className="leading-7 text-muted-foreground">{delivery.status === 'refunded' ? 'Los links de esta compra ya no están disponibles.' : 'No se realizó ningún cobro. Podés volver a intentarlo.'}</p>
-    {delivery.status === 'expired' && <Button asChild><Link to="..">Volver a la oferta</Link></Button>}
+    <p className="leading-7 text-muted-foreground">{delivery.status === 'refunded' ? 'Los links de esta compra ya no están disponibles.' : delivery.status === 'failed' ? 'Tu banco rechazó el pago y no se realizó ningún cobro. Podés volver a intentarlo con otro medio.' : 'No se realizó ningún cobro. Podés volver a intentarlo.'}</p>
+    {(delivery.status === 'expired' || delivery.status === 'failed') && <Button asChild><Link to="..">Volver a la oferta</Link></Button>}
   </Page>;
 
   return <Page>
     <div className="space-y-2">
       <h1 className="text-3xl font-semibold tracking-tight">¡Gracias por tu compra!</h1>
-      <p className="leading-7 text-muted-foreground">Estos son tus links. Guardá la dirección de esta página: es la forma de volver a verlos.</p>
+      <p className="leading-7 text-muted-foreground">Estos son tus links. {delivery.emailed ? 'También te los enviamos por email.' : 'Guardá la dirección de esta página: es la forma de volver a verlos.'}</p>
     </div>
     {delivery.postPurchaseOffer && <PostPurchaseOffer offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} />}
     {delivery.deliveries.length === 0
@@ -314,7 +319,7 @@ function LandingRoutes({ subdomain, via }) {
   if (view === undefined || classic === undefined) return <Page><PageSkeleton label="Cargando" /></Page>;
   return <Routes>
     <Route index element={classic ? <Landing view={classic} /> : <Unavailable />} />
-    <Route path="quiz/*" element={<Quiz subdomain={subdomain} view={view}/>} />
+    <Route path="quiz/*" element={<Suspense fallback={<p className="p-8">Cargando quiz…</p>}><Quiz subdomain={subdomain} view={view}/></Suspense>} />
     <Route path="checkout" element={view ? <Checkout view={view} via={via} /> : <Unavailable />} />
     <Route path="oferta" element={view?.downsell ? <DownsellOffer view={view} via={via} /> : <Unavailable />} />
     <Route path="*" element={<Unavailable />} />

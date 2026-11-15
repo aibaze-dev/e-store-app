@@ -13,19 +13,8 @@ export function Rating({ value, customers }) {
   </div>;
 }
 
-export default function Testimonials({ section }) {
-  const [index, setIndex] = useState(0);
-  const current = Math.min(index, Math.max(0, section.items.length - 1));
-  const item = section.items[current];
-  const move = delta => setIndex((current + delta + section.items.length) % section.items.length);
-  return <>
-    {item && <div className="sales-carousel" role="region" aria-roledescription="carrusel" aria-label="Testimonios" tabIndex={0} onKeyDown={event => {
-      if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
-      if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
-    }}>
-      <div aria-live="polite" aria-atomic="true">
-        <div className="sales-testimonials">
-          {item.format === 'chat' ? <figure className="sales-chat" aria-label={`Conversación con ${item.name}`}>
+function TestimonialCard({ item }) {
+  return item.format === 'chat' ? <figure className="sales-chat" aria-label={`Conversación con ${item.name}`}>
             <figcaption className="sales-chat-header"><span className="sales-chat-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span><span><strong>{item.name}</strong><TestimonialStars /></span></figcaption>
             <div className="sales-chat-messages">
               {item.openingMessage && <p className="sales-chat-sent">{item.openingMessage}</p>}
@@ -35,7 +24,23 @@ export default function Testimonials({ section }) {
           </figure> : <figure className={item.imageUrl ? 'sales-testimonial-image' : 'sales-testimonial'}>
             {item.imageUrl ? <a href={item.imageUrl} target="_blank" rel="noreferrer"><img src={item.imageUrl} alt={`Testimonio de ${item.name}`} loading="lazy" /></a> : <Quote aria-hidden="true" />}
             {item.quote && <blockquote>{item.quote}</blockquote>}<figcaption>{item.name}<TestimonialStars /></figcaption>
-          </figure>}
+          </figure>;
+}
+
+export default function Testimonials({ section, layout = 'carousel' }) {
+  const [index, setIndex] = useState(0);
+  const current = Math.min(index, Math.max(0, section.items.length - 1));
+  const item = section.items[current];
+  const move = delta => setIndex((current + delta + section.items.length) % section.items.length);
+  return <>
+    {layout === 'grid' && <div className="classic-testimonial-grid sales-testimonials">{section.items.map((entry, i) => <TestimonialCard key={i} item={entry} />)}</div>}
+    {layout !== 'grid' && item && <div className="sales-carousel" role="region" aria-roledescription="carrusel" aria-label="Testimonios" tabIndex={0} onKeyDown={event => {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
+    }}>
+      <div aria-live="polite" aria-atomic="true">
+        <div className="sales-testimonials">
+          <TestimonialCard item={item} />
         </div>
       </div>
       {section.items.length > 1 && <div className="sales-carousel-controls">

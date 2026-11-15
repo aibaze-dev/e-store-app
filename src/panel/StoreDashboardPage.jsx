@@ -5,7 +5,7 @@ import { ArrowRight, BookOpen, Check, CircleCheck, CircleDashed, Copy, ExternalL
 import { api } from '@/lib/api.js';
 import { landingUrls } from '@/lib/site.js';
 import { storePath } from '@/lib/panel-routes.js';
-import { formatDate, formatMoney, STATUS_LABELS } from '@/lib/format.js';
+import { formatDate, formatMoney, STATUS_LABELS, statusVariant } from '@/lib/format.js';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
@@ -112,7 +112,7 @@ export function StoreDashboardView({ store, summary, landing, orders, products }
             <p className="max-w-52 text-xs leading-6 text-muted-foreground">Las compras de esta tienda aparecerán acá.</p>
           </div> : <ul className="divide-y">{orders.slice(0, 5).map(order => <li key={order._id} className="space-y-2 py-4">
             <div className="flex items-start justify-between gap-3"><p className="min-w-0 truncate text-sm font-medium">{order.buyer?.name || order.buyer?.email || 'Compra iniciada'}</p><span className="shrink-0 text-sm font-semibold">{formatMoney(order.total, order.currency)}</span></div>
-            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span><Badge variant={order.status === 'paid' ? 'secondary' : 'outline'}>{STATUS_LABELS[order.status]}</Badge></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span><Badge variant={statusVariant(order.status)}>{STATUS_LABELS[order.status]}</Badge></div>
           </li>)}</ul>}
         </section>
 

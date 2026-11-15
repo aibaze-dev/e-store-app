@@ -319,7 +319,8 @@
 .landing-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .landing-preview-toolbar strong { display: block; font-size: 13px; }
 .landing-preview-toolbar span { display: block; font-size: 10px; color: var(--muted-foreground); margin-top: 4px; }
-.landing-preview-viewport { height: 72vh; min-height: 480px; background: var(--muted); padding: 16px; overflow: auto; }
+.landing-preview-viewport { height: 72vh; min-height: 480px; background: var(--muted); padding: 16px; overflow: hidden; }
+.landing-preview-canvas { height: 100%; margin-inline: auto; overflow: hidden; border-radius: 8px; }
 .landing-preview-viewport iframe { display: block; margin-inline: auto; border: none; width: 1040px; height: 100%; background: white; border-radius: 8px; }
 .landing-preview-viewport.is-mobile iframe { width: min(100%, 390px); }
 .landing-save-bar { position: sticky; bottom: 12px; z-index: 10; display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: 0 -4px 20px #0001; }
@@ -406,3 +407,14 @@
 .sales-promo > span, .sales-scarcity, .sales-viewers, .sales-count, .sales-timer, .sales-toast p { overflow-wrap: anywhere; min-width: 0; }
 
 .post-purchase-content { overflow-wrap: anywhere; }
+
+/* Classic landing editor: palette preview without changing the panel theme. */
+.classic-design-note { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.classic-design-note > div { min-width: 0; }
+.classic-design-note strong { font-size: 14px; }
+.classic-design-note p { margin-top: 8px; max-width: 680px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
+.classic-palette { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 12px; }
+.classic-palette i { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #00000015; background: #f56b20; }
+.classic-palette i:nth-child(2) { background: #fff5eb; }
+.classic-palette i:nth-child(3) { background: #27170e; }
+@media (max-width: 760px) { .classic-design-note { align-items: flex-start; flex-direction: column; gap: 16px; padding: 20px; } }

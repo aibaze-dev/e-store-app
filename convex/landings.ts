@@ -8,6 +8,7 @@ import { requireAdmin } from './lib/permissions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
 import { cleanSubdomain, cleanText, cleanUrl, fail } from './lib/validation';
 import { landingContent } from './schema';
+import { CLASSIC_STORY } from '../shared/classic-design.js';
 
 const TEMPLATES = ['classic'];
 const landingKind = v.optional(v.union(v.literal('classic'),v.literal('quiz')));
@@ -48,7 +49,22 @@ export function cleanContent(content: typeof landingContent.type) {
   const videoUrl = cleanUrl(post.postPurchaseVideo.url, 'Video post-compra');
   if (videoUrl && !videoSource(videoUrl)) fail('Video post-compra: usá una URL HTTPS de YouTube, Vimeo o un archivo MP4, WebM u OGV.');
   if (post.postPurchaseVideo.enabled && !videoUrl) fail('Video post-compra: agregá una URL para activar el VSL.');
+  const storyHeading = (key: keyof typeof CLASSIC_STORY) => {
+    const value = { ...CLASSIC_STORY[key], ...content[key] };
+    return { ...section(value), eyebrow: cleanText(value.eyebrow, 'Antetítulo', 120), title: cleanText(value.title, 'Título de sección', 120) };
+  };
+  const storyImage = (key: 'transformation' | 'about' | 'showcase') => ({
+    imageUrl: cleanUrl(content[key]?.imageUrl ?? '', 'Imagen de sección'),
+    imageAlt: cleanText(content[key]?.imageAlt ?? '', 'Descripción de imagen', 240),
+  });
+  if ((content.comparison?.items.length ?? 0) > 3) fail('Comparación: usá hasta 3 opciones.');
+  if ((content.comparison?.items.filter(item => item.highlighted).length ?? 0) > 1) fail('Comparación: destacá una sola opción.');
   return {
+    introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400) },
+    transformation: { ...storyHeading('transformation'), ...storyImage('transformation') },
+    about: { ...storyHeading('about'), ...storyImage('about'), text: cleanText(content.about?.text ?? '', 'Quiénes somos', 2400), signature: cleanText(content.about?.signature ?? '', 'Firma del equipo', 120) },
+    showcase: { ...storyHeading('showcase'), ...storyImage('showcase') },
+    comparison: { ...storyHeading('comparison'), items: (content.comparison?.items ?? []).map(item => ({ title: cleanText(item.title, 'Opción de comparación', 120, true), description: cleanText(item.description, 'Detalle de comparación', 600, true), highlighted: item.highlighted })) },
     postPurchase: {
       eyebrow: cleanText(post.postPurchase.eyebrow, 'Antetítulo post-compra', 120),
       title: cleanText(post.postPurchase.title, 'Título post-compra', 160),
@@ -67,6 +83,9 @@ export function cleanContent(content: typeof landingContent.type) {
     },
     postPurchaseVideo: { enabled: post.postPurchaseVideo.enabled, title: cleanText(post.postPurchaseVideo.title, 'Título del video', 120), url: videoUrl },
     hero: {
+      eyebrow: cleanText(content.hero.eyebrow ?? '', 'Antetítulo principal', 120),
+      secondaryImageUrl: cleanUrl(content.hero.secondaryImageUrl ?? '', 'Segunda imagen principal'),
+      note: cleanText(content.hero.note ?? '', 'Nota de presentación', 240),
       title: cleanText(content.hero.title, 'Título', 160),
       subtitle: cleanText(content.hero.subtitle, 'Subtítulo', 400),
       imageUrl: cleanUrl(content.hero.imageUrl, 'Imagen principal'),
@@ -113,7 +132,7 @@ export function cleanContent(content: typeof landingContent.type) {
     },
     steps: {
       ...section(content.steps), title: cleanText(content.steps?.title ?? 'Así lo aplicás', 'Título de pasos', 120),
-      items: features(content.steps?.items ?? [], 'Pasos', 6) as Array<{ title: string; description: string; icon: string }>,
+      items: features(content.steps?.items ?? [], 'Pasos', 7) as Array<{ title: string; description: string; icon: string }>,
     },
     summary: { ...section(content.summary), title: cleanText(content.summary?.title ?? 'Todo lo que incluye tu compra', 'Título del resumen', 120) },
     closing: {

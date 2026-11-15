@@ -763,3 +763,46 @@ describe('live checkout visitors', () => {
     expect((await rows(t, 'checkoutPresence')).map(row => row.sessionId)).toEqual([session(3)]);
   });
 });
+
+
+describe('classic editorial content', () => {
+  it('saves and publishes the new sections without dropping promotions or existing content', async () => {
+    const { t, admin, storeId } = await campaign();
+    const draft = normalizeContent(content);
+    Object.assign(draft.hero, { eyebrow: 'Una guía práctica', secondaryImageUrl: 'https://example.com/kit.png', note: 'Formato digital' });
+    Object.assign(draft.introduction, { enabled: true, title: 'Empezá con un plan', text: 'Primer párrafo.\nSegundo párrafo.' });
+    Object.assign(draft.transformation, { enabled: true, title: 'Antes y después', imageUrl: 'https://example.com/change.png', imageAlt: 'Comparación de resultados' });
+    Object.assign(draft.about, { enabled: true, title: 'Nuestro equipo', text: 'Creamos esta guía.', imageUrl: 'https://example.com/team.png', signature: 'El equipo' });
+    Object.assign(draft.showcase, { enabled: true, title: 'El kit', imageUrl: 'https://example.com/kit.png' });
+    Object.assign(draft.comparison, { enabled: true, title: 'Elegí tu camino', items: [{ title: 'Con una guía', description: 'Un paso a paso.', highlighted: true }] });
+    draft.steps.items = Array.from({ length: 7 }, (_, i) => ({ title: `Día ${i + 1}`, description: 'Una actividad', icon: 'book' }));
+    draft.promotion = { ...draft.promotion, message: 'Nuestro banner', remainingSpots: 9 };
+    await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft });
+    const old = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });
+    expect(old.content.about.enabled).toBe(false);
+    const preview = await admin.query(api.landings.preview, { storeId });
+    for (const key of ['hero', 'introduction', 'transformation', 'about', 'showcase', 'comparison', 'steps', 'promotion', 'activity', 'guarantee']) expect(preview.content[key]).toMatchObject(draft[key]);
+    await admin.mutation(api.landings.publish, { storeId });
+    const published = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });
+    expect(published.content.about).toEqual(preview.content.about);
+    expect(published.content.promotion.message).toBe('Nuestro banner');
+    expect(published.offer).toEqual(old.offer);
+  });
+
+  it('rejects unsafe media URLs and oversized or ambiguous comparison sections', async () => {
+    const { admin, storeId } = await campaign();
+    const base = normalizeContent(content);
+    const item = { title: 'Opción', description: 'Texto', highlighted: true };
+    const patches = [
+      { hero: { ...base.hero, secondaryImageUrl: 'javascript:alert(1)' } },
+      { about: { ...base.about, imageUrl: 'data:text/html,x' } },
+      { transformation: { ...base.transformation, imageUrl: 'javascript:alert(1)' } },
+      { showcase: { ...base.showcase, imageUrl: 'javascript:alert(1)' } },
+      { introduction: { ...base.introduction, text: 'a'.repeat(2401) } },
+      { comparison: { ...base.comparison, items: [item, item] } },
+      { comparison: { ...base.comparison, items: Array.from({ length: 4 }, () => ({ ...item, highlighted: false })) } },
+      { steps: { ...base.steps, items: Array.from({ length: 8 }, () => ({ title: 'Paso', description: '', icon: 'book' })) } },
+    ];
+    for (const patch of patches) await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...base, ...patch } })).rejects.toThrow();
+  });
+});

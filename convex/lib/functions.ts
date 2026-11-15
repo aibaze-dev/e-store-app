@@ -1,5 +1,5 @@
 import {
-  actionGeneric, httpActionGeneric, internalMutationGeneric, internalQueryGeneric, mutationGeneric, queryGeneric,
+  actionGeneric, httpActionGeneric, internalActionGeneric, internalMutationGeneric, internalQueryGeneric, mutationGeneric, queryGeneric,
   type ActionBuilder, type DataModelFromSchemaDefinition, type GenericMutationCtx, type GenericQueryCtx,
   type MutationBuilder, type QueryBuilder,
 } from 'convex/server';
@@ -18,4 +18,5 @@ export const mutation = mutationGeneric as MutationBuilder<DataModel, 'public'>;
 export const internalQuery = internalQueryGeneric as QueryBuilder<DataModel, 'internal'>;
 export const internalMutation = internalMutationGeneric as MutationBuilder<DataModel, 'internal'>;
 export const action = actionGeneric as ActionBuilder<DataModel, 'public'>;
+export const internalAction = internalActionGeneric as ActionBuilder<DataModel, 'internal'>;
 export const httpAction = httpActionGeneric;

@@ -1,10 +1,12 @@
 import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
 import { POST_PURCHASE_CONTENT } from '../../shared/post-purchase.js';
+import { CLASSIC_ACCENT, CLASSIC_STORY } from '../../shared/classic-design.js';
 
 // Defaults are shared by the form and public renderer. Existing string lists remain readable.
 export const EMPTY_CONTENT = {
   ...POST_PURCHASE_CONTENT,
-  hero: { title: '', subtitle: '', imageUrl: '', ctaText: 'Quiero mi copia' },
+  ...CLASSIC_STORY,
+  hero: { eyebrow: '', title: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', note: '', ctaText: 'Quiero mi copia' },
   promotion: { ...PROMOTION_COPY, enabled: true, message: 'Oferta limitada', timerMode: 'session' },
   benefits: { enabled: true, title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', items: [] },
   painPoints: { closingText: 'Si respondiste “sí” a alguna de estas… tenemos la solución.', enabled: true, title: '¿Te sentís identificado?', subtitle: 'Si alguno de estos problemas te suena familiar, este ebook es para vos', items: [] },
@@ -16,7 +18,7 @@ export const EMPTY_CONTENT = {
   guarantee: { enabled: true, title: 'Tu compra, con garantía', subtitle: '', text: '' },
   closing: { enabled: true, title: '', ctaText: 'Comprar ahora y empezar', stickyEnabled: true },
   footer: { brandName: '', termsUrl: '', privacyUrl: '' },
-  style: { accentColor: '#f59e0b' },
+  style: { accentColor: CLASSIC_ACCENT },
   activity: { ...ACTIVITY_COPY, ...ACTIVITY_DEFAULTS },
 };
 
@@ -26,6 +28,7 @@ export function normalizeContent(content = {}) {
     normalized[key].items = normalized[key].items.map(item => typeof item === 'string' ? { title: item, description: '', icon: 'check' } : { ...item });
   }
   normalized.socialProof.items = normalized.socialProof.items.map(item => ({ imageUrl: '', format: 'quote', openingMessage: '', closingMessage: '', ...item }));
+  normalized.comparison.items = normalized.comparison.items.map(item => ({ ...item }));
   return normalized;
 }
 

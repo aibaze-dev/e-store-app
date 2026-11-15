@@ -87,7 +87,7 @@ export default function StoreCheckoutPage() {
   const url = landing?.subdomain ? `${landingUrls(landing.subdomain).path}/checkout` : '';
   return <div className="mx-auto max-w-5xl space-y-6">
     <div className="space-y-2"><h1 className="text-3xl font-semibold tracking-tight">Checkout</h1><p className="text-sm leading-7 text-muted-foreground">El checkout de {store.name}. Incluye el producto principal y los bonos gratis; cada comprador elige sus extras.</p></div>
-    <section className="dashboard-card space-y-4 p-5 sm:p-7"><ShareLink key={url} label="Checkout" url={url} icon={ShoppingCart} enabled={available} />{!available && <p className="text-sm text-muted-foreground">Activá la tienda y <Link to={`/panel/tiendas/${storeId}/landing`} className="underline underline-offset-4">publicá la landing</Link> para habilitar el checkout.</p>}</section>
+    <section className="dashboard-card space-y-4 p-5 sm:p-7"><ShareLink key={url} label="Checkout" url={url} icon={ShoppingCart} enabled={available} />{!available && <p className="text-sm text-muted-foreground">Activá la tienda y <Link to={`/panel/tiendas/${storeId}/landings`} className="underline underline-offset-4">publicá una landing</Link> para habilitar el checkout.</p>}</section>
     <PurchasePresentation storeId={storeId} />
     <CheckoutSettings key={store._id} store={store} products={products} landingNotifications={landing?.published?.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications} />
     <StoreOfferSummary store={store} products={products} />

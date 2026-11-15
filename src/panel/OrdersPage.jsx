@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/lib/api.js';
-import { formatDate, formatMoney, STATUS_LABELS } from '@/lib/format.js';
+import { EMAIL_ERRORS, EMAIL_LABELS, formatDate, formatMoney, STATUS_LABELS, statusVariant } from '@/lib/format.js';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
@@ -29,7 +29,8 @@ export default function OrdersPage() {
           <TableCell className="min-w-40">{order.storeName || '—'}{order.isPostPurchase && <span className="block text-xs text-muted-foreground">Oferta post-compra</span>}{order.downsell && <span className="block text-xs text-muted-foreground">Con descuento de downsell</span>}</TableCell>
           <TableCell className="min-w-44">{order.buyer?.email
             ? <>{order.buyer.name && <span className="block">{order.buyer.name}</span>}<span className="block text-xs break-all text-muted-foreground">{order.buyer.email}</span></>
-            : <span className="text-muted-foreground">Sin datos todavía</span>}</TableCell>
+            : <span className="text-muted-foreground">Sin datos todavía</span>}
+            {order.email && <span className="mt-1 block text-xs text-muted-foreground">{order.status === 'needs_review' ? 'Aviso a administradores' : EMAIL_LABELS[order.email.status]}{order.email.status !== 'sent' && order.email.status !== 'pending' && EMAIL_ERRORS[order.email.error] ? `: ${EMAIL_ERRORS[order.email.error]}` : ''}</span>}</TableCell>
           <TableCell className="min-w-64">
             <ul className="space-y-1">{order.items.map((item, index) => <li key={index}>{item.name} <span className="text-xs text-muted-foreground">· {ROLE_LABELS[item.role]}{item.price > 0 && ` · ${formatMoney(item.price, order.currency)}`}</span></li>)}</ul>
             {order.deliveries.length > 0 && <details className="mt-2">
@@ -38,7 +39,8 @@ export default function OrdersPage() {
             </details>}
           </TableCell>
           <TableCell className="font-medium whitespace-nowrap">{formatMoney(order.total, order.currency)}</TableCell>
-          <TableCell><Badge variant={order.status === 'paid' ? 'secondary' : 'outline'}>{STATUS_LABELS[order.status]}</Badge></TableCell>
+          <TableCell className="min-w-32"><Badge variant={statusVariant(order.status)}>{STATUS_LABELS[order.status]}</Badge>
+            {order.status === 'needs_review' && order.charged && <p className="mt-2 text-xs leading-5 text-muted-foreground">Stripe cobró {formatMoney(order.charged.amount, order.charged.currency)}. Revisá el pago {order.stripePaymentIntentId} en Stripe: reembolsalo o entregá a mano.</p>}</TableCell>
         </TableRow>)}</TableBody>
       </Table>
     </div>}

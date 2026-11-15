@@ -1,3 +1,4 @@
+import { CLASSIC_ACCENT, classicAccent } from '../../shared/classic-design.js';
 import { discountedPrice } from '@/storefront/downsell.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
@@ -114,6 +115,13 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
     {remove(key, index, label)}
   </fieldset>)}{add(key, label, newFeature(), max)}</>;
 
+  const storyFields = (key, { image = false, text = false } = {}) => <>
+    {sectionHeading(key)}
+    {field(key, 'eyebrow', 'Antetítulo (opcional)', { maxLength: 120 })}
+    {text && field(key, 'text', 'Texto de la sección', { multiline: true, maxLength: 2400, hint: 'Separá los párrafos con un salto de línea.' })}
+    {image && <>{field(key, 'imageUrl', 'Imagen de la sección (URL)', { type: 'url', placeholder: 'https://' })}{field(key, 'imageAlt', 'Descripción de la imagen', { maxLength: 240, hint: 'Describí la imagen para quienes usan un lector de pantalla.' })}</>}
+  </>;
+
   const mainProduct = products.find(product => product._id === store.offer.mainProductId);
   const postProduct = products.find(product => product._id === store.postPurchase.productId);
   const preview = mainProduct ? {
@@ -147,26 +155,36 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
   return <div className="landing-configurator">
     <div className="mb-6 space-y-3">
       <Button asChild variant="ghost" className="-ml-3"><Link to={`/panel/tiendas/${storeId}`}><ArrowLeft aria-hidden="true" />Inicio de la tienda</Link></Button>
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">Plantilla de venta</span><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configurá tu landing</h1><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Completá cada sección. El diseño ya está listo y la vista previa se actualiza mientras escribís.</p></div><Button type="button" variant="outline" onClick={() => setShowPreview(value => !value)}><Eye aria-hidden="true" />{showPreview ? 'Volver al formulario' : 'Ampliar vista previa'}</Button></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">Landing clásica · diseño editorial</span><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configurá tu landing</h1><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Armá el recorrido de tu landing: presentación, transformación, bonos y oferta. Los bloques opcionales aparecen cuando los activás y completás.</p></div><Button type="button" variant="outline" onClick={() => setShowPreview(value => !value)}><Eye aria-hidden="true" />{showPreview ? 'Volver al formulario' : 'Ampliar vista previa'}</Button></div>
       <p className="text-xs leading-6 text-muted-foreground">{landing?.publishedAt ? `Publicada el ${formatDate(landing.publishedAt)}.` : 'Todavía sin publicar.'} {dirty ? 'Tenés cambios sin guardar.' : pending ? 'Hay un borrador pendiente de publicar.' : ''}</p>
     </div>
+    <div className="classic-design-note"><div><span aria-hidden="true" className="classic-palette"><i /><i /><i /></span><strong>Naranja, crema y chocolate</strong><p>Imágenes protagonistas, contenido centrado y ofertas destacadas. Conservá tus promociones y activá los nuevos bloques a medida que los completes.</p></div><Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => change('style', { accentColor: CLASSIC_ACCENT })}>Usar paleta de referencia</Button></div>
     <LandingWizard storeId={storeId} hasContent={Boolean(content.hero.title)} disabled={Boolean(busy)} onApply={applyGenerated} />
     <div className={`landing-config-grid ${showPreview ? 'preview-expanded' : ''}`}>
       <form onSubmit={submit} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} className="landing-config-form" aria-busy={Boolean(busy)}>
         <Section id="hero" number="01" title="Presentación principal" description="La promesa, portada y botón de tu ebook" defaultOpen>
+          {field('hero', 'eyebrow', 'Antetítulo (opcional)', { maxLength: 120, placeholder: 'Tu próximo paso empieza acá' })}
           {field('hero', 'title', 'Título principal', { maxLength: 160, placeholder: 'Pasá de intentarlo a lograrlo con un plan claro' })}
           {field('hero', 'subtitle', 'Subtítulo', { multiline: true, maxLength: 400 })}
           {field('hero', 'imageUrl', 'Imagen principal (URL)', { type: 'url', hint: 'Si lo dejás vacío, usamos la portada del producto.', placeholder: 'https://' })}
+          {field('hero', 'secondaryImageUrl', 'Segunda imagen de portada (URL)', { type: 'url', hint: 'Se muestra al lado de la principal: usala para mostrar el contenido del kit.', placeholder: 'https://' })}
+          {field('hero', 'note', 'Nota debajo del botón', { multiline: true, maxLength: 240, hint: 'Una aclaración breve sobre el formato, el acceso o los requisitos.' })}
           {field('hero', 'ctaText', 'Texto del botón de compra', { maxLength: 60 })}
         </Section>
-        <Section id="offer" number="02" title="Oferta y bonos" description="El producto y los importes de esta tienda">
+        <Section id="introduction" number="02" title="Introducción" description="Una explicación breve después de la portada">{storyFields('introduction', { text: true })}</Section>
+        <Section id="transformation" number="03" title="Antes y después" description="Mostrá el cambio con una imagen protagonista">{storyFields('transformation', { image: true })}</Section>
+        <Section id="painPoints" number="04" title="¿Te sentís identificado?" description="Los problemas que resuelve tu ebook">{features('painPoints', 'problema')}{field('painPoints', 'closingText', 'Frase de cierre', { maxLength: 240 })}</Section>
+        <Section id="offer" number="05" title="Oferta y bonos" description="El producto y los importes de esta tienda">
           <StoreOfferSummary store={store} products={products} openInNewTab />
           <p className="text-xs leading-6 text-muted-foreground">Configurá el precio tachado y los valores de referencia de los bonus en Productos y oferta. Se reutilizan en toda la landing. Estos enlaces abren otra pestaña para que conserves lo que estás escribiendo.</p>
           {sectionHeading('bonuses')}
         </Section>
-        <Section id="benefits" number="03" title="Qué vas a encontrar" description="Beneficios con ícono, título y descripción">{features('benefits', 'beneficio')}</Section>
-        <Section id="painPoints" number="04" title="¿Te sentís identificado?" description="Los problemas que resuelve tu ebook">{features('painPoints', 'problema')}{field('painPoints', 'closingText', 'Frase de cierre', { maxLength: 240 })}</Section>
-        <Section id="socialProof" number="05" title="Prueba social · Testimonios" description="Carrusel de testimonios con cinco estrellas">
+        <Section id="steps" number="06" title="Cómo se aplica" description="Explicá el recorrido en pasos simples">{features('steps', 'paso', 7)}</Section>
+        <Section id="about" number="07" title="Quiénes somos" description="La historia y el equipo detrás de tu producto">{storyFields('about', { image: true, text: true })}{field('about', 'signature', 'Firma o nombre del equipo', { maxLength: 120 })}</Section>
+        <Section id="showcase" number="08" title="Imagen del kit completo" description="Una vista de todo lo que recibe el comprador">{storyFields('showcase', { image: true })}</Section>
+        <Section id="benefits" number="09" title="Qué vas a encontrar" description="Beneficios con ícono, título y descripción">{features('benefits', 'beneficio')}</Section>
+        <Section id="summary" number="10" title="Resumen de la compra" description="Producto, bonos, precio y ahorro en un solo lugar">{sectionHeading('summary')}<p className="text-xs leading-6 text-muted-foreground">El contenido se completa con la oferta y la garantía de esta tienda.</p></Section>
+        <Section id="socialProof" number="11" title="Prueba social · Testimonios" description="Opiniones en tarjetas, conversaciones o capturas">
           {sectionHeading('socialProof')}
           {field('socialProof', 'eyebrow', 'Texto superior (opcional)', { maxLength: 120, placeholder: 'Testimonios reales' })}
           {content.socialProof.items.length === 0 && <p className="text-sm text-muted-foreground">Agregá un testimonio para mostrar esta sección en la landing. Podés usar una captura de la conversación.</p>}
@@ -186,22 +204,30 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           <p className="text-xs text-muted-foreground">Todos los testimonios muestran cinco estrellas. Podés editar los textos y agregar conversaciones o capturas; los testimonios cargados a mano se conservan al volver a generar.</p>
           {add('socialProof', 'testimonio', { name: '', quote: '', imageUrl: '', format: 'chat', openingMessage: '', closingMessage: '' }, 12)}
         </Section>
-        <Section id="summary" number="06" title="Resumen de la compra" description="Producto, bonos, precio y ahorro en un solo lugar">{sectionHeading('summary')}<p className="text-xs leading-6 text-muted-foreground">El contenido se completa con la oferta y la garantía de esta tienda.</p></Section>
-        <Section id="steps" number="07" title="Cómo se aplica" description="Explicá el recorrido en pasos simples">{features('steps', 'paso', 6)}</Section>
-        <Section id="guarantee" number="08" title="Garantía" description="Las condiciones que ofrecés al comprador">
+        <Section id="comparison" number="12" title="Comparación de alternativas" description="Hasta tres caminos, con una opción destacada">
+          {sectionHeading('comparison')}{field('comparison', 'eyebrow', 'Antetítulo (opcional)', { maxLength: 120 })}
+          {content.comparison.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Opción {index + 1}</legend>
+            {itemField('comparison', index, 'title', 'Nombre de la opción', { maxLength: 120, required: true })}
+            {itemField('comparison', index, 'description', 'Qué ofrece esta opción', { multiline: true, maxLength: 600, required: true })}
+            <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-primary" checked={item.highlighted} disabled={Boolean(busy)} onChange={event => change('comparison', { items: content.comparison.items.map((entry, i) => ({ ...entry, highlighted: i === index ? event.target.checked : false })) })} />Destacar esta opción con el botón de compra</label>
+            {remove('comparison', index, 'opción')}
+          </fieldset>)}
+          {add('comparison', 'opción', { title: '', description: '', highlighted: false }, 3)}
+        </Section>
+        <Section id="guarantee" number="13" title="Garantía" description="Las condiciones que ofrecés al comprador">
           {toggle('guarantee')}
           <Field label="Días de garantía (opcional)">{ids => <Input {...ids} type="number" min="1" max="365" step="1" value={content.guarantee.days ?? ''} onChange={event => change('guarantee', { days: event.target.value === '' ? undefined : Number(event.target.value) })} disabled={Boolean(busy)} />}</Field>
           {field('guarantee', 'title', 'Título', { maxLength: 120 })}{field('guarantee', 'text', 'Condiciones de la garantía', { multiline: true, maxLength: 1200, hint: 'La garantía aparece cuando completás este texto. Los días se repiten automáticamente junto a los botones.' })}
         </Section>
-        <Section id="faq" number="09" title="Preguntas frecuentes" description="Respondé las dudas antes de la compra">
+        <Section id="faq" number="14" title="Preguntas frecuentes" description="Respondé las dudas antes de la compra">
           {sectionHeading('faq')}
           {content.faq.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Pregunta {index + 1}</legend>{itemField('faq', index, 'question', 'Pregunta', { maxLength: 240, required: true })}{itemField('faq', index, 'answer', 'Respuesta', { multiline: true, maxLength: 1200, required: true })}{remove('faq', index, 'pregunta')}</fieldset>)}
           {add('faq', 'pregunta', { question: '', answer: '' }, 20)}
         </Section>
-        <Section id="closing" number="10" title="Cierre y botón fijo" description="La última invitación a comprar">
+        <Section id="closing" number="15" title="Cierre y botón fijo" description="La última invitación a comprar">
           {toggle('closing')}{field('closing', 'title', 'Título final', { maxLength: 160, hint: 'Si queda vacío, usamos el título principal.' })}{field('closing', 'ctaText', 'Texto del botón final', { maxLength: 60 })}{toggle('closing', 'Mostrar el botón fijo al pie de la pantalla', 'stickyEnabled')}
         </Section>
-        <Section id="promotion" number="11" title="Promoción y actividad" description="Contador compartido, cupos y actividad">
+        <Section id="promotion" number="16" title="Promoción y actividad" description="Contador compartido, cupos y actividad">
           {toggle('promotion', 'Mostrar promoción')}{field('promotion', 'message', 'Mensaje', { maxLength: 120 })}
           <Field label="Tipo de contador">{ids => <NativeSelect {...ids} value={content.promotion.timerMode} onChange={event => change('promotion', { timerMode: event.target.value })} disabled={Boolean(busy)}><option value="session">Por visita · entre 8 y 15 minutos</option><option value="date">Fecha de vencimiento</option></NativeSelect>}</Field>
           <p className="text-xs text-muted-foreground">El contador por visita es simulado, se comparte con el checkout y no reinicia al navegar o recargar. No modifica precios ni bloquea pagos.</p>
@@ -219,14 +245,14 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           <p className="text-xs leading-6 text-muted-foreground">Activá los elementos que querés mostrar y revisalos en la vista previa. Guardar borrador conserva tus cambios sin publicarlos; Guardar y publicar los aplica a la landing pública. No requieren una aprobación adicional.</p>
           <p className="text-xs leading-6 text-muted-foreground">Los avisos usan nombres y ciudades ficticios con pausas aleatorias y la etiqueta visible. Aparecen también en la vista previa, sin necesitar ventas. El contador de ventas sigue mostrando únicamente pagos confirmados.</p>
         </Section>
-        <Section id="identity" number="12" title="Identidad y dirección" description="Color, marca, enlaces y dirección pública">
-          <Field label="Color principal">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={content.style.accentColor || '#f59e0b'} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{content.style.accentColor || '#f59e0b'}</span></div>}</Field>
+        <Section id="identity" number="17" title="Identidad y dirección" description="Color, marca, enlaces y dirección pública">
+          <Field label="Color principal" hint="Usá la paleta de referencia o elegí otro acento. Los botones ajustan su contraste automáticamente.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
           {field('footer', 'brandName', 'Marca en el pie de página', { maxLength: 120, hint: 'Si queda vacío, usamos el nombre de la tienda.' })}
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
           <Field label="Subdominio" hint="Minúsculas, números y guiones. Guardar un cambio de dirección lo aplica de inmediato.">{ids => <Input {...ids} value={form.subdomain} onChange={event => setForm(current => ({ ...current, subdomain: event.target.value }))} required maxLength={63} autoCapitalize="none" spellCheck={false} disabled={Boolean(busy)} />}</Field>
           {urls && <p className="text-xs leading-6 text-muted-foreground">Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a><br />El subdominio propio requiere configurar dominio y DNS.</p>}
         </Section>
-        <Section id="postPurchase" number="13" title="Post-compra · Presentación" description="La oferta que se muestra después del pago">
+        <Section id="postPurchase" number="18" title="Post-compra · Presentación" description="La oferta que se muestra después del pago">
           <p className="text-sm leading-6 text-muted-foreground">{store.postPurchase.enabled && postProduct ? `Producto: ${postProduct.name}. El precio se toma de la oferta de esta tienda.` : 'La oferta post-compra está desactivada o no tiene un producto. Podés preparar los textos y activarla desde su configuración.'}</p>
           <Link to={`/panel/tiendas/${storeId}/post-compra`} target="_blank" rel="noreferrer" className="text-sm underline">Configurar producto, precio y activación</Link>
           <Button type="button" variant="outline" onClick={() => { setPreviewTarget('post'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver post-compra</Button>
@@ -237,14 +263,14 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('postPurchase', 'ctaText', 'Botón para aceptar la oferta', { maxLength: 60 })}
           {field('postPurchase', 'declineText', 'Botón para continuar sin la oferta', { maxLength: 60 })}
         </Section>
-        <Section id="postPurchaseBenefits" number="14" title="Post-compra · Beneficios" description="Qué incluye el producto adicional">{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
-        <Section id="postPurchaseVideo" number="15" title="Post-compra · Video VSL" description="Activá una presentación en video para esta oferta">
+        <Section id="postPurchaseBenefits" number="19" title="Post-compra · Beneficios" description="Qué incluye el producto adicional">{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
+        <Section id="postPurchaseVideo" number="20" title="Post-compra · Video VSL" description="Activá una presentación en video para esta oferta">
           {field('postPurchaseVideo', 'url', 'URL del video VSL', { type: 'url', maxLength: 2000, placeholder: 'https://', hint: 'YouTube, Vimeo o un enlace HTTPS directo a MP4, WebM u OGV. El video aparece al activar el switch.' })}
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar video VSL en post-compra" checked={content.postPurchaseVideo.enabled} disabled={Boolean(busy) || !content.postPurchaseVideo.url.trim()} onCheckedChange={enabled => change('postPurchaseVideo', { enabled })} />Mostrar video VSL en post-compra</label>
           {field('postPurchaseVideo', 'title', 'Título del video (opcional)', { maxLength: 120 })}
           <p className="text-xs leading-6 text-muted-foreground">La IA conserva la URL y el switch. Con el VSL apagado se muestra la portada del producto.</p>
         </Section>
-        <Section id="postPurchaseDownsell" number="16" title="Post-compra · Oferta con descuento" description="El cierre que aparece si rechazan la oferta inicial">
+        <Section id="postPurchaseDownsell" number="21" title="Post-compra · Oferta con descuento" description="El cierre que aparece si rechazan la oferta inicial">
           <p className="text-xs leading-6 text-muted-foreground">Este bloque aparece solo si configurás un descuento en Oferta post-compra. El importe y el porcentaje se calculan automáticamente.</p>
           {field('postPurchase', 'downsellTitle', 'Título de la oferta con descuento', { maxLength: 160 })}
           {field('postPurchase', 'downsellText', 'Texto de la oferta con descuento', { multiline: true, maxLength: 1200 })}

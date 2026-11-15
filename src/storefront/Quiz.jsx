@@ -6,8 +6,8 @@ import { api } from '@/lib/api.js';
 import { formatMoney, errorText } from '@/lib/format.js';
 import { contextFor, effectiveStep, interpolate, displayRef, evaluate, resolveRef, matches, initialSession, advanceSession, applicableQuestions, QUESTION_TYPES, validateAnswer } from '../../shared/quiz.js';
 import './quiz.css';
-export const quizTokenKey = subdomain => `quiz-token:${subdomain}`;
-export function readQuizToken(subdomain) {try{return sessionStorage.getItem(quizTokenKey(subdomain));}catch{return null;}}
+import { quizTokenKey, readQuizToken } from './quiz-session.js';
+
 const Media = ({src,alt=''}) => src ? <img className="quiz-image" src={src} alt={alt} onError={e=>{e.currentTarget.hidden=true;}} /> : null;
 export function QuizBlocks({blocks=[],context,view,onCheckout}) {
  const t=text=>interpolate(text,context);

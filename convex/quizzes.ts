@@ -1,8 +1,10 @@
+import { makeFunctionReference } from 'convex/server';
+import { hashIp, requestIp } from './lib/analytics_ip';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { v } from 'convex/values';
-import { mutation, query, type QueryCtx } from './lib/functions';
+import { action, internalQuery, mutation, query, type QueryCtx } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
-import { forStore, publicStore, setAddress, purchaseContent } from './lib/landing_records';
+import { forStore, publicStore, purchaseContent } from './lib/landing_records';
 import { buildLandingView } from './lib/landing_view';
 import { fail } from './lib/validation';
 import { assertQuiz, createQuizTemplate, initialSession, advanceSession } from '../shared/quiz.js';
@@ -46,8 +48,12 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string()},hand
  const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)fail('Quiz no publicado.');
  const existing=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
  if(existing){if(existing.storeId!==store._id)fail('Sesión de otra tienda.');return response(ctx,existing);}
+ const secret=process.env.ANALYTICS_IP_SECRET||process.env.BETTER_AUTH_SECRET;
+ const ipHash=secret?await hashIp(await requestIp(ctx),`quiz:${store._id}`,secret):undefined;
+ const recent=await ctx.db.query('quizSessions').withIndex('by_store_ip',q=>q.eq('storeId',store._id).eq('ipHash',ipHash).gte('_creationTime',Date.now()-60000)).take(120);
+ if(recent.length>=120)fail('Demasiados intentos. Esperá un minuto antes de comenzar.');
  const publication=(await ctx.db.get(landing.publicationId))!;
- const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
+ const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
  return response(ctx,await ctx.db.get(id));
 }});
 export const recover = query({args:{token:v.string()},handler:async(ctx,{token})=>response(ctx,await authorizedSession(ctx,token))});
@@ -66,27 +72,51 @@ export const saveAnswer = mutation({args:{token:v.string(),revision:v.number(),c
 }});
 export const sessions = query({args:{storeId:v.id('stores'),cursor:v.union(v.string(),v.null())},handler:async(ctx,{storeId,cursor})=>{
  await requireAdmin(ctx);const page=await ctx.db.query('quizSessions').withIndex('by_store',q=>q.eq('storeId',storeId)).order('desc').paginate({cursor,numItems:40});
- return {...page,page:page.page.map(({tokenHash,...row})=>row)};
+ return {...page,page:page.page.map(({tokenHash,ipHash,...row})=>row)};
 }});
 export const detail = query({args:{sessionId:v.id('quizSessions')},handler:async(ctx,{sessionId})=>{
  await requireAdmin(ctx);const session=await ctx.db.get(sessionId);if(!session)return null;
- const {tokenHash,...row}=session;
- const orders=(await ctx.db.query('orders').withIndex('by_store',q=>q.eq('storeId',session.storeId)).collect()).filter(o=>o.quizSessionId===sessionId);
+ const {tokenHash,ipHash,...row}=session;
+ const orders=await ctx.db.query('orders').withIndex('by_quiz',q=>q.eq('quizSessionId',sessionId)).collect();
  return {...row,quiz:(await ctx.db.get(session.publicationId))!.content,orders};
 }});
 export const remove = mutation({args:{sessionId:v.id('quizSessions')},handler:async(ctx,{sessionId})=>{
  await requireAdmin(ctx);const session=await ctx.db.get(sessionId);if(!session)return;
- for(const order of await ctx.db.query('orders').withIndex('by_store',q=>q.eq('storeId',session.storeId)).collect())if(order.quizSessionId===sessionId)await ctx.db.patch(order._id,{quizSessionId:undefined});
+ for(const order of await ctx.db.query('orders').withIndex('by_quiz',q=>q.eq('quizSessionId',sessionId)).collect())await ctx.db.patch(order._id,{quizSessionId:undefined});
  await ctx.db.delete(sessionId);
 }});
 export const checkoutArrival = mutation({args:{token:v.string()},handler:async(ctx,{token})=>{
  const session=await authorizedSession(ctx,token);if(!session.completedAt)fail('Quiz incompleto.');
  if(!session.checkoutAt)await ctx.db.patch(session._id,{checkoutAt:Date.now()});
 }});
-export const funnel = query({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
+const emptyFunnel=()=>({sources:['classic','quiz','direct'].map(origin=>({origin,visits:0,checkout:0,purchases:0})),started:0,completed:0,contacts:0,checkout:0,steps:{} as Record<string,number>});
+export const funnelPage=internalQuery({args:{storeId:v.id('stores'),table:v.union(v.literal('quizSessions'),v.literal('orders'),v.literal('pageViews')),cursor:v.union(v.string(),v.null()),before:v.number()},handler:async(ctx,{storeId,table,cursor,before})=>{
  await requireAdmin(ctx);
- const sessions=await ctx.db.query('quizSessions').withIndex('by_store',q=>q.eq('storeId',storeId)).collect();
- const orders=await ctx.db.query('orders').withIndex('by_store',q=>q.eq('storeId',storeId)).collect();
- const views=await ctx.db.query('pageViews').withIndex('by_store_day',q=>q.eq('storeId',storeId)).collect();
- return {sources:['classic','quiz','direct'].map(origin=>({origin,visits:views.filter(v=>v.page==='landing'&&(v.origin??'classic')===origin).length,checkout:views.filter(v=>v.page==='checkout'&&(v.origin??'direct')===origin).length,purchases:orders.filter(o=>!o.parentOrderId&&o.status==='paid'&&(o.origin??'direct')===origin).length})),started:sessions.length,completed:sessions.filter(s=>s.firstCompletedAt||s.completedAt).length,contacts:sessions.filter(s=>s.contactCapturedAt||s.contact?.email||s.contact?.name).length,checkout:sessions.filter(s=>s.checkoutAt).length,steps:Object.entries(sessions.reduce((counts:any,s)=>{for(const id of s.stepEvents?.map(e=>e.stepId)??s.history)counts[id]=(counts[id]??0)+1;return counts;},{}))};
+ const page=table==='pageViews'?await ctx.db.query('pageViews').withIndex('by_store_day',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:100}):table==='orders'?await ctx.db.query('orders').withIndex('by_store',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:100}):await ctx.db.query('quizSessions').withIndex('by_store',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:20});
+ const totals=emptyFunnel();
+ for(const row of page.page as any[]){
+  if(row._creationTime>before)continue;
+  if(table==='quizSessions'){
+   totals.started++;if(row.firstCompletedAt||row.completedAt)totals.completed++;if(row.contactCapturedAt||row.contact?.email||row.contact?.name)totals.contacts++;if(row.checkoutAt)totals.checkout++;
+   for(const id of row.stepEvents?.map((e:any)=>e.stepId)??row.history)totals.steps[id]=(totals.steps[id]??0)+1;
+  }else{
+   const origin=row.origin??(table==='pageViews'&&row.page==='landing'?'classic':'direct');const source=totals.sources.find(s=>s.origin===origin)!;
+   if(table==='orders'){if(!row.parentOrderId&&row.status==='paid')source.purchases++;}
+   else if(row.page==='landing')source.visits++;else if(row.page==='checkout')source.checkout++;
+  }
+ }
+ return {totals,cursor:page.continueCursor,done:page.isDone};
+}});
+export const funnel=action({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
+ await requireAdmin(ctx);const result=emptyFunnel(),before=Date.now();
+ for(const table of ['quizSessions','orders','pageViews']){
+  let cursor:string|null=null;
+  for(;;){const page:any=await ctx.runQuery(makeFunctionReference<'query'>('quizzes:funnelPage'),{storeId,table,cursor,before});
+   for(const key of ['started','completed','contacts','checkout'] as const)result[key]+=page.totals[key];
+   for(const [id,count]of Object.entries(page.totals.steps))result.steps[id]=(result.steps[id]??0)+(count as number);
+   for(const source of result.sources){const values=page.totals.sources.find((s:any)=>s.origin===source.origin);source.visits+=values.visits;source.checkout+=values.checkout;source.purchases+=values.purchases;}
+   if(page.done)break;cursor=page.cursor;
+  }
+ }
+ return {...result,steps:Object.entries(result.steps),asOf:before};
 }});
