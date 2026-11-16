@@ -6,17 +6,17 @@ import { CLASSIC_ACCENT, CLASSIC_STORY } from '../../shared/classic-design.js';
 export const EMPTY_CONTENT = {
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
-  hero: { eyebrow: '', title: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', note: '', ctaText: 'Quiero mi copia' },
+  hero: { eyebrow: '', title: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },
   promotion: { ...PROMOTION_COPY, enabled: true, message: 'Oferta limitada', timerMode: 'session' },
-  benefits: { enabled: true, title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', items: [] },
-  painPoints: { closingText: 'Si respondiste “sí” a alguna de estas… tenemos la solución.', enabled: true, title: '¿Te sentís identificado?', subtitle: 'Si alguno de estos problemas te suena familiar, este ebook es para vos', items: [] },
-  socialProof: { eyebrow: 'Testimonios de lectores', enabled: true, title: 'Lo que dicen quienes lo aplicaron', subtitle: '', items: [] },
-  bonuses: { enabled: true, title: 'Bonos GRATIS incluidos', subtitle: 'Además del ebook, te llevás estos regalos' },
-  summary: { enabled: true, title: 'Todo lo que incluye tu compra', subtitle: 'Acceso a todo esto por un único pago' },
-  steps: { enabled: true, title: 'Así lo aplicás', subtitle: '', items: [] },
-  faq: { enabled: true, title: 'Preguntas frecuentes', subtitle: 'Resolvemos tus dudas', items: [] },
-  guarantee: { enabled: true, title: 'Tu compra, con garantía', subtitle: '', text: '' },
-  closing: { enabled: true, title: '', ctaText: 'Comprar ahora y empezar', stickyEnabled: true },
+  benefits: { enabled: true, eyebrow: 'Tu kit completo', title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
+  painPoints: { closingText: '', enabled: true, eyebrow: 'Si te pasa esto, es para vos', title: '¿Te sentís identificado?', subtitle: '', ctaText: '', items: [] },
+  socialProof: { eyebrow: 'Testimonios de lectores', enabled: true, title: 'Lo que dicen quienes lo aplicaron', subtitle: '', ctaText: '', items: [] },
+  bonuses: { enabled: true, eyebrow: 'Bono gratis', title: 'Bonos GRATIS incluidos', subtitle: 'Además del ebook, te llevás estos regalos', chips: [], ctaText: '', note: '' },
+  summary: { enabled: true, title: 'Todo lo que incluye tu compra', subtitle: '', ctaText: '', note: '' },
+  steps: { enabled: true, eyebrow: 'El método, paso a paso', title: 'Así lo aplicás', subtitle: '', items: [] },
+  faq: { enabled: true, title: 'Preguntas frecuentes', subtitle: '', items: [] },
+  guarantee: { enabled: true, title: 'Tu compra, con garantía', subtitle: '', text: '', ctaText: '' },
+  closing: { enabled: true, title: '', text: '', ctaText: 'Comprar ahora y empezar', note: '', stickyEnabled: true },
   footer: { brandName: '', termsUrl: '', privacyUrl: '' },
   style: { accentColor: CLASSIC_ACCENT },
   activity: { ...ACTIVITY_COPY, ...ACTIVITY_DEFAULTS },
@@ -27,7 +27,8 @@ export function normalizeContent(content = {}) {
   for (const key of ['benefits', 'painPoints', 'steps', 'postPurchaseBenefits']) {
     normalized[key].items = normalized[key].items.map(item => typeof item === 'string' ? { title: item, description: '', icon: 'check' } : { ...item });
   }
-  normalized.socialProof.items = normalized.socialProof.items.map(item => ({ imageUrl: '', format: 'quote', openingMessage: '', closingMessage: '', ...item }));
+  normalized.socialProof.items = normalized.socialProof.items.map(item => ({ imageUrl: '', photoUrl: '', verified: false, format: 'quote', openingMessage: '', closingMessage: '', ...item }));
+  normalized.bonuses.chips = [...normalized.bonuses.chips];
   normalized.comparison.items = normalized.comparison.items.map(item => ({ ...item }));
   return normalized;
 }
@@ -35,6 +36,12 @@ export function normalizeContent(content = {}) {
 // Regeneration replaces AI examples while retaining manually supplied testimonials.
 export function mergeGeneratedContent(content, generated) {
   const merged = { ...content, ...Object.fromEntries(Object.entries(generated).map(([key, patch]) => [key, { ...content[key], ...patch }])) };
+  // Sections that start switched off turn on the first time the assistant writes them;
+  // one the seller already filled keeps the visibility they chose.
+  for (const key of ['introduction', 'transformation', 'about', 'showcase', 'comparison']) {
+    const before = content[key] ?? {};
+    if (generated[key] && !before.enabled && !before.title && !before.text && !before.items?.length) merged[key].enabled = true;
+  }
   if (generated.socialProof?.items) {
     const existing = (content.socialProof?.items ?? []).filter(item => !item.isExample);
     merged.socialProof.items = [...existing, ...generated.socialProof.items].slice(0, 12);

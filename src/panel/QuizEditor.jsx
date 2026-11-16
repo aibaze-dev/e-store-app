@@ -8,7 +8,8 @@ import { errorText } from '@/lib/format.js';
 import { QuizPreview } from '@/storefront/Quiz.jsx';
 import { clone, validateQuiz } from '../../shared/quiz.js';
 import QuizWizard from './QuizWizard.jsx';
-import QuizBuilder, { UploadContext } from './QuizBuilder.jsx';
+import QuizBuilder from './QuizBuilder.jsx';
+import { UploadContext, useImageUpload } from './ImageField.jsx';
 import { Blocks, CopyField, Conditions, Expression, Reorder, StepForm, Toggle, uid } from './QuizAdvanced.jsx';
 import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
@@ -79,13 +80,7 @@ export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,
 export default function QuizEditor(){
  const {storeId}=useParams();const data=useQuery(api.quizzes.get,{storeId});
  const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
- const uploadUrl=useMutation(api.quizzes.imageUploadUrl),imageUrl=useMutation(api.quizzes.imageUrl);
- // Uploads straight to Convex storage; the server checks type and size before returning the URL.
- async function upload(file){
-  try{const url=await uploadUrl();const response=await fetch(url,{method:'POST',headers:{'Content-Type':file.type},body:file});if(!response.ok)throw new Error('upload');const {storageId}=await response.json();var result=await imageUrl({storageId});}
-  catch(e){throw new Error(errorText(e,'No se pudo subir la imagen. Volvé a intentar.'));}
-  if(result.error)throw new Error(result.error);return result.url;
- }
+ const upload=useImageUpload();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
  return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload}/></>;
 }

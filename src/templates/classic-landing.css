@@ -1,4 +1,4 @@
-/* Classic storefront only: the quiz, checkout and post-purchase keep their styling. */
+/* Thank-you and post-purchase pages, plus the offer dialogs. The landing itself is styled in classic.css. */
 .sales-landing.classic-landing {
   --sales-ink: #30251f;
   --sales-muted: #71635a;
@@ -195,7 +195,6 @@
 .sales-landing.classic-landing .sales-sticky-meta p { flex-wrap: wrap; margin-bottom: 6px; font-size: 11px; }
 .sales-landing.classic-landing .sales-sticky-meta strong { font-size: 11px; }
 .sales-landing.classic-landing .sales-sticky-meta time { margin: 0; }
-.sales-landing.classic-landing .sales-toast-region { top: calc(var(--classic-promo-height, 0px) + 12px); }
 @media (min-width: 541px) {
   .sales-landing.classic-landing :is(.sales-features, .sales-pains, .sales-steps) > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
@@ -244,23 +243,6 @@
 .sales-landing.classic-landing .sales-faq details[open] { border-color: var(--sales-border); background: #fffaf5; }
 .sales-landing.classic-landing .sales-sticky { border-top-color: #edc9ad; box-shadow: 0 -8px 28px #482a1210; }
 .sales-landing.classic-landing .sales-sticky .sales-cta { min-height: 56px; border-radius: 12px; }
-.sales-landing.classic-landing .sales-toast-region.classic-purchase-region { left: 16px; right: auto; width: min(350px, calc(100vw - 32px)); }
-.classic-purchase-toast { position: relative; display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 14px 44px 16px 14px; border: 1px solid #482a121f; border-radius: 16px; background: #fff; color: #30251f; box-shadow: 0 12px 32px #482a1233; overflow: hidden; pointer-events: auto; animation: classic-notice-life 6s both; }
-.classic-purchase-cover { display: grid; place-items: center; width: 48px; height: 60px; border-radius: 7px; background: #fff0e3; overflow: hidden; color: var(--classic-action); }
-.classic-purchase-cover img { width: 100%; height: 100%; object-fit: cover; }
-.classic-purchase-cover svg { width: 24px; height: 24px; }
-.classic-purchase-copy { display: grid; gap: 3px; min-width: 0; line-height: 1.4; }
-.classic-purchase-label { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #77604f; }
-.classic-purchase-label > span { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: #29945a; }
-.classic-purchase-copy > strong { font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
-.classic-purchase-product { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--classic-action); font-weight: 700; }
-.classic-purchase-copy small { font-size: 11px; color: #71635a; overflow-wrap: anywhere; }
-.classic-purchase-dismiss { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; color: #71635a; cursor: pointer; }
-.classic-purchase-dismiss svg { width: 15px; height: 15px; }
-.classic-purchase-dismiss:hover { color: #30251f; background: #fff5eb; }
-.classic-purchase-progress { position: absolute; inset: auto 0 0; height: 3px; background: linear-gradient(90deg, var(--classic-cta-start), var(--classic-cta-end)); transform-origin: left; animation: classic-notice-progress 6s linear both; }
-@keyframes classic-notice-life { 0%, 100% { opacity: 0; transform: translateY(-10px); } 6%, 94% { opacity: 1; transform: translateY(0); } }
-@keyframes classic-notice-progress { to { transform: scaleX(0); } }
 /* These dialogs are portaled outside the landing, so they receive the same tokens directly. */
 .classic-offer-dialog { --background: #fffaf5; --foreground: #30251f; --muted-foreground: #71635a; --primary: var(--classic-action); --ring: var(--classic-action); color-scheme: light; border: 1px solid #f5c5a0; border-radius: 22px; background: radial-gradient(ellipse at top right, #ffe3cc, transparent 65%), #fffaf5; box-shadow: 0 24px 80px #321b0e40; font-family: 'Nunito Sans Variable', sans-serif; }
 .classic-offer-dialog [data-slot='dialog-title'] { font-size: 30px; line-height: 1.15; font-weight: 850; }
@@ -271,14 +253,11 @@
 }
 @media (max-width: 540px) {
   .sales-landing.classic-landing .sales-cta { font-size: 16px; padding: 15px 22px; }
-  .sales-landing.classic-landing .sales-toast-region.classic-purchase-region { top: auto; bottom: calc(var(--classic-sticky-height, 0px) + 12px); left: 0; right: 0; margin-inline: auto; width: min(350px, calc(100vw - 24px)); }
-  .classic-purchase-toast { gap: 10px; padding-block: 12px 14px; }
   .classic-offer-dialog [data-slot='dialog-title'] { font-size: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sales-landing.classic-landing .sales-cta, .sales-landing.classic-landing .sales-cta > svg, .classic-purchase-toast, .classic-purchase-progress { animation: none; transition: none; }
+  .sales-landing.classic-landing .sales-cta, .sales-landing.classic-landing .sales-cta > svg { animation: none; transition: none; }
   .sales-landing.classic-landing .sales-cta:hover:not(:disabled), .sales-landing.classic-landing .sales-cta:hover:not(:disabled) > svg:last-child { transform: none; }
-  .classic-purchase-progress { display: none; }
 }
 
 /* Thank-you page and post-purchase offer: the landing's palette and components, plus light UI tokens for shared controls. */

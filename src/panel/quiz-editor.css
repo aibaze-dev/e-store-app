@@ -93,13 +93,6 @@
 .qe-feedback-editor { display: grid; gap: 10px; }
 .qe-range { display: grid; gap: 10px; padding: 12px; border-radius: 14px; border-left: 4px solid; background: var(--background); border-color: #94a3b8; }
 .qe-range.tone-good { border-color: #1f9d55; } .qe-range.tone-warn { border-color: #d48806; } .qe-range.tone-bad { border-color: #d93b3b; } .qe-range.tone-info { border-color: #2f6fd6; }
-.qe-image { display: grid; gap: 8px; }
-.qe-image-label { font-size: 13px; font-weight: 550; }
-.qe-image-row { display: flex; align-items: center; gap: 12px; }
-.qe-image-thumb { display: grid; place-items: center; width: 88px; height: 66px; flex-shrink: 0; border-radius: 12px; border: 1px dashed var(--border); background: var(--muted); color: var(--muted-foreground); overflow: hidden; }
-.qe-image.is-compact .qe-image-thumb { width: 56px; height: 44px; }
-.qe-image-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.qe-image-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .qe-inline-error { color: var(--destructive); font-size: 12px; }
 .qe-block-card { border: 1px solid var(--border); border-radius: 14px; background: var(--background); margin-bottom: 8px; }
 .qe-block-card.is-hidden { opacity: .55; }

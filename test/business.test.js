@@ -645,12 +645,51 @@ describe('section-based sales template', () => {
     expect((await admin.query(api.landings.preview, { storeId })).content.steps.items).toEqual(draft.steps.items);
     await admin.mutation(api.landings.publish, { storeId });
     const published = (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content;
-    expect(published.benefits).toEqual(draft.benefits);
+    expect(published.benefits).toMatchObject(draft.benefits);
     expect(published.socialProof).toMatchObject(draft.socialProof);
     expect(published.promotion).toMatchObject(draft.promotion);
     expect(published.guarantee.days).toBe(7);
     expect(published.closing.stickyEnabled).toBe(false);
     expect(published.footer.termsUrl).toBe('https://example.com/terms');
+  });
+
+  it('saves the texts and photos of each section and fills the ones a legacy landing lacks', async () => {
+    const { t, admin, storeId } = await campaign();
+    const save = draft => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
+    await save(content);
+    const legacy = (await admin.query(api.landings.preview, { storeId })).content;
+    expect(legacy.combo).toMatchObject({ enabled: true, title: 'Tu compra', ctaText: 'Ir a pagar ahora' });
+    expect(legacy.bonuses).toMatchObject({ eyebrow: 'Bono gratis', chips: [], ctaText: '' });
+    expect(legacy.hero).toMatchObject({ headerCtaText: '', trustText: '', footnote: '' });
+
+    await save({
+      ...content,
+      hero: { ...content.hero, title: 'Aprendé y *delegá*', headerCtaText: ' Quiero empezar ', ratingText: 'Edición 2026', noteTitle: '¿Es digital?', footnote: 'Incluye versión para imprimir' },
+      bonuses: { title: 'Anexos', eyebrow: 'Bono gratis', chips: ['12 profesiones', ' ', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' },
+      benefits: { ...content.benefits, imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' },
+      socialProof: { title: 'Opiniones', ctaText: 'Quiero mi resultado', items: [{ name: 'Marta S. · Córdoba', quote: 'Me sirvió.', photoUrl: 'https://example.com/marta.jpg', verified: true }, { name: 'Ana', quote: 'Clara.', verified: false }] },
+      comparison: { title: 'Tres caminos', badge: 'El camino corto', ctaText: 'Elijo este', items: [{ title: 'Solo', description: 'Sin método', highlighted: false }, { title: 'Con la guía', description: 'Paso a paso\nEn español', highlighted: true }] },
+      closing: { enabled: true, title: 'Empezá hoy', ctaText: 'Comprar', stickyEnabled: true, text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' },
+      combo: { enabled: false, title: 'Tu pedido', eyebrow: 'Armá tu combo', upsellText: 'Sumá extras', allText: 'Llevar todo', ctaText: 'Pagar', note: 'Pago seguro' },
+    });
+    await admin.mutation(api.landings.publish, { storeId });
+    const saved = (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content;
+    expect(saved.hero).toMatchObject({ title: 'Aprendé y *delegá*', headerCtaText: 'Quiero empezar', ratingText: 'Edición 2026', noteTitle: '¿Es digital?' });
+    expect(saved.bonuses).toMatchObject({ chips: ['12 profesiones', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' });
+    expect(saved.benefits).toMatchObject({ imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' });
+    expect(saved.socialProof.items).toMatchObject([{ photoUrl: 'https://example.com/marta.jpg', verified: true }, { name: 'Ana' }]);
+    expect(saved.socialProof.items[1].verified).toBeUndefined();
+    expect(saved.comparison).toMatchObject({ badge: 'El camino corto', ctaText: 'Elijo este' });
+    expect(saved.closing).toMatchObject({ text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' });
+    expect(saved.combo).toMatchObject({ enabled: false, title: 'Tu pedido', ctaText: 'Pagar' });
+
+    for (const patch of [
+      { bonuses: { title: '', chips: ['a', 'b', 'c', 'd', 'e'] } },
+      { benefits: { ...content.benefits, videoUrl: 'https://example.com/kit.pdf' } },
+      { benefits: { ...content.benefits, imageUrl: 'javascript:alert(1)' } },
+      { socialProof: { title: '', items: [{ name: 'Ana', quote: 'Texto', photoUrl: 'data:image/png;base64,x' }] } },
+      { hero: { ...content.hero, headerCtaText: 'x'.repeat(61) } },
+    ]) await expect(save({ ...content, ...patch })).rejects.toThrow();
   });
 
   it('rejects invalid section content on the server', async () => {
@@ -812,6 +851,62 @@ describe('landing copy assistant', () => {
     expect(saved.draft.postPurchaseBenefits.enabled).toBe(false);
     expect(saved.draft.promotion).toMatchObject({ enabled: false, remainingSpots: 7, timerMode: 'date', endsAt: 1_900_000_000_000 });
     expect(saved.draft.activity).toMatchObject({ viewers: false, notifications: false, salesCount: false });
+  });
+
+  it('writes every section of the landing and turns the optional ones on only the first time', async () => {
+    const { admin, storeId } = await campaign();
+    const full = {
+      ...copy,
+      hero: { ...copy.hero, title: 'Tu *primera inversión*', eyebrow: 'En 7 días', headerCtaText: 'Quiero mi guía', trustText: 'Acceso inmediato · Pago seguro', noteTitle: '¿Necesito experiencia?', note: 'No.', footnote: 'Guía digital' },
+      introduction: { title: '¿Y si invertir fuera simple?', text: 'Primer párrafo.\nSegundo párrafo.', badge: 'Empezá hoy' },
+      transformation: { eyebrow: 'La transformación', title: 'De dudar a *invertir*', subtitle: 'Un cambio por semana' },
+      about: { eyebrow: 'Quiénes somos', title: 'Detrás hay un equipo', text: 'Somos Tienda.', signature: 'El equipo' },
+      showcase: { eyebrow: 'Qué viene adentro', title: 'Todo lo que recibís', subtitle: '' },
+      bonuses: { eyebrow: 'Bono gratis', title: 'Tus bonos', subtitle: 'Incluidos', chips: ['1 bono', 'Incluido gratis', 'Listo para usar', 'Sobra'], ctaText: 'Quiero mis bonos', note: '' },
+      summary: { ctaText: 'Quiero el kit', note: 'Pago único' },
+      comparison: { title: 'Tres caminos', badge: 'El camino corto', ctaText: 'Elijo este', alternatives: [{ title: 'Videos sueltos', drawbacks: ['Sin orden', 'Sin método'] }, { title: 'Probar solo', drawbacks: ['Lleva meses'] }, { title: 'Sobra', drawbacks: ['x'] }], product: { title: 'Ebook principal', advantages: ['Paso a paso', 'En español'] } },
+      painPoints: { ...copy.painPoints, eyebrow: 'Si te pasa esto', ctaText: 'Quiero resolverlo' },
+      guarantee: { ...copy.guarantee, ctaText: 'Probar sin riesgo' },
+      closing: { title: 'Empezá hoy', ctaText: 'Comprar', text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' },
+      socialProof: { ...copy.socialProof, ctaText: 'Quiero mi resultado' },
+    };
+    const requests = mockOpenAI({ status: 200, body: { choices: [{ message: { content: JSON.stringify(full) } }] } });
+    const draft = await admin.action(api.landing_wizard.generate, { storeId, answers: { ...answers, about: 'Somos dos docentes', guaranteeDays: 7 } });
+    const sent = requests[0].body.messages[1].content;
+    expect(sent).toContain('Quién está detrás del producto: Somos dos docentes');
+    expect(requests[0].body.response_format.json_schema.schema.required).toEqual(expect.arrayContaining(['introduction', 'transformation', 'about', 'showcase', 'bonuses', 'comparison', 'summary']));
+    expect(draft.hero).toMatchObject({ title: 'Tu *primera inversión*', eyebrow: 'En 7 días', headerCtaText: 'Quiero mi guía', noteTitle: '¿Necesito experiencia?' });
+    expect(draft.introduction).toEqual(full.introduction);
+    expect(draft.about).toEqual(full.about);
+    expect(draft.showcase).toEqual({ eyebrow: 'Qué viene adentro', title: 'Todo lo que recibís' });
+    expect(draft.bonuses.chips).toEqual(['1 bono', 'Incluido gratis', 'Listo para usar']);
+    expect(draft.bonuses.note).toBeUndefined();
+    expect(draft.comparison.items).toEqual([
+      { title: 'Videos sueltos', description: 'Sin orden\nSin método', highlighted: false },
+      { title: 'Probar solo', description: 'Lleva meses', highlighted: false },
+      { title: 'Ebook principal', description: 'Paso a paso\nEn español', highlighted: true },
+    ]);
+    expect(draft.guarantee).toEqual({ title: 'Garantía', text: 'Probalo 7 días.', ctaText: 'Probar sin riesgo', days: 7 });
+    expect(draft.closing).toMatchObject({ text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' });
+
+    // First generation: the optional sections appear. Photos and metrics stay untouched.
+    const current = normalizeContent({ ...content, transformation: { imageUrl: 'https://example.com/antes.png' }, socialProof: { title: '', items: [], rating: 4.8, customers: 300 } });
+    const merged = mergeGeneratedContent(current, draft);
+    for (const key of ['introduction', 'transformation', 'about', 'showcase', 'comparison']) expect(merged[key].enabled).toBe(true);
+    expect(merged.transformation.imageUrl).toBe('https://example.com/antes.png');
+    expect(merged.socialProof).toMatchObject({ rating: 4.8, customers: 300, ctaText: 'Quiero mi resultado' });
+    await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: merged })).resolves.toBeDefined();
+
+    // Regenerating keeps a section the seller switched off, and empty answers erase nothing.
+    const hidden = { ...merged, about: { ...merged.about, enabled: false, text: 'Texto del vendedor' } };
+    expect(mergeGeneratedContent(hidden, draft).about).toMatchObject({ enabled: false, text: 'Somos Tienda.' });
+    const { draftFromModel } = await import('../convex/landing_wizard');
+    const sparse = draftFromModel({ ...copy, about: { eyebrow: '', title: '', text: '', signature: '' }, comparison: { title: 'Caminos', alternatives: [{ title: 'Solo', drawbacks: ['Lento'] }], product: { title: '', advantages: [] } } }, undefined, undefined, false);
+    expect(sparse.about).toBeUndefined();
+    expect(sparse.comparison).toBeUndefined();
+    expect(sparse.bonuses).toBeUndefined();
+    expect(sparse.hero.eyebrow).toBeUndefined();
+    expect(mergeGeneratedContent(hidden, sparse).about.text).toBe('Texto del vendedor');
   });
 
   it('falls back to dynamic templates when generated tokens are missing or invalid', async () => {

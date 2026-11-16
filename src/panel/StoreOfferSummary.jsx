@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, BookOpen, Gift, Sparkles, Tag } from 'lucide-react';
 import { formatMoney } from '@/lib/format.js';
 import { storePath } from '@/lib/panel-routes.js';
+import { plainText } from '../../shared/classic-design.js';
 
 // All commercial data comes from the store, including when displayed in the landing editor.
 export default function StoreOfferSummary({ store, products, openInNewTab = false }) {
@@ -29,7 +30,7 @@ export function LandingContentSummary({ landing, storeId }) {
   const content = landing?.draft;
   const count = (items, singular, plural) => `${items?.length || 0} ${items?.length === 1 ? singular : plural}`;
   const sections = [
-    ['hero', 'Presentación', content?.hero.title || 'Sin título principal'],
+    ['hero', 'Presentación', plainText(content?.hero.title) || 'Sin título principal'],
     ['benefits', 'Beneficios', count(content?.benefits.items, 'beneficio', 'beneficios')],
     ['painPoints', 'Puntos de dolor', count(content?.painPoints?.items, 'punto de dolor', 'puntos de dolor')],
     ['socialProof', 'Testimonios', count(content?.socialProof?.items, 'testimonio', 'testimonios')],

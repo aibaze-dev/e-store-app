@@ -18,6 +18,12 @@ export function cleanContent(content: typeof landingContent.type) {
     enabled: value?.enabled ?? true,
     subtitle: cleanText(value?.subtitle ?? '', 'Subtítulo de sección', 400),
   });
+  // Optional label, button and note of a section; an empty button falls back to the main one.
+  const copy = (value: { eyebrow?: string; ctaText?: string; note?: string } | undefined, eyebrow = '') => ({
+    eyebrow: cleanText(value?.eyebrow ?? eyebrow, 'Antetítulo de sección', 120),
+    ctaText: cleanText(value?.ctaText ?? '', 'Texto del botón', 60),
+    note: cleanText(value?.note ?? '', 'Nota de sección', 240),
+  });
   const features = (items: Array<string | { title: string; description: string; icon: string }>, label: string, max = 12) => {
     if (items.length > max) fail(`${label}: usá hasta ${max} elementos.`);
     return items.map(item => {
@@ -53,18 +59,24 @@ export function cleanContent(content: typeof landingContent.type) {
     const value = { ...CLASSIC_STORY[key], ...content[key] };
     return { ...section(value), eyebrow: cleanText(value.eyebrow, 'Antetítulo', 120), title: cleanText(value.title, 'Título de sección', 120) };
   };
-  const storyImage = (key: 'transformation' | 'about' | 'showcase') => ({
+  const storyImage = (key: 'transformation' | 'about' | 'showcase' | 'benefits') => ({
     imageUrl: cleanUrl(content[key]?.imageUrl ?? '', 'Imagen de sección'),
     imageAlt: cleanText(content[key]?.imageAlt ?? '', 'Descripción de imagen', 240),
   });
   if ((content.comparison?.items.length ?? 0) > 3) fail('Comparación: usá hasta 3 opciones.');
   if ((content.comparison?.items.filter(item => item.highlighted).length ?? 0) > 1) fail('Comparación: destacá una sola opción.');
+  const chips = content.bonuses.chips ?? [];
+  if (chips.length > 4) fail('Bonos: usá hasta 4 etiquetas.');
+  const kitVideo = cleanUrl(content.benefits.videoUrl ?? '', 'Video del kit');
+  if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: usá una URL HTTPS de YouTube, Vimeo o un archivo MP4, WebM u OGV.');
+  const combo = { ...CLASSIC_STORY.combo, ...content.combo };
   return {
-    introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400) },
+    introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400), badge: cleanText(content.introduction?.badge ?? '', 'Frase destacada', 120) },
     transformation: { ...storyHeading('transformation'), ...storyImage('transformation') },
     about: { ...storyHeading('about'), ...storyImage('about'), text: cleanText(content.about?.text ?? '', 'Quiénes somos', 2400), signature: cleanText(content.about?.signature ?? '', 'Firma del equipo', 120) },
     showcase: { ...storyHeading('showcase'), ...storyImage('showcase') },
-    comparison: { ...storyHeading('comparison'), items: (content.comparison?.items ?? []).map(item => ({ title: cleanText(item.title, 'Opción de comparación', 120, true), description: cleanText(item.description, 'Detalle de comparación', 600, true), highlighted: item.highlighted })) },
+    comparison: { ...storyHeading('comparison'), badge: cleanText(content.comparison?.badge ?? '', 'Etiqueta de la opción destacada', 60), ctaText: cleanText(content.comparison?.ctaText ?? '', 'Texto del botón', 60), items: (content.comparison?.items ?? []).map(item => ({ title: cleanText(item.title, 'Opción de comparación', 120, true), description: cleanText(item.description, 'Detalle de comparación', 600, true), highlighted: item.highlighted })) },
+    combo: { ...storyHeading('combo'), ...copy(combo, combo.eyebrow), upsellText: cleanText(combo.upsellText, 'Texto de extras', 120), allText: cleanText(combo.allText, 'Botón para sumar todo', 60) },
     postPurchase: {
       eyebrow: cleanText(post.postPurchase.eyebrow, 'Antetítulo post-compra', 120),
       title: cleanText(post.postPurchase.title, 'Título post-compra', 160),
@@ -86,15 +98,20 @@ export function cleanContent(content: typeof landingContent.type) {
       eyebrow: cleanText(content.hero.eyebrow ?? '', 'Antetítulo principal', 120),
       secondaryImageUrl: cleanUrl(content.hero.secondaryImageUrl ?? '', 'Segunda imagen principal'),
       note: cleanText(content.hero.note ?? '', 'Nota de presentación', 240),
+      noteTitle: cleanText(content.hero.noteTitle ?? '', 'Título de la nota', 120),
+      headerCtaText: cleanText(content.hero.headerCtaText ?? '', 'Botón del encabezado', 60),
+      ratingText: cleanText(content.hero.ratingText ?? '', 'Texto de calificación', 120),
+      trustText: cleanText(content.hero.trustText ?? '', 'Línea de confianza', 160),
+      footnote: cleanText(content.hero.footnote ?? '', 'Aclaración de formato', 160),
       title: cleanText(content.hero.title, 'Título', 160),
       subtitle: cleanText(content.hero.subtitle, 'Subtítulo', 400),
       imageUrl: cleanUrl(content.hero.imageUrl, 'Imagen principal'),
       ctaText: cleanText(content.hero.ctaText, 'Texto del botón', 60),
     },
-    benefits: { ...section(content.benefits), title: cleanText(content.benefits.title, 'Título de beneficios', 120), items: features(content.benefits.items, 'Beneficios') },
-    painPoints: { closingText: cleanText(content.painPoints?.closingText ?? 'Si respondiste “sí” a alguna de estas… tenemos la solución.', 'Cierre de problemas', 240), ...section(content.painPoints), title: cleanText(content.painPoints?.title ?? '', 'Título de problemas', 120), items: features(content.painPoints?.items ?? [], 'Problemas') },
+    benefits: { ...section(content.benefits), ...copy(content.benefits, 'Tu kit completo'), ...storyImage('benefits'), videoUrl: kitVideo, title: cleanText(content.benefits.title, 'Título de beneficios', 120), items: features(content.benefits.items, 'Beneficios') },
+    painPoints: { closingText: cleanText(content.painPoints?.closingText ?? 'Si respondiste “sí” a alguna de estas… tenemos la solución.', 'Cierre de problemas', 240), ...section(content.painPoints), ...copy(content.painPoints, 'Si te pasa esto, es para vos'), title: cleanText(content.painPoints?.title ?? '', 'Título de problemas', 120), items: features(content.painPoints?.items ?? [], 'Problemas') },
     socialProof: {
-      ...section(content.socialProof),
+      ...section(content.socialProof), ...copy(content.socialProof),
       eyebrow: cleanText(content.socialProof?.eyebrow ?? 'Testimonios de lectores', 'Antetítulo de testimonios', 120),
       ...(rating !== undefined ? { rating } : {}), ...(customers !== undefined ? { customers } : {}), ...(satisfaction !== undefined ? { satisfaction } : {}),
       title: cleanText(content.socialProof?.title ?? '', 'Título de testimonios', 120),
@@ -102,16 +119,17 @@ export function cleanContent(content: typeof landingContent.type) {
         const name = cleanText(item.name, 'Nombre del testimonio', 120, true);
         const quote = cleanText(item.quote, 'Testimonio', 1200);
         const imageUrl = cleanUrl(item.imageUrl ?? '', 'Captura del testimonio');
+        const photoUrl = cleanUrl(item.photoUrl ?? '', 'Foto del testimonio');
         if (item.format === 'chat' && !quote) fail('Agregá el mensaje del lector en cada conversación.');
         if (!quote && !imageUrl) fail('Agregá el texto o una captura de cada testimonio.');
-        return { name, quote, ...(imageUrl ? { imageUrl } : {}), format: item.format ?? 'quote',
+        return { name, quote, ...(imageUrl ? { imageUrl } : {}), ...(photoUrl ? { photoUrl } : {}), ...(item.verified ? { verified: true } : {}), format: item.format ?? 'quote',
           ...(item.isExample ? { isExample: true } : {}),
           openingMessage: cleanText(item.openingMessage ?? '', 'Mensaje inicial', 1200),
           closingMessage: cleanText(item.closingMessage ?? '', 'Mensaje de cierre', 1200),
         };
       }),
     },
-    bonuses: { ...section(content.bonuses), title: cleanText(content.bonuses.title, 'Título de bonos', 120) },
+    bonuses: { ...section(content.bonuses), ...copy(content.bonuses, 'Bono gratis'), title: cleanText(content.bonuses.title, 'Título de bonos', 120), chips: chips.map(chip => cleanText(chip, 'Etiqueta de bonos', 40)).filter(Boolean) },
     faq: {
       ...section(content.faq), title: cleanText(content.faq.title, 'Título de preguntas', 120),
       items: content.faq.items.map(item => ({
@@ -119,7 +137,7 @@ export function cleanContent(content: typeof landingContent.type) {
         answer: cleanText(item.answer, 'Respuesta', 1200, true),
       })),
     },
-    guarantee: { ...section(content.guarantee), title: cleanText(content.guarantee.title, 'Título de garantía', 120), text: cleanText(content.guarantee.text, 'Garantía', 1200), ...(days !== undefined ? { days } : {}) },
+    guarantee: { ...section(content.guarantee), ...copy(content.guarantee), title: cleanText(content.guarantee.title, 'Título de garantía', 120), text: cleanText(content.guarantee.text, 'Garantía', 1200), ...(days !== undefined ? { days } : {}) },
     style: { accentColor: accent },
     promotion: {
       timerLabel: cleanText(content.promotion?.timerLabel ?? PROMOTION_COPY.timerLabel, 'Texto del contador', 120),
@@ -131,15 +149,17 @@ export function cleanContent(content: typeof landingContent.type) {
       ...(endsAt !== undefined ? { endsAt } : {}),
     },
     steps: {
-      ...section(content.steps), title: cleanText(content.steps?.title ?? 'Así lo aplicás', 'Título de pasos', 120),
+      ...section(content.steps), ...copy(content.steps, 'El método, paso a paso'), title: cleanText(content.steps?.title ?? 'Así lo aplicás', 'Título de pasos', 120),
       items: features(content.steps?.items ?? [], 'Pasos', 7) as Array<{ title: string; description: string; icon: string }>,
     },
-    summary: { ...section(content.summary), title: cleanText(content.summary?.title ?? 'Todo lo que incluye tu compra', 'Título del resumen', 120) },
+    summary: { ...section(content.summary), ...copy(content.summary), title: cleanText(content.summary?.title ?? 'Todo lo que incluye tu compra', 'Título del resumen', 120) },
     closing: {
       enabled: content.closing?.enabled ?? true,
       title: cleanText(content.closing?.title ?? '', 'Título de cierre', 160),
       ctaText: cleanText(content.closing?.ctaText ?? '', 'Botón de cierre', 60),
       stickyEnabled: content.closing?.stickyEnabled ?? true,
+      text: cleanText(content.closing?.text ?? '', 'Texto de cierre', 600),
+      note: cleanText(content.closing?.note ?? '', 'Nota de cierre', 240),
     },
     footer: {
       brandName: cleanText(content.footer?.brandName ?? '', 'Marca', 120),

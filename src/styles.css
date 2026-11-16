@@ -300,6 +300,7 @@
 .landing-form-section > summary small { display: block; margin-top: 5px; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
 .landing-form-section > summary > svg { width: 18px; height: 18px; flex-shrink: 0; transition: transform .15s; color: var(--muted-foreground); }
 .landing-form-section[open] > summary > svg { transform: rotate(180deg); }
+.landing-section-off { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); font-size: 10px; font-style: normal; font-weight: 600; vertical-align: 1px; }
 .landing-section-number { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: var(--accent); color: var(--primary); font-size: 11px; font-weight: 700; }
 .landing-section-fields { display: grid; gap: 22px; border-top: 1px solid var(--border); padding: 24px; }
 .landing-item-fields { display: grid; gap: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
@@ -409,12 +410,3 @@
 .post-purchase-content { overflow-wrap: anywhere; }
 
 /* Classic landing editor: palette preview without changing the panel theme. */
-.classic-design-note { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
-.classic-design-note > div { min-width: 0; }
-.classic-design-note strong { font-size: 14px; }
-.classic-design-note p { margin-top: 8px; max-width: 680px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
-.classic-palette { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 12px; }
-.classic-palette i { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #00000015; background: #f56b20; }
-.classic-palette i:nth-child(2) { background: #fff5eb; }
-.classic-palette i:nth-child(3) { background: #27170e; }
-@media (max-width: 760px) { .classic-design-note { align-items: flex-start; flex-direction: column; gap: 16px; padding: 20px; } }

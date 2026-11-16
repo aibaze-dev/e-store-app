@@ -1,12 +1,19 @@
 // Shared by the classic editor, renderer and server. New sections are opt-in.
 export const CLASSIC_ACCENT = '#f56b20';
 export const CLASSIC_STORY = {
-  introduction: { enabled: false, eyebrow: 'Una nueva forma de empezar', title: '', subtitle: '', text: '' },
+  introduction: { enabled: false, eyebrow: 'Una nueva forma de empezar', title: '', subtitle: '', text: '', badge: '' },
   transformation: { enabled: false, eyebrow: 'La transformación', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
   about: { enabled: false, eyebrow: 'Quiénes somos', title: '', subtitle: '', text: '', imageUrl: '', imageAlt: '', signature: '' },
   showcase: { enabled: false, eyebrow: 'Qué viene adentro', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
-  comparison: { enabled: false, eyebrow: 'Elegí cómo empezar', title: '', subtitle: '', items: [] },
+  comparison: { enabled: false, eyebrow: 'Elegí cómo empezar', title: '', subtitle: '', items: [], badge: '', ctaText: '' },
+  // The order builder lists the store's extras; it only shows when the store has any.
+  combo: { enabled: true, eyebrow: 'Armá tu combo', title: 'Tu compra', subtitle: '', upsellText: 'Sumá con descuento exclusivo (solo en esta compra)', allText: 'Llevar todo', ctaText: 'Ir a pagar ahora', note: 'Pago seguro' },
 };
+
+// Landing texts accept two marks: *resaltado* and **negrita**. Anywhere else they are removed.
+export function plainText(text) {
+  return String(text || '').replace(/\*\*([^*]+)\*\*|\*([^*]+)\*/g, '$1$2');
+}
 
 export function classicAccent(value) {
   // Replace only the previous template default; retain personalized brand colors.

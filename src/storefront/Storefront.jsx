@@ -11,6 +11,7 @@ import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { trackPixel, trackPixelOnce } from '@/lib/pixel.js';
 import { templateFor } from '@/templates/index.js';
 import { checkoutTotals, normalizeContent } from '@/templates/content.js';
+import { plainText } from '../../shared/classic-design.js';
 import DemoPurchaseToasts from './DemoPurchaseToasts.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import { Button } from '@/components/ui/button';
@@ -45,13 +46,13 @@ function Landing({ view }) {
   useViewTracking(view.subdomain, 'landing', view.store.id);
   const navigate = useNavigate();
   useEffect(() => {
-    document.title = view.content.hero.title || view.offer.main.name;
+    document.title = plainText(view.content.hero.title) || view.offer.main.name;
     trackPixel(view.store.metaPixelId, 'PageView');
   }, [view]);
   const Template = templateFor(view.template);
   // The popup's button does what the landing's own button does, and the checkout takes the focus.
   return <>
-    <Template view={view} onCta={() => navigate('checkout', {state:{origin:'classic'}})} />
+    <Template view={view} onCta={selected => navigate('checkout', { state: { origin: 'classic', selected } })} />
     <ExitIntentModal view={view} step="landing" onCta={() => navigate('checkout', { state: { focusHeading: true, origin:'classic' } })} />
     {view.downsell && <DownsellModal view={view} step="landing" onAccept={() => navigate('oferta', {state:{origin:'classic'}})} />}
   </>;
@@ -68,9 +69,10 @@ export function Checkout({ view, via }) {
   const origin=location.state?.origin || 'direct';
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { promotion: view.content?.promotion });
-  const [selected, setSelected] = useState([]);
-  const [busy, setBusy] = useState(false);
   const { offer, store } = view;
+  // Extras ticked in the landing's order builder arrive already selected.
+  const [selected, setSelected] = useState(() => offer.upsells.filter(upsell => location.state?.selected?.includes(upsell.productId)).map(upsell => upsell.productId));
+  const [busy, setBusy] = useState(false);
   const content = normalizeContent(view.content);
   const money = amount => formatMoney(amount, store.currency);
   const navigate = useNavigate();

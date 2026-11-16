@@ -14,6 +14,8 @@ const answers = v.object({
   problem: v.string(),
   result: v.string(),
   differentiator: v.string(),
+  // Who is behind the product; feeds the "Quiénes somos" section.
+  about: v.optional(v.string()),
   tone: v.union(v.literal('cercano'), v.literal('profesional'), v.literal('energico')),
   guaranteeDays: v.optional(v.number()),
 });
@@ -25,14 +27,21 @@ const object = (properties: Record<string, unknown>) => ({ type: 'object', prope
 const list = (properties: Record<string, unknown>) => ({ type: 'array', items: object(properties) });
 const icon = { type: 'string', enum: ICONS };
 const SCHEMA = object({
-  hero: object({ title: text, subtitle: text, ctaText: text }),
-  benefits: object({ title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
-  painPoints: object({ title: text, subtitle: text, items: list({ title: text, description: text }) }),
-  steps: object({ title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
+  hero: object({ eyebrow: text, title: text, subtitle: text, headerCtaText: text, ctaText: text, trustText: text, noteTitle: text, note: text, footnote: text }),
+  introduction: object({ title: text, text, badge: text }),
+  transformation: object({ eyebrow: text, title: text, subtitle: text }),
+  benefits: object({ eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
+  painPoints: object({ eyebrow: text, title: text, subtitle: text, ctaText: text, items: list({ title: text, description: text }) }),
+  bonuses: object({ eyebrow: text, title: text, subtitle: text, chips: { type: 'array', items: text }, ctaText: text, note: text }),
+  steps: object({ eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
+  about: object({ eyebrow: text, title: text, text, signature: text }),
+  showcase: object({ eyebrow: text, title: text, subtitle: text }),
+  summary: object({ ctaText: text, note: text }),
+  comparison: object({ title: text, badge: text, ctaText: text, alternatives: list({ title: text, drawbacks: { type: 'array', items: text } }), product: object({ title: text, advantages: { type: 'array', items: text } }) }),
   faq: object({ items: list({ question: text, answer: text }) }),
-  guarantee: object({ title: text, text }),
-  closing: object({ title: text, ctaText: text }),
-  socialProof: object({ eyebrow: text, title: text, subtitle: text, items: list({ name: text, quote: text, openingMessage: text, closingMessage: text }) }),
+  guarantee: object({ title: text, text, ctaText: text }),
+  closing: object({ title: text, text, ctaText: text, note: text }),
+  socialProof: object({ eyebrow: text, title: text, subtitle: text, ctaText: text, items: list({ name: text, quote: text, openingMessage: text, closingMessage: text }) }),
   promotion: object({ message: text, timerLabel: text, spotsText: text }),
   activity: object({ viewersText: text, salesText: text, purchaseText: text, purchaseLocationText: text }),
   postPurchase: object({ eyebrow: text, title: text, subtitle: text, description: text, ctaText: text, declineText: text, downsellTitle: text, downsellText: text, downsellCtaText: text }),
@@ -46,7 +55,18 @@ Reglas:
 - Escribí en el mismo idioma y variedad regional que las respuestas del vendedor.
 - Usá solo la información recibida, salvo los testimonios ilustrativos solicitados en socialProof. No inventes cifras, estadísticas, credenciales, premios, precios, descuentos, plazos ni resultados garantizados.
 - No prometas resultados médicos, financieros ni legales.
-- Texto plano: sin markdown, sin emojis y sin comillas alrededor de los textos.
+- Texto plano: sin markdown, sin emojis y sin comillas alrededor de los textos. Única excepción: en hero.title, en los títulos de sección y en closing.title podés envolver UNA frase corta entre asteriscos simples para resaltarla (*así*); en introduction.text y about.text podés usar además **dobles** para negrita, con moderación.
+- Escribí TODAS las secciones del esquema: la landing se arma completa con tu respuesta.
+- eyebrow (etiqueta sobre el título): hasta 40 caracteres, sin punto final.
+- hero: eyebrow breve; headerCtaText y ctaText son botones distintos entre sí. trustText: una línea de hasta 120 caracteres con datos separados por « · » (acceso inmediato, pago único y seguro, y la garantía solo si el vendedor informó los días). noteTitle y note: una duda frecuente antes de comprar (pregunta de hasta 80 caracteres) y su respuesta (hasta 200), usando solo los datos recibidos. footnote: el formato del producto en hasta 80 caracteres (es digital).
+- introduction: title es una pregunta o frase gancho (hasta 110 caracteres); text son 3 o 4 párrafos cortos separados por un salto de línea que presentan el ebook, para quién es y qué resuelve; badge es una frase de cierre de hasta 60 caracteres.
+- transformation: título de hasta 90 caracteres con el cambio «de … a …» que logra el lector y un subtítulo de una línea. La foto la sube el vendedor: no la describas.
+- showcase: título y subtítulo breves que presentan la imagen con todo lo que recibe el comprador. No enumeres contenidos que no figuren en los datos.
+- bonuses: si hay bonos gratis, escribí eyebrow, título, subtítulo, hasta 3 chips de hasta 28 caracteres (podés indicar la cantidad real de bonos; ninguna otra cifra), ctaText y una nota breve. Sin bonos devolvé textos vacíos y la lista vacía.
+- about: sección «Quiénes somos». Si el vendedor contó quién está detrás, usá únicamente esos datos. Si no, escribí en primera persona del plural una presentación breve con el nombre de la tienda: por qué armaron este ebook y cómo acompañan al lector. No inventes personas, trayectoria, años, cantidad de clientes, títulos ni premios. text: 2 o 3 párrafos separados por un salto de línea. signature: el nombre de la tienda o del equipo.
+- summary: ctaText del recuadro de precio y una nota breve con el mismo criterio que trustText.
+- comparison: título de hasta 70 caracteres; alternatives son exactamente 2 caminos habituales para resolver el problema sin este ebook (genéricos, sin nombrar marcas, personas ni competidores), cada uno con 3 desventajas de hasta 60 caracteres; product lleva el nombre del ebook y 3 o 4 ventajas de hasta 70 caracteres sustentadas en los datos; badge de hasta 30 caracteres para destacar al ebook y ctaText.
+- closing: además del título y el botón, text es una invitación final de hasta 300 caracteres y note sigue el criterio de trustText.
 - Límites: título principal hasta 90 caracteres; subtítulos hasta 220; botones hasta 30; títulos de sección hasta 60; títulos de elementos hasta 70; descripciones hasta 220; respuestas hasta 350.
 - benefits: 4 a 6 elementos con lo que el lector obtiene. painPoints: 3 a 5 problemas con los que el lector se identifica. steps: 3 pasos para aplicar el ebook. Elegí el ícono más afín para cada elemento.
 - faq: 4 a 6 preguntas. Podés afirmar que es un producto digital, que el pago es único y seguro, y que el acceso se entrega apenas se confirma el pago. No afirmes nada más sobre entrega, formatos, soporte o reembolsos que no figure en los datos.
@@ -68,6 +88,8 @@ function prompt(offer: Offer, input: typeof answers.type) {
     `Problema que resuelve: ${input.problem}`,
     `Resultado para el lector: ${input.result}`,
     input.differentiator && `Qué lo hace distinto: ${input.differentiator}`,
+    `Tienda: ${offer.storeName}`,
+    `Quién está detrás del producto: ${input.about || 'el vendedor no lo informó'}`,
     `Tono: ${TONES[input.tone]}`,
     `Garantía: ${input.guaranteeDays ? `${input.guaranteeDays} días` : 'no informa'}`,
   ].filter(Boolean).join('\n');
@@ -80,6 +102,11 @@ const features = (value: unknown, max: number) => items(value, max)
   .map(item => ({ title: clip(item?.title, 240), description: clip(item?.description, 600), icon: ICONS.includes(item?.icon) ? item.icon as string : 'check' }))
   .filter(item => item.title);
 const heading = (value: any) => ({ title: clip(value?.title, 120), subtitle: clip(value?.subtitle, 400) });
+// Fields the model left empty are dropped, so regenerating never erases what the seller wrote.
+const filled = <T extends Record<string, unknown>>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== '' && !(Array.isArray(entry) && entry.length === 0))) as Partial<T>;
+const section = <T extends Record<string, unknown>>(key: string, value: T) => (Object.keys(filled(value)).length ? { [key]: filled(value) } : {});
+const lines = (value: unknown, max: number, length: number) => items(value, max).map(line => clip(line, length)).filter(Boolean);
 // A malformed model template must not replace the app's dynamic count/name with static text.
 const copyText = (value: unknown, fallback: string, max: number, token?: string) => {
   const text = clip(value, max);
@@ -87,25 +114,42 @@ const copyText = (value: unknown, fallback: string, max: number, token?: string)
   return text && (!token || text.includes(token)) && tokens.every(found => found === token) ? text : fallback;
 };
 
-export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: Offer['postPurchase']) {
+export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: Offer['postPurchase'], hasBonuses = true) {
   const guarantee = { title: clip(raw?.guarantee?.title, 120), text: clip(raw?.guarantee?.text, 1200) };
+  const eyebrow = (value: any) => filled({ eyebrow: clip(value?.eyebrow, 120) });
+  // The seller's product is always the highlighted column, whatever the model says.
+  const paths = [
+    ...items(raw?.comparison?.alternatives, 2).map(item => ({ title: clip(item?.title, 120), description: lines(item?.drawbacks, 4, 140).join('\n').slice(0, 600), highlighted: false })),
+    { title: clip(raw?.comparison?.product?.title, 120), description: lines(raw?.comparison?.product?.advantages, 4, 140).join('\n').slice(0, 600), highlighted: true },
+  ].filter(item => item.title && item.description);
   return {
-    hero: { title: clip(raw?.hero?.title, 160), subtitle: clip(raw?.hero?.subtitle, 400), ctaText: clip(raw?.hero?.ctaText, 60) },
-    benefits: { ...heading(raw?.benefits), items: features(raw?.benefits?.items, 12) },
-    painPoints: { ...heading(raw?.painPoints), items: features(raw?.painPoints?.items, 12) },
-    steps: { ...heading(raw?.steps), items: features(raw?.steps?.items, 6) },
+    hero: {
+      title: clip(raw?.hero?.title, 160), subtitle: clip(raw?.hero?.subtitle, 400), ctaText: clip(raw?.hero?.ctaText, 60),
+      ...filled({ eyebrow: clip(raw?.hero?.eyebrow, 120), headerCtaText: clip(raw?.hero?.headerCtaText, 60), trustText: clip(raw?.hero?.trustText, 160), noteTitle: clip(raw?.hero?.noteTitle, 120), note: clip(raw?.hero?.note, 240), footnote: clip(raw?.hero?.footnote, 160) }),
+    },
+    ...section('introduction', { title: clip(raw?.introduction?.title, 120), text: clip(raw?.introduction?.text, 2400), badge: clip(raw?.introduction?.badge, 120) }),
+    ...section('transformation', { eyebrow: clip(raw?.transformation?.eyebrow, 120), title: clip(raw?.transformation?.title, 120), subtitle: clip(raw?.transformation?.subtitle, 400) }),
+    ...section('about', { eyebrow: clip(raw?.about?.eyebrow, 120), title: clip(raw?.about?.title, 120), text: clip(raw?.about?.text, 2400), signature: clip(raw?.about?.signature, 120) }),
+    ...section('showcase', { eyebrow: clip(raw?.showcase?.eyebrow, 120), title: clip(raw?.showcase?.title, 120), subtitle: clip(raw?.showcase?.subtitle, 400) }),
+    ...(hasBonuses ? section('bonuses', { eyebrow: clip(raw?.bonuses?.eyebrow, 120), title: clip(raw?.bonuses?.title, 120), subtitle: clip(raw?.bonuses?.subtitle, 400), chips: lines(raw?.bonuses?.chips, 3, 40), ctaText: clip(raw?.bonuses?.ctaText, 60), note: clip(raw?.bonuses?.note, 240) }) : {}),
+    ...section('summary', { ctaText: clip(raw?.summary?.ctaText, 60), note: clip(raw?.summary?.note, 240) }),
+    // A comparison needs the product and at least one alternative to make sense.
+    ...(paths.length > 1 && paths.at(-1)!.highlighted ? { comparison: { ...filled({ title: clip(raw?.comparison?.title, 120), badge: clip(raw?.comparison?.badge, 60), ctaText: clip(raw?.comparison?.ctaText, 60) }), items: paths } } : {}),
+    benefits: { ...heading(raw?.benefits), ...eyebrow(raw?.benefits), items: features(raw?.benefits?.items, 12) },
+    painPoints: { ...heading(raw?.painPoints), ...eyebrow(raw?.painPoints), ...filled({ ctaText: clip(raw?.painPoints?.ctaText, 60) }), items: features(raw?.painPoints?.items, 12) },
+    steps: { ...heading(raw?.steps), ...eyebrow(raw?.steps), items: features(raw?.steps?.items, 6) },
     faq: {
       items: items(raw?.faq?.items, 20)
         .map(item => ({ question: clip(item?.question, 240), answer: clip(item?.answer, 1200) }))
         .filter(item => item.question && item.answer),
     },
     // A guarantee is only written when the seller stated one.
-    ...(guaranteeDays && guarantee.text ? { guarantee: { ...guarantee, days: guaranteeDays } } : {}),
-    closing: { title: clip(raw?.closing?.title, 160), ctaText: clip(raw?.closing?.ctaText, 60) },
+    ...(guaranteeDays && guarantee.text ? { guarantee: { ...guarantee, ...filled({ ctaText: clip(raw?.guarantee?.ctaText, 60) }), days: guaranteeDays } } : {}),
+    closing: { title: clip(raw?.closing?.title, 160), ctaText: clip(raw?.closing?.ctaText, 60), ...filled({ text: clip(raw?.closing?.text, 600), note: clip(raw?.closing?.note, 240) }) },
     // Example provenance is assigned here, never trusted to the model.
     ...(typeof raw?.socialProof?.title === 'string' ? {
       socialProof: {
-        ...heading(raw.socialProof), eyebrow: clip(raw.socialProof.eyebrow, 120),
+        ...heading(raw.socialProof), eyebrow: clip(raw.socialProof.eyebrow, 120), ...filled({ ctaText: clip(raw.socialProof.ctaText, 60) }),
         items: items(raw.socialProof.items, 6).map(item => ({
           name: clip(item?.name, 120), quote: clip(item?.quote, 1200),
           openingMessage: clip(item?.openingMessage, 1200), closingMessage: clip(item?.closingMessage, 1200),
@@ -171,6 +215,7 @@ export const generate = action({
       problem: cleanText(args.answers.problem, 'Problema', 600, true),
       result: cleanText(args.answers.result, 'Resultado', 600, true),
       differentiator: cleanText(args.answers.differentiator, 'Diferencial', 600),
+      about: cleanText(args.answers.about ?? '', 'Quiénes somos', 600),
     };
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) fail('El asistente todavía no está habilitado: falta configurar OPENAI_API_KEY en Convex.');
@@ -181,7 +226,7 @@ export const generate = action({
       schemaName: 'landing_copy',
       schema: SCHEMA,
     });
-    const draft = raw ? draftFromModel(raw, days, offer.postPurchase) : null;
+    const draft = raw ? draftFromModel(raw, days, offer.postPurchase, offer.bonuses.length > 0) : null;
     if (!draft || !draft.hero.title) fail('No se pudieron generar los textos. Volvé a intentar en unos minutos.');
     if (!draft.socialProof || draft.socialProof.items.length < 2) fail('No se pudieron generar los testimonios del carrusel. Volvé a intentar.');
     return draft;

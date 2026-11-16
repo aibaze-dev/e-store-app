@@ -168,3 +168,11 @@ La acción de imágenes comprueba administrador y tienda antes de llamar al prov
 - Checkout: `CheckoutPayment` acepta `initialBuyer`, que se usa con `origin: 'quiz'`.
 - Página final: bloques `nowAfter` (`now`/`after` con `label`, `imageUrl`, `icon`; `metrics` 0–5), `gauge` (`stepId`, `ranges`; `gaugeFor()` usa el número o la posición 1…n de la opción) y `stats` (`display`: `none` | `slider` | `icons`; `statPercent()`). Además, `features.mockups[]` (hasta 2), `rating.laurels` y `*texto*` como resaltado en los títulos. `finalPageBlocks()` arma el orden por defecto.
 - IA: `quiz_wizard` pide `finalPage` en el schema y `finalBlocks()` lo convierte, validando índices y límites. Las imágenes anidadas salen como `imageScene`, que `withImagePlan` transforma en `imagePrompt` con el estilo común. `quizImages()` también encuentra `now`, `after` y `mockups`. Si la respuesta de la IA no trae `finalPage`, se mantiene el comportamiento anterior.
+
+## Landing clásica según la plantilla (16/11/2026)
+
+- `src/templates/ClassicLanding.jsx` + `classic.css`: la landing completa, con clases `cl-` propias. `classic-landing.css` solo cubre gracias, post-compra y diálogos de oferta.
+- `rich()` convierte `*texto*` y `**texto**` en resaltado y negrita; `plainText()` los quita.
+- El combo vive en `content.combo` y usa `offer.upsells`. `onCta(selected)` recibe los extras elegidos y el checkout los preselecciona desde `location.state.selected`.
+- `src/panel/ImageField.jsx`: campo de foto con subida (`useImageUpload`, mutaciones `quizzes:imageUploadUrl` / `quizzes:imageUrl`), compartido por el quiz y la clásica.
+- El editor clásico es un formulario por sección en el orden de la landing; los campos nuevos están en `convex/schema.ts` y `cleanContent`.

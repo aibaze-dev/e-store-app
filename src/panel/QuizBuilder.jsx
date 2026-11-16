@@ -1,14 +1,12 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, ImageUp, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ImageField, UploadContext } from './ImageField.jsx';
+export { ImageField, UploadContext };
+import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QuizPlayer } from '@/storefront/Quiz.jsx';
 import { advanceSession, clone, hasOptionFeedback, newStep, QUESTION_TYPES } from '../../shared/quiz.js';
 import { QField } from './QuizFields.jsx';
 import { Blocks, Toggle, blockNames, stepNames, uid } from './QuizAdvanced.jsx';
-
-// The editor page provides the upload function (Convex storage); without it only URLs work.
-export const UploadContext = createContext(null);
-const ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 
 const TYPE_META = {
   single: { label: 'Una respuesta', icon: CircleDot, tone: 'blue' },
@@ -34,34 +32,6 @@ function Segmented({ label, value, options, onChange }) {
   return <div className="qe-field"><span>{label}</span><div className="qe-segmented" role="radiogroup" aria-label={label}>
     {options.map(o => <button type="button" role="radio" aria-checked={value === o.value} key={o.value} onClick={() => onChange(o.value)}>{o.label}</button>)}
   </div></div>;
-}
-
-export function ImageField({ label = 'Imagen', value, onChange, compact = false }) {
-  const upload = useContext(UploadContext), input = useRef(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [paste, setPaste] = useState(false);
-  async function pick(file) {
-    if (!file) return;
-    if (!ACCEPT.includes(file.type) || file.size > 5 * 1024 * 1024) { setError('Elegí una imagen JPG, PNG, WebP, GIF o AVIF de hasta 5 MB.'); return; }
-    setBusy(true); setError('');
-    try { onChange(await upload(file)); } catch (e) { setError(e?.message || 'No se pudo subir la imagen.'); }
-    finally { setBusy(false); if (input.current) input.current.value = ''; }
-  }
-  return <div className={`qe-image ${compact ? 'is-compact' : ''}`}
-    onDragOver={e => { if (upload && e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
-    onDrop={e => { const file = e.dataTransfer.files?.[0]; if (upload && file) { e.preventDefault(); pick(file); } }}>
-    <span className="qe-image-label">{label}</span>
-    <div className="qe-image-row">
-      <div className="qe-image-thumb">{value ? <img src={value} alt="" /> : <ImageUp aria-hidden="true" />}</div>
-      <div className="qe-image-actions">
-        <input ref={input} type="file" accept={ACCEPT.join(',')} hidden onChange={e => pick(e.target.files?.[0])} />
-        {upload && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Subiendo…' : value ? 'Cambiar' : 'Subir'}</Button>}
-        <Button type="button" variant="ghost" size="sm" onClick={() => setPaste(!paste)}>URL</Button>
-        {value && <Button type="button" variant="ghost" size="sm" onClick={() => onChange('')}>Quitar</Button>}
-      </div>
-    </div>
-    {(paste || (!upload && !value)) && <input className="qe-input" type="url" placeholder="https://…" value={value || ''} onChange={e => onChange(e.target.value)} aria-label={`URL: ${label}`} />}
-    {error && <p className="qe-inline-error" role="alert">{error}</p>}
-  </div>;
 }
 
 // Reorderable list: drag by the handle (native HTML5) or use the arrow buttons.

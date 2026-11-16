@@ -1,5 +1,5 @@
 import { formatLandingText } from '../shared/landing-copy.js';
-import { classicTheme } from '../shared/classic-design.js';
+import { classicTheme, plainText } from '../shared/classic-design.js';
 import { describe, it, expect } from 'vitest';
 import { normalizeContent, mergeGeneratedContent, offerTotals, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
 import { content } from './helpers';
@@ -10,6 +10,18 @@ describe('sales template content', () => {
     expect(classicTheme('invalid')).toEqual(classicTheme());
     expect(classicTheme('#2040a0')).toMatchObject({ '--sales-accent': '#2040a0', '--classic-cta-end': '#2040a0', '--classic-cta-text': '#ffffff' });
     expect(classicTheme('#eeeeee')['--classic-cta-text']).toBe('#111827');
+  });
+  it('removes the highlight marks wherever a title is shown as plain text', () => {
+    expect(plainText('Aprendé y *tené el trabajo hecho* en **7 días**')).toBe('Aprendé y tené el trabajo hecho en 7 días');
+    expect(plainText('5 * 3 = 15')).toBe('5 * 3 = 15');
+    expect(plainText(undefined)).toBe('');
+  });
+  it('gives older landings the new section copy without touching what they saved', () => {
+    const normalized = normalizeContent({ ...content, bonuses: { title: 'Bonos', chips: ['Uno'] }, socialProof: { title: '', items: [{ name: 'Ana', quote: 'Hola' }] } });
+    expect(normalized.combo).toMatchObject({ enabled: true, allText: 'Llevar todo' });
+    expect(normalized.bonuses).toMatchObject({ title: 'Bonos', chips: ['Uno'], eyebrow: 'Bono gratis' });
+    expect(normalized.socialProof.items[0]).toMatchObject({ name: 'Ana', photoUrl: '', verified: false });
+    expect(normalized.hero).toMatchObject({ title: content.hero.title, headerCtaText: '', trustText: '' });
   });
   it('loads legacy lists without mutating published content and fills missing sections', () => {
     const old = { ...content, benefits: { title: 'Beneficios', items: ['Una guía clara'] } };

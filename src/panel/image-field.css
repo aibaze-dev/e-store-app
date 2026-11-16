@@ -1,0 +1,9 @@
+.image-field { display: grid; gap: 8px; min-width: 0; }
+.image-field-label { font-size: 13px; font-weight: 550; }
+.image-field-row { display: flex; align-items: center; gap: 12px; }
+.image-field-thumb { display: grid; place-items: center; width: 88px; height: 66px; flex-shrink: 0; border-radius: 12px; border: 1px dashed var(--border); background: var(--muted); color: var(--muted-foreground); overflow: hidden; }
+.image-field.is-compact .image-field-thumb { width: 56px; height: 44px; }
+.image-field-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.image-field-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.image-field-error { color: var(--destructive); font-size: 12px; }
+.image-field.is-large .image-field-thumb { width: 132px; height: 99px; }
