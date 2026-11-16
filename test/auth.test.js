@@ -45,7 +45,19 @@ describe('project authentication', () => {
     expect((await authenticated.query(api.auth.getCurrentUser, {})).email).toBe(credentials.email);
     expect((await post(t, 'sign-out', {}, headers)).status).toBe(200);
     expect(await (await t.fetch('/api/auth/get-session', { headers })).json()).toBeNull();
+    const loggedOutToken = await t.fetch('/api/auth/convex/token', { headers });
+    expect(loggedOutToken.status).toBe(401);
+    expect(await loggedOutToken.json()).not.toHaveProperty('token');
     await expect(authenticated.query(api.auth.getCurrentUser, {})).rejects.toThrow();
+  });
+
+  it('rejects Convex token requests without a session', async () => {
+    const t = backend();
+    const response = await t.fetch('/api/auth/convex/token', {
+      headers: { Origin: origin, 'Better-Auth-Cookie': '' },
+    });
+    expect(response.status).toBe(401);
+    expect(await response.json()).not.toHaveProperty('token');
   });
 
   it('rejects anonymous private queries, wrong passwords and untrusted signups', async () => {

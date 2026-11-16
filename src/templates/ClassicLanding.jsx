@@ -212,7 +212,7 @@ export default function ClassicLanding({ view, onCta }) {
 
   return <div ref={landingRef} className={`cl-landing ${hasSticky ? 'has-sticky' : ''}`} style={theme}>
     {hasPromo && <div ref={promoRef} className="cl-promo"><strong>{offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Termina en ${countdown}`}>{countdown}</time></>}</span></div>}
-    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} variant="classic" />}
+    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
     <main>
       <header className="cl-masthead"><div className="cl-wrap">
         <div className="cl-masthead-copy">

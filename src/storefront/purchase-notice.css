@@ -1,0 +1,18 @@
+/* Purchase notice shared by the landing and the checkout. The landing sets
+   --classic-promo-height and --classic-sticky-height; elsewhere they default to 0. */
+.purchase-notice-region { position: fixed; top: calc(var(--classic-promo-height, 0px) + 12px); left: 16px; z-index: 40; width: min(300px, calc(100vw - 32px)); pointer-events: none; }
+.purchase-notice-region.is-bottom { top: auto; bottom: 16px; }
+.purchase-notice { position: relative; display: grid; gap: 3px; padding: 14px 40px 14px 16px; border-radius: 14px; background: #fff; color: #2a1a10; box-shadow: 0 12px 32px #482a1233; font-family: 'Inter Variable', Inter, system-ui, sans-serif; text-align: left; overflow-wrap: anywhere; pointer-events: auto; animation: purchase-notice-life 6s both; }
+.purchase-notice p { font-size: 14px; line-height: 1.3; color: inherit; }
+.purchase-notice p strong { font-weight: 800; }
+.purchase-notice small { font-size: 11px; color: #7d6e63; }
+.purchase-notice small span { letter-spacing: 1px; }
+.purchase-notice button { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 40px; height: 40px; color: #a3948a; cursor: pointer; }
+.purchase-notice button svg { width: 14px; height: 14px; }
+.purchase-notice button:hover { color: #2a1a10; }
+.purchase-notice button:focus-visible { outline: 2px solid #2a1a10; outline-offset: -4px; border-radius: 10px; }
+@keyframes purchase-notice-life { 0%, 100% { opacity: 0; transform: translateY(-10px); } 6%, 94% { opacity: 1; transform: translateY(0); } }
+@media (max-width: 640px) {
+  .purchase-notice-region, .purchase-notice-region.is-bottom { top: auto; right: 0; bottom: calc(var(--classic-sticky-height, 0px) + 12px); left: 0; margin-inline: auto; width: min(320px, calc(100vw - 24px)); }
+}
+@media (prefers-reduced-motion: reduce) { .purchase-notice { animation: none; } }

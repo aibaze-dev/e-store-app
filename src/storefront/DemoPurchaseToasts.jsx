@@ -1,6 +1,8 @@
 import { ACTIVITY_COPY, formatLandingText } from '../../shared/landing-copy.js';
 import { useEffect, useState } from 'react';
-import { ShoppingBag, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import '@fontsource-variable/inter';
+import './purchase-notice.css';
 
 // Presentation only: these examples never create orders, payments or analytics events.
 const NAMES = ['Lucía', 'Mateo', 'Sofía', 'Diego', 'Valentina', 'Nicolás', 'Camila', 'Gabriel', 'Martina', 'Daniel', 'Carolina', 'Andrés'];
@@ -11,17 +13,9 @@ const pickAnother = (values, previous) => {
   return choices[randomBetween(0, choices.length - 1)];
 };
 
-// Compact notice of the classic landing. The name is the only bold part of the sentence.
-export function ClassicPurchaseNotice({ purchase, copy, onDismiss }) {
-  const [before, after = ''] = (copy.purchaseText ?? ACTIVITY_COPY.purchaseText).split('{nombre}');
-  return <div className="classic-purchase-toast">
-    <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(copy.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, { ciudad: purchase.place })}</p>
-    <small>hace {purchase.minutes} min · <span aria-hidden="true">★★★★★</span> · Compra verificada</small>
-    <button type="button" className="classic-purchase-dismiss" aria-label="Cerrar aviso de compra" onClick={onDismiss}><X aria-hidden="true" /></button>
-  </div>;
-}
-
-export default function DemoPurchaseToasts({ style, copy = ACTIVITY_COPY, variant = 'default' }) {
+// One purchase notice for the landing and the checkout. `placement` only moves it:
+// 'top' sits under the offer bar, 'bottom' in the lower corner. The name is the only bold part.
+export default function DemoPurchaseToasts({ copy = ACTIVITY_COPY, placement = 'top' }) {
   const [purchase, setPurchase] = useState(null);
   useEffect(() => {
     let timer;
@@ -45,10 +39,12 @@ export default function DemoPurchaseToasts({ style, copy = ACTIVITY_COPY, varian
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
   }, []);
 
-  return <div className={`sales-toast-region${variant === 'classic' ? ' classic-purchase-region' : ''}`} style={style} role="status" aria-live="polite" aria-atomic="true">
-    {purchase && (variant === 'classic' ? <ClassicPurchaseNotice purchase={purchase} copy={copy} onDismiss={() => setPurchase(null)} /> : <div className="sales-toast">
-      <span className="sales-toast-icon"><ShoppingBag aria-hidden="true" /></span>
-      <p><span className="sales-toast-demo">{formatLandingText(copy.purchaseText ?? ACTIVITY_COPY.purchaseText, { nombre: purchase.name })}</span><strong>{formatLandingText(copy.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, { ciudad: purchase.place })}</strong></p>
-    </div>)}
+  const [before, after = ''] = (copy.purchaseText ?? ACTIVITY_COPY.purchaseText).split('{nombre}');
+  return <div className={`purchase-notice-region ${placement === 'bottom' ? 'is-bottom' : ''}`} role="status" aria-live="polite" aria-atomic="true">
+    {purchase && <div className="purchase-notice">
+      <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(copy.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, { ciudad: purchase.place })}</p>
+      <small>hace {purchase.minutes} min · <span aria-hidden="true">★★★★★</span> · Aviso de ejemplo</small>
+      <button type="button" aria-label="Cerrar aviso de compra" onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
+    </div>}
   </div>;
 }

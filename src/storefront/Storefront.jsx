@@ -162,7 +162,7 @@ export function Checkout({ view, via }) {
         </section>
       </aside>
     </main>
-    {view.checkout?.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} style={{ '--sales-accent': 'var(--primary)', '--sales-ink': 'var(--foreground)', top: 'auto', right: 'auto', bottom: 16, left: 16 }} />}
+    {view.checkout?.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} placement="bottom" />}
     {(content.footer.termsUrl || content.footer.privacyUrl) && <nav className="checkout-legal" aria-label="Información legal">
       {content.footer.privacyUrl && <a href={content.footer.privacyUrl} target="_blank" rel="noreferrer">Política de privacidad</a>}
       {content.footer.termsUrl && <a href={content.footer.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}

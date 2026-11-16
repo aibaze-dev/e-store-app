@@ -301,17 +301,6 @@
 .cl-landing .cl-sticky strong { font-family: var(--cl-display); font-size: 20px; font-weight: 700; color: #111c3d; white-space: nowrap; }
 @keyframes cl-rise { from { transform: translateY(100%); } }
 
-/* Purchase notice */
-.cl-landing .classic-purchase-region { top: calc(var(--classic-promo-height, 0px) + 12px); right: auto; left: 16px; width: min(300px, calc(100vw - 32px)); }
-.classic-purchase-toast { position: relative; display: grid; gap: 3px; padding: 14px 40px 14px 16px; border-radius: 14px; background: #fff; color: #2a1a10; box-shadow: 0 12px 32px #482a1233; font-family: 'Inter Variable', Inter, system-ui, sans-serif; pointer-events: auto; animation: classic-notice-life 6s both; }
-.classic-purchase-toast p { font-size: 14px; line-height: 1.3; }
-.classic-purchase-toast p strong { font-weight: 800; }
-.classic-purchase-toast small { font-size: 11px; color: #7d6e63; }
-.classic-purchase-toast small span { letter-spacing: 1px; }
-.classic-purchase-dismiss { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 40px; height: 40px; color: #a3948a; cursor: pointer; }
-.classic-purchase-dismiss svg { width: 14px; height: 14px; }
-.classic-purchase-dismiss:hover { color: #2a1a10; }
-@keyframes classic-notice-life { 0%, 100% { opacity: 0; transform: translateY(-10px); } 6%, 94% { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 900px) {
   .cl-masthead > .cl-wrap { grid-template-columns: minmax(0, 1fr); gap: 18px; text-align: center; }
@@ -344,10 +333,9 @@
   .cl-combo-thumb, .cl-combo-thumb.cl-placeholder { width: 40px; height: 40px; }
   .cl-sticky > div { gap: 12px; }
   .cl-landing .cl-sticky strong { font-size: 17px; }
-  .cl-landing .classic-purchase-region { top: auto; right: 0; bottom: calc(var(--classic-sticky-height, 0px) + 12px); left: 0; margin-inline: auto; width: min(320px, calc(100vw - 24px)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cl-promo, .cl-sticky, .classic-purchase-toast { animation: none; }
+  .cl-promo, .cl-sticky { animation: none; }
   .cl-btn, .cl-btn svg, .cl-flow-card, .cl-faq summary svg { transition: none; }
   .cl-btn:hover:not(:disabled), .cl-btn:hover:not(:disabled) svg { transform: none; }
 }
