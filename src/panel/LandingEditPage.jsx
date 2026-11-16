@@ -3,7 +3,7 @@ import { discountedPrice } from '@/storefront/downsell.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
-import { ArrowLeft, ChevronDown, Eye, LoaderCircle, Monitor, Plus, Smartphone, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Eye, LoaderCircle, Monitor, Plus, Smartphone, Trash2, TriangleAlert } from 'lucide-react';
 import { api } from '@/lib/api.js';
 import { errorText, formatDate } from '@/lib/format.js';
 import { landingUrls } from '@/lib/site.js';
@@ -18,17 +18,57 @@ import { ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import StoreOfferSummary from './StoreOfferSummary.jsx';
 import LandingFrame from './LandingFrame.jsx';
 import LandingWizard from './LandingWizard.jsx';
+import { landingAttention } from './landing-attention.js';
 
 const MARKS = 'Usá *asteriscos* para resaltar una parte y **dobles** para negrita.';
 const newFeature = () => ({ title: '', description: '', icon: 'check' });
 const newTestimonial = () => ({ name: '', quote: '', photoUrl: '', imageUrl: '', verified: false, format: 'quote', openingMessage: '', closingMessage: '' });
 const slug = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63).replace(/-+$/, '');
 
-// One form per landing section, in the order the visitor sees them.
-function Section({ id, number, title, description, hidden = false, children, defaultOpen = false }) {
-  return <details id={id} className="landing-form-section" open={defaultOpen || undefined}>
-    <summary><span className="landing-section-number">{number}</span><span><strong>{title}{hidden && <em className="landing-section-off">Oculta</em>}</strong><small>{description}</small></span><ChevronDown aria-hidden="true" /></summary>
-    <div className="landing-section-fields">{children}</div>
+const SECTIONS = {
+  promotion: ['01', 'Barra de oferta y avisos'],
+  hero: ['02', 'Encabezado'],
+  cover: ['03', 'Portada y precio'],
+  introduction: ['04', 'Introducción'],
+  transformation: ['05', 'Antes y después'],
+  painPoints: ['06', 'Si te pasa esto'],
+  offer: ['07', 'Bonos'],
+  steps: ['08', 'El método'],
+  about: ['09', 'Quiénes somos'],
+  showcase: ['10', 'Qué viene adentro'],
+  benefits: ['11', 'Tu kit completo'],
+  socialProof: ['12', 'Testimonios'],
+  comparison: ['13', 'Comparación de caminos'],
+  guarantee: ['14', 'Garantía'],
+  faq: ['15', 'Preguntas frecuentes'],
+  closing: ['16', 'Cierre'],
+  combo: ['17', 'Armá tu combo y botón fijo'],
+  identity: ['18', 'Identidad y dirección'],
+  postPurchase: ['19', 'Post-compra · Presentación'],
+  postPurchaseBenefits: ['20', 'Post-compra · Beneficios'],
+  postPurchaseVideo: ['21', 'Post-compra · Video VSL'],
+  postPurchaseDownsell: ['22', 'Post-compra · Oferta con descuento'],
+};
+
+// One form per landing section, in the order the visitor sees them. The header carries
+// what the section still needs, so nothing has to be opened to find out.
+function Section({ id, description, hidden = false, attention, children, defaultOpen = false }) {
+  const [number, title] = SECTIONS[id];
+  const needs = hidden ? [] : attention?.needs ?? [];
+  const extras = hidden ? [] : attention?.extras ?? [];
+  const list = items => <ul>{items.map((item, index) => <li key={index}>{item.text}</li>)}</ul>;
+  return <details id={id} className={`landing-form-section ${needs.length > 0 ? 'needs-attention' : ''}`} open={defaultOpen || undefined}>
+    <summary><span className="landing-section-number">{number}</span><span><strong>{title}{hidden && <em className="landing-section-off">Oculta</em>}</strong><small>{description}</small>
+      {(needs.length > 0 || extras.length > 0) && <span className="landing-section-flags">
+        {needs.length > 0 && <em className="landing-flag is-need"><TriangleAlert aria-hidden="true" />{needs.length === 1 ? needs[0].label : `${needs.length} pendientes`}</em>}
+        {extras.length > 0 && <em className="landing-flag">{extras.length === 1 ? `Opcional: ${extras[0].label.toLowerCase()}` : `${extras.length} opcionales`}</em>}
+      </span>}
+    </span><ChevronDown aria-hidden="true" /></summary>
+    <div className="landing-section-fields">
+      {needs.length > 0 && <div className="landing-attention is-need" role="note"><strong><TriangleAlert aria-hidden="true" />Necesita tu atención</strong>{list(needs)}</div>}
+      {extras.length > 0 && <div className="landing-attention" role="note"><strong>Opcional · la IA no lo completa</strong>{list(extras)}</div>}
+      {children}
+    </div>
   </details>;
 }
 
@@ -145,6 +185,20 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
     },
   } : null;
   const urls = landing?.subdomain ? landingUrls(landing.subdomain) : null;
+  const checks = landingAttention(content, { bonuses: preview?.offer.bonuses.length ?? 0, upsells: preview?.offer.upsells.length ?? 0, hasCover: Boolean(mainProduct?.coverUrl) });
+  const flagged = Object.keys(SECTIONS).filter(id => checks[id]);
+  const todo = flagged.flatMap(id => checks[id].needs.map(item => ({ id, text: item.text })));
+  const optional = flagged.reduce((total, id) => total + checks[id].extras.length, 0);
+  function openSection(id) {
+    setShowPreview(false);
+    requestAnimationFrame(() => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.open = true;
+      element.scrollIntoView({ block: 'start' });
+      element.querySelector('summary')?.focus();
+    });
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -166,9 +220,14 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
       <p className="text-xs leading-6 text-muted-foreground">{landing?.publishedAt ? `Publicada el ${formatDate(landing.publishedAt)}.` : 'Todavía sin publicar.'} {dirty ? 'Tenés cambios sin guardar.' : pending ? 'Hay un borrador pendiente de publicar.' : ''}</p>
     </div>
     <LandingWizard storeId={storeId} hasContent={Boolean(content.hero.title)} disabled={Boolean(busy)} onApply={applyGenerated} />
+    {(todo.length > 0 || optional > 0) && <section className={`landing-attention-summary ${todo.length > 0 ? 'is-need' : ''}`} aria-labelledby="landing-attention-title">
+      <h2 id="landing-attention-title">{todo.length > 0 && <TriangleAlert aria-hidden="true" />}{todo.length > 0 ? `Qué revisar antes de publicar (${todo.length})` : 'Nada pendiente para publicar'}</h2>
+      {todo.length > 0 && <ul>{todo.map((item, index) => <li key={index}><button type="button" onClick={() => openSection(item.id)}><span>{SECTIONS[item.id][0]}</span><span><strong>{SECTIONS[item.id][1]}</strong>{item.text}</span></button></li>)}</ul>}
+      {optional > 0 && <p>{optional === 1 ? 'Además hay 1 dato opcional que la IA no completa (fotos, cifras o enlaces); está marcado' : `Además hay ${optional} datos opcionales que la IA no completa (fotos, cifras y enlaces); están marcados`} en el encabezado de cada sección.</p>}
+    </section>}
     <div className={`landing-config-grid ${showPreview ? 'preview-expanded' : ''}`}>
       <form onSubmit={submit} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} className="landing-config-form" aria-busy={Boolean(busy)}>
-        <Section id="promotion" number="01" title="Barra de oferta y avisos" description="La franja fija de arriba con el contador y los avisos de compra" hidden={!content.promotion.enabled} defaultOpen>
+        <Section id="promotion" attention={checks.promotion} description="La franja fija de arriba con el contador y los avisos de compra" hidden={!content.promotion.enabled} defaultOpen>
           {toggle('promotion', 'Mostrar la barra de oferta')}
           {field('promotion', 'message', 'Mensaje de la oferta', { maxLength: 120, placeholder: 'Oferta de lanzamiento', hint: 'Se muestra junto al nombre del producto y al contador.' })}
           {field('promotion', 'timerLabel', 'Texto del contador en el checkout', { maxLength: 120 })}
@@ -185,13 +244,13 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('activity', 'purchaseLocationText', 'Texto de ubicación del aviso', { maxLength: 240, hint: 'Usá {ciudad} para insertar la ubicación.' })}
           <p className="text-xs leading-6 text-muted-foreground">Los avisos usan nombres y ciudades ficticios y llevan la leyenda “Compra verificada”.</p>
         </Section>
-        <Section id="hero" number="02" title="Encabezado" description="La franja naranja: promesa, precio y primer botón">
+        <Section id="hero" attention={checks.hero} description="La franja naranja: promesa, precio y primer botón">
           {field('hero', 'eyebrow', 'Etiqueta sobre el título (opcional)', { maxLength: 120, placeholder: 'En 7 días' })}
           {field('hero', 'title', 'Título principal', { multiline: true, maxLength: 160, placeholder: 'Aprendé a usar tu herramienta desde cero y *tené el trabajo hecho*', hint: MARKS })}
           {field('hero', 'subtitle', 'Subtítulo', { multiline: true, maxLength: 400 })}
           {field('hero', 'headerCtaText', 'Texto del botón del encabezado', { maxLength: 60, hint: 'Si queda vacío, usamos el botón principal.' })}
         </Section>
-        <Section id="cover" number="03" title="Portada y precio" description="Las fotos principales, la calificación y el botón de compra">
+        <Section id="cover" attention={checks.cover} description="Las fotos principales, la calificación y el botón de compra">
           {image('hero', 'imageUrl', 'Foto principal', 'Si no subís ninguna, usamos la portada del producto.')}
           {image('hero', 'secondaryImageUrl', 'Segunda foto (opcional)', 'Se muestra al lado de la principal, las dos cuadradas.')}
           {numberField('socialProof', 'rating', 'Calificación con estrellas (0 a 5, opcional)', 5, 0.1)}
@@ -203,23 +262,23 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('hero', 'footnote', 'Nota de formato (opcional)', { maxLength: 160, placeholder: 'Guía 100% digital · incluye versión para imprimir', hint: 'Se repite al pie del cierre.' })}
           <p className="text-xs leading-6 text-muted-foreground">El precio, el precio tachado y el ahorro se toman de la oferta de la tienda.</p>
         </Section>
-        <Section id="introduction" number="04" title="Introducción" description="La pregunta y los párrafos que siguen a la portada" hidden={off('introduction')}>
+        <Section id="introduction" attention={checks.introduction} description="La pregunta y los párrafos que siguen a la portada" hidden={off('introduction')}>
           {heading('introduction', { eyebrow: false, subtitle: false })}
           {field('introduction', 'text', 'Texto', { multiline: true, rows: 8, maxLength: 2400, hint: `Separá los párrafos con un salto de línea. ${MARKS}` })}
           {field('introduction', 'badge', 'Frase destacada al final (opcional)', { maxLength: 120, placeholder: 'Acceso inmediato. Tu día 1 empieza hoy.' })}
         </Section>
-        <Section id="transformation" number="05" title="Antes y después" description="Título y una foto grande que muestra el cambio" hidden={off('transformation')}>
+        <Section id="transformation" attention={checks.transformation} description="Título y una foto grande que muestra el cambio" hidden={off('transformation')}>
           {heading('transformation')}
           {image('transformation', 'imageUrl', 'Foto del antes y después', 'La sección se publica cuando tiene su foto.')}
           {field('transformation', 'imageAlt', 'Descripción de la foto', { maxLength: 240, hint: 'Para quienes usan un lector de pantalla.' })}
         </Section>
-        <Section id="painPoints" number="06" title="Si te pasa esto" description="Los problemas con los que el lector se identifica" hidden={off('painPoints')}>
+        <Section id="painPoints" attention={checks.painPoints} description="Los problemas con los que el lector se identifica" hidden={off('painPoints')}>
           {heading('painPoints')}
           {features('painPoints', 'problema', 12, false)}
           {field('painPoints', 'closingText', 'Frase de cierre (opcional)', { maxLength: 240 })}
           {button('painPoints')}
         </Section>
-        <Section id="offer" number="07" title="Bonos" description="El carrusel oscuro con las portadas de los bonos gratis" hidden={off('bonuses')}>
+        <Section id="offer" attention={checks.offer} description="El carrusel oscuro con las portadas de los bonos gratis" hidden={off('bonuses')}>
           {heading('bonuses')}
           <fieldset className="landing-item-fields"><legend>Etiquetas bajo el subtítulo</legend>{[0, 1, 2].map(index => <Field key={index} label={`Etiqueta ${index + 1} (opcional)`}>{ids => <Input {...ids} maxLength={40} value={content.bonuses.chips[index] ?? ''} disabled={Boolean(busy)}
             onChange={event => change('bonuses', { chips: [0, 1, 2].map(i => i === index ? event.target.value : content.bonuses.chips[i] ?? '') })} />}</Field>)}</fieldset>
@@ -228,23 +287,23 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           <StoreOfferSummary store={store} products={products} openInNewTab />
           <p className="text-xs leading-6 text-muted-foreground">Cada tarjeta del carrusel usa la portada, el nombre y la descripción del producto bono. Para cambiar una foto, editá ese producto. Estos enlaces abren otra pestaña para que conserves lo que estás escribiendo.</p>
         </Section>
-        <Section id="steps" number="08" title="El método" description="Los pasos numerados del recorrido" hidden={off('steps')}>
+        <Section id="steps" attention={checks.steps} description="Los pasos numerados del recorrido" hidden={off('steps')}>
           {heading('steps')}
           {features('steps', 'paso', 7)}
         </Section>
-        <Section id="about" number="09" title="Quiénes somos" description="La foto del equipo y su historia" hidden={off('about')}>
+        <Section id="about" attention={checks.about} description="La foto del equipo y su historia" hidden={off('about')}>
           {heading('about', { subtitle: false })}
           {image('about', 'imageUrl', 'Foto del equipo')}
           {field('about', 'imageAlt', 'Descripción de la foto', { maxLength: 240 })}
           {field('about', 'text', 'Texto', { multiline: true, rows: 8, maxLength: 2400, hint: `Separá los párrafos con un salto de línea. ${MARKS}` })}
           {field('about', 'signature', 'Firma', { maxLength: 120, placeholder: 'El equipo de…' })}
         </Section>
-        <Section id="showcase" number="10" title="Qué viene adentro" description="Una foto grande con todo lo que recibe el comprador" hidden={off('showcase')}>
+        <Section id="showcase" attention={checks.showcase} description="Una foto grande con todo lo que recibe el comprador" hidden={off('showcase')}>
           {heading('showcase')}
           {image('showcase', 'imageUrl', 'Foto del contenido', 'La sección se publica cuando tiene su foto.')}
           {field('showcase', 'imageAlt', 'Descripción de la foto', { maxLength: 240 })}
         </Section>
-        <Section id="benefits" number="11" title="Tu kit completo" description="La lista numerada de lo que incluye y el recuadro con el precio" hidden={off('benefits')}>
+        <Section id="benefits" attention={checks.benefits} description="La lista numerada de lo que incluye y el recuadro con el precio" hidden={off('benefits')}>
           {heading('benefits')}
           {image('benefits', 'imageUrl', 'Foto del kit (opcional)', 'Si además cargás un video, se usa como imagen de espera.')}
           {field('benefits', 'imageAlt', 'Descripción de la foto o del video', { maxLength: 240 })}
@@ -256,7 +315,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
             {field('summary', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240, placeholder: 'Precio de lanzamiento · Descarga inmediata · Garantía 7 días' })}
           </fieldset>
         </Section>
-        <Section id="socialProof" number="12" title="Testimonios" description="Las tarjetas con foto, estrellas y opinión" hidden={off('socialProof')}>
+        <Section id="socialProof" attention={checks.socialProof} description="Las tarjetas con foto, estrellas y opinión" hidden={off('socialProof')}>
           {heading('socialProof')}
           {content.socialProof.items.length === 0 && <p className="text-sm text-muted-foreground">Agregá un testimonio para mostrar esta sección.</p>}
           {content.socialProof.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Testimonio {index + 1}</legend>
@@ -277,7 +336,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           <p className="text-xs leading-6 text-muted-foreground">Si cargás solo la captura, se muestra esa imagen como tarjeta. Marcá “Compra verificada” únicamente en opiniones de compradores reales. Los testimonios cargados a mano se conservan al volver a generar con IA.</p>
           {button('socialProof')}
         </Section>
-        <Section id="comparison" number="13" title="Comparación de caminos" description="Hasta tres columnas, con tu producto destacado" hidden={off('comparison')}>
+        <Section id="comparison" attention={checks.comparison} description="Hasta tres columnas, con tu producto destacado" hidden={off('comparison')}>
           {heading('comparison', { eyebrow: false })}
           {content.comparison.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Columna {index + 1}</legend>
             {itemField('comparison', index, 'title', 'Nombre del camino', { maxLength: 120, required: true })}
@@ -290,26 +349,26 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('comparison', 'badge', 'Etiqueta de la columna destacada (opcional)', { maxLength: 60, placeholder: 'El camino corto' })}
           {button('comparison', 'Botón de la columna destacada (opcional)')}
         </Section>
-        <Section id="guarantee" number="14" title="Garantía" description="El recuadro punteado con las condiciones" hidden={off('guarantee')}>
+        <Section id="guarantee" attention={checks.guarantee} description="El recuadro punteado con las condiciones" hidden={off('guarantee')}>
           {toggle('guarantee')}
           <Field label="Días de garantía (opcional)">{ids => <Input {...ids} type="number" min="1" max="365" step="1" value={content.guarantee.days ?? ''} onChange={event => change('guarantee', { days: event.target.value === '' ? undefined : Number(event.target.value) })} disabled={Boolean(busy)} />}</Field>
           {field('guarantee', 'title', 'Título', { maxLength: 120 })}
           {field('guarantee', 'text', 'Condiciones de la garantía', { multiline: true, maxLength: 1200, hint: 'La garantía aparece cuando completás este texto.' })}
           {button('guarantee')}
         </Section>
-        <Section id="faq" number="15" title="Preguntas frecuentes" description="Las dudas que respondés antes de la compra" hidden={off('faq')}>
+        <Section id="faq" attention={checks.faq} description="Las dudas que respondés antes de la compra" hidden={off('faq')}>
           {heading('faq', { eyebrow: false, subtitle: false })}
           {content.faq.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Pregunta {index + 1}</legend>{itemField('faq', index, 'question', 'Pregunta', { maxLength: 240, required: true })}{itemField('faq', index, 'answer', 'Respuesta', { multiline: true, maxLength: 1200, required: true })}{remove('faq', index, 'pregunta')}</fieldset>)}
           {add('faq', 'pregunta', { question: '', answer: '' }, 20)}
         </Section>
-        <Section id="closing" number="16" title="Cierre" description="La franja oscura con la última invitación a comprar" hidden={off('closing')}>
+        <Section id="closing" attention={checks.closing} description="La franja oscura con la última invitación a comprar" hidden={off('closing')}>
           {toggle('closing')}
           {field('closing', 'title', 'Título final', { maxLength: 160, hint: `Si queda vacío, usamos el título principal. ${MARKS}` })}
           {field('closing', 'text', 'Texto (opcional)', { multiline: true, maxLength: 600 })}
           {field('closing', 'ctaText', 'Texto del botón final', { maxLength: 60 })}
           {field('closing', 'note', 'Línea debajo del botón (opcional)', { maxLength: 240, placeholder: 'Descarga inmediata · Garantía 7 días · Actualización mensual' })}
         </Section>
-        <Section id="combo" number="17" title="Armá tu combo y botón fijo" description="El resumen de la compra con los extras y el botón que acompaña al pie" hidden={off('combo')}>
+        <Section id="combo" attention={checks.combo} description="El resumen de la compra con los extras y el botón que acompaña al pie" hidden={off('combo')}>
           {toggle('combo', 'Mostrar el armado de la compra con los extras')}
           <p className="text-xs leading-6 text-muted-foreground">{store.offer.upsells.length > 0 ? 'Lista los extras de la tienda con sus precios. Con este bloque activo, los botones de la landing llevan hasta acá y el pago se inicia desde su botón.' : 'Esta tienda no tiene extras cargados: el bloque no se muestra y los botones van directo al checkout.'} <Link to={`/panel/tiendas/${storeId}/productos#upsells`} target="_blank" rel="noreferrer" className="underline">Configurar extras y precios</Link></p>
           {field('combo', 'eyebrow', 'Etiqueta', { maxLength: 120 })}
@@ -320,14 +379,14 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('combo', 'note', 'Nota debajo del botón', { maxLength: 240 })}
           {toggle('closing', 'Mostrar el botón fijo al pie de la pantalla', 'stickyEnabled')}
         </Section>
-        <Section id="identity" number="18" title="Identidad y dirección" description="Color, marca, enlaces legales y dirección pública">
+        <Section id="identity" attention={checks.identity} description="Color, marca, enlaces legales y dirección pública">
           <Field label="Color principal" hint="Los botones ajustan su contraste automáticamente.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
           {field('footer', 'brandName', 'Marca en el pie de página', { maxLength: 120, hint: 'Si queda vacío, usamos el nombre de la tienda.' })}
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
           <Field label="Subdominio" hint="Minúsculas, números y guiones. Guardar un cambio de dirección lo aplica de inmediato.">{ids => <Input {...ids} value={form.subdomain} onChange={event => setForm(current => ({ ...current, subdomain: event.target.value }))} required maxLength={63} autoCapitalize="none" spellCheck={false} disabled={Boolean(busy)} />}</Field>
           {urls && <p className="text-xs leading-6 text-muted-foreground">Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a><br />El subdominio propio requiere configurar dominio y DNS.</p>}
         </Section>
-        <Section id="postPurchase" number="19" title="Post-compra · Presentación" description="La oferta que se muestra después del pago">
+        <Section id="postPurchase" attention={checks.postPurchase} description="La oferta que se muestra después del pago">
           <p className="text-sm leading-6 text-muted-foreground">{store.postPurchase.enabled && postProduct ? `Producto: ${postProduct.name}. El precio se toma de la oferta de esta tienda.` : 'La oferta post-compra está desactivada o no tiene un producto. Podés preparar los textos y activarla desde su configuración.'}</p>
           <Link to={`/panel/tiendas/${storeId}/post-compra`} target="_blank" rel="noreferrer" className="text-sm underline">Configurar producto, precio y activación</Link>
           <Button type="button" variant="outline" onClick={() => { setPreviewTarget('post'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver post-compra</Button>
@@ -338,14 +397,14 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {field('postPurchase', 'ctaText', 'Botón para aceptar la oferta', { maxLength: 60 })}
           {field('postPurchase', 'declineText', 'Botón para continuar sin la oferta', { maxLength: 60 })}
         </Section>
-        <Section id="postPurchaseBenefits" number="20" title="Post-compra · Beneficios" description="Qué incluye el producto adicional">{toggle('postPurchaseBenefits')}{field('postPurchaseBenefits', 'title', 'Título de la sección', { maxLength: 120 })}{field('postPurchaseBenefits', 'subtitle', 'Subtítulo (opcional)', { maxLength: 400 })}{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
-        <Section id="postPurchaseVideo" number="21" title="Post-compra · Video VSL" description="Activá una presentación en video para esta oferta">
+        <Section id="postPurchaseBenefits" attention={checks.postPurchaseBenefits} description="Qué incluye el producto adicional">{toggle('postPurchaseBenefits')}{field('postPurchaseBenefits', 'title', 'Título de la sección', { maxLength: 120 })}{field('postPurchaseBenefits', 'subtitle', 'Subtítulo (opcional)', { maxLength: 400 })}{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
+        <Section id="postPurchaseVideo" attention={checks.postPurchaseVideo} description="Activá una presentación en video para esta oferta">
           {field('postPurchaseVideo', 'url', 'URL del video VSL', { type: 'url', maxLength: 2000, placeholder: 'https://', hint: 'YouTube, Vimeo o un enlace HTTPS directo a MP4, WebM u OGV. El video aparece al activar el switch.' })}
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar video VSL en post-compra" checked={content.postPurchaseVideo.enabled} disabled={Boolean(busy) || !content.postPurchaseVideo.url.trim()} onCheckedChange={enabled => change('postPurchaseVideo', { enabled })} />Mostrar video VSL en post-compra</label>
           {field('postPurchaseVideo', 'title', 'Título del video (opcional)', { maxLength: 120 })}
           <p className="text-xs leading-6 text-muted-foreground">La IA conserva la URL y el switch. Con el VSL apagado se muestra la portada del producto.</p>
         </Section>
-        <Section id="postPurchaseDownsell" number="22" title="Post-compra · Oferta con descuento" description="El cierre que aparece si rechazan la oferta inicial">
+        <Section id="postPurchaseDownsell" attention={checks.postPurchaseDownsell} description="El cierre que aparece si rechazan la oferta inicial">
           <p className="text-xs leading-6 text-muted-foreground">Este bloque aparece solo si configurás un descuento en Oferta post-compra. El importe y el porcentaje se calculan automáticamente.</p>
           {field('postPurchase', 'downsellTitle', 'Título de la oferta con descuento', { maxLength: 160 })}
           {field('postPurchase', 'downsellText', 'Texto de la oferta con descuento', { multiline: true, maxLength: 1200 })}

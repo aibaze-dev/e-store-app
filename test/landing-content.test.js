@@ -89,3 +89,50 @@ describe('sales template content', () => {
     expect(promotionRemaining({ enabled: true }, now)).toBe('');
   });
 });
+
+describe('landing editor attention', () => {
+  it('flags what a generated landing still needs and clears each flag once it is solved', async () => {
+    const { landingAttention } = await import('../src/panel/landing-attention.js');
+    const generated = normalizeContent({
+      ...content,
+      transformation: { enabled: true, title: 'De dudar a invertir' },
+      showcase: { enabled: true, title: 'Todo lo que recibís' },
+      about: { enabled: true, title: 'Quiénes somos', text: 'Somos Tienda.' },
+      socialProof: { title: 'Opiniones', items: [{ name: 'Ana', quote: 'Hola', isExample: true }, { name: 'Luz', quote: 'Clara', photoUrl: 'https://example.com/luz.jpg' }] },
+      guarantee: { title: 'Garantía', text: '' },
+      comparison: { enabled: true, title: 'Caminos', items: [{ title: 'Solo', description: 'Lento', highlighted: false }] },
+      introduction: { enabled: false, title: '', text: '' },
+    });
+    const checks = landingAttention(generated, { bonuses: 0, upsells: 0, hasCover: false });
+    const needs = id => (checks[id]?.needs ?? []).map(item => item.label);
+    const extras = id => (checks[id]?.extras ?? []).map(item => item.label);
+    expect(needs('transformation')).toEqual(['Falta la foto']);
+    expect(needs('showcase')).toEqual(['Falta la foto']);
+    expect(needs('cover')).toEqual(['Falta la foto principal']);
+    expect(extras('cover')).toEqual(['Segunda foto', 'Calificación', 'Texto de calificación']);
+    expect(needs('offer')).toEqual(['Sin bonos en la tienda']);
+    expect(needs('combo')).toEqual(['Sin extras en la tienda']);
+    expect(needs('socialProof')).toEqual(['Testimonios de ejemplo']);
+    expect(checks.socialProof.extras[0].text).toContain('1 testimonio sin foto');
+    expect(needs('guarantee')).toEqual(['Sin condiciones']);
+    expect(needs('comparison')).toEqual(['Sin columna destacada']);
+    expect(needs('steps')).toEqual(['Sin pasos']);
+    expect(extras('about')).toEqual(['Foto del equipo']);
+    expect(extras('promotion')).toEqual(['Cupos']);
+    expect(checks.introduction).toBeUndefined();
+    expect(checks.hero).toBeUndefined();
+
+    const solved = normalizeContent({
+      ...generated,
+      hero: { ...generated.hero, imageUrl: 'https://example.com/a.png', secondaryImageUrl: 'https://example.com/b.png', ratingText: 'Edición 2026' },
+      transformation: { ...generated.transformation, imageUrl: 'https://example.com/t.png' },
+      showcase: { ...generated.showcase, enabled: false },
+      socialProof: { title: 'Opiniones', rating: 4.9, customers: 300, satisfaction: 98, items: [{ name: 'Luz', quote: 'Clara', photoUrl: 'https://example.com/luz.jpg' }] },
+      guarantee: { title: 'Garantía', text: '7 días.' },
+      promotion: { enabled: true, message: 'Oferta', remainingSpots: 5 },
+    });
+    const after = landingAttention(solved, { bonuses: 2, upsells: 1, hasCover: true });
+    for (const id of ['transformation', 'showcase', 'cover', 'offer', 'combo', 'socialProof', 'guarantee', 'promotion']) expect(after[id]).toBeUndefined();
+    expect(landingAttention(normalizeContent({ ...content, hero: { ...content.hero, title: ' ' } })).hero.needs[0].label).toBe('Falta el título');
+  });
+});

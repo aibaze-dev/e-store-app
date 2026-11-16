@@ -301,6 +301,29 @@
 .landing-form-section > summary > svg { width: 18px; height: 18px; flex-shrink: 0; transition: transform .15s; color: var(--muted-foreground); }
 .landing-form-section[open] > summary > svg { transform: rotate(180deg); }
 .landing-section-off { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); font-size: 10px; font-style: normal; font-weight: 600; vertical-align: 1px; }
+.landing-form-section.needs-attention { border-color: #f59e0b; box-shadow: inset 4px 0 0 #f59e0b; }
+.landing-section-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.landing-flag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: 11px; font-style: normal; font-weight: 600; line-height: 1.5; }
+.landing-flag.is-need { border-color: #f59e0b; background: #fef3c7; color: #92400e; font-weight: 700; }
+.landing-flag svg, .landing-attention strong svg, .landing-attention-summary h2 svg { width: 14px; height: 14px; flex-shrink: 0; }
+.landing-attention { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted); font-size: 13px; line-height: 1.55; }
+.landing-attention strong { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; }
+.landing-attention ul { display: grid; gap: 4px; padding-left: 18px; list-style: disc; }
+.landing-attention.is-need { border-color: #f59e0b; background: #fffbeb; color: #78350f; }
+.landing-attention-summary { display: grid; gap: 12px; max-width: 760px; margin-bottom: 20px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.landing-attention-summary.is-need { border-color: #f59e0b; box-shadow: inset 4px 0 0 #f59e0b; }
+.landing-attention-summary h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 650; }
+.landing-attention-summary h2 svg { width: 17px; height: 17px; color: #d97706; }
+.landing-attention-summary ul { display: grid; gap: 4px; }
+.landing-attention-summary button { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 10px; font-size: 13px; line-height: 1.5; text-align: left; cursor: pointer; }
+.landing-attention-summary button:hover { background: var(--muted); }
+.landing-attention-summary button > span:first-child { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; }
+.landing-attention-summary button strong { display: block; font-weight: 650; }
+.landing-attention-summary button > span:last-child { color: var(--muted-foreground); }
+.landing-attention-summary button strong { color: var(--foreground); }
+.landing-attention-summary p { font-size: 12px; line-height: 1.6; color: var(--muted-foreground); }
+.dark .landing-flag.is-need, .dark .landing-attention-summary button > span:first-child { background: #f59e0b26; color: #fcd34d; }
+.dark .landing-attention.is-need { background: #f59e0b1a; color: #fde68a; }
 .landing-section-number { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: var(--accent); color: var(--primary); font-size: 11px; font-weight: 700; }
 .landing-section-fields { display: grid; gap: 22px; border-top: 1px solid var(--border); padding: 24px; }
 .landing-item-fields { display: grid; gap: 20px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
