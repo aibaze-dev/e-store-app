@@ -76,7 +76,8 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
       let attempt = attempts.current.get(key);
       if (!attempt) { attempt = { id: crypto.randomUUID() }; attempts.current.set(key, attempt); }
       // Reuse the pending request/session for this selection, including retries and Strict Mode.
-      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...(quizToken?{quizToken}:{}) }).catch(failure => { attempt.promise = null; throw failure; });
+      // After a failure the retry asks for a fresh Stripe key: Stripe replays cached errors.
+      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...(quizToken?{quizToken}:{}), ...(attempt.failed ? { retry: true } : {}) }).catch(failure => { attempt.promise = null; attempt.failed = true; throw failure; });
       attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, failure => { if (!ignore) setError(errorText(failure, 'No pudimos cargar el pago. Volvé a intentar.')); });
     }, 250);
     return () => { ignore = true; clearTimeout(timer); };

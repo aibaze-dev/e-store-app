@@ -224,6 +224,42 @@ describe('checkout', () => {
   });
 });
 
+describe('checkout retries', () => {
+  const retryStart = (t, attemptId) => t.action(api.checkout.start, { subdomain: 'inversion', upsellProductIds: [], attemptId, via: 'path', retry: true });
+
+  it('gets past a Stripe error that Stripe replays for the same key, keeping a single order', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe({ failFirst: 1 });
+    const attemptId = attempt();
+    await expect(start(t, [], attemptId)).rejects.toThrow();
+    await expect(start(t, [], attemptId)).rejects.toThrow();
+    expect(await retryStart(t, attemptId)).toEqual({ clientSecret: 'secret_1' });
+    // Once a session is linked, retries reuse its key instead of opening another session.
+    expect(await retryStart(t, attemptId)).toEqual({ clientSecret: 'secret_1' });
+    expect(await rows(t, 'orders')).toHaveLength(1);
+    expect(stripe.requests.map(request => request.headers['Idempotency-Key'])).toEqual([
+      expect.stringMatching(/^order-[^-]+$/), expect.stringMatching(/^order-[^-]+$/), expect.stringMatching(/-retry-1$/), expect.stringMatching(/-retry-1$/),
+    ]);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect((await rows(t, 'orders'))[0].status).toBe('paid');
+  });
+
+  it('never replaces a linked session when Stripe has forgotten the key', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    const attemptId = attempt();
+    expect(await start(t, [], attemptId)).toEqual({ clientSecret: 'secret_1' });
+    stripe.forget();
+    await expect(start(t, [], attemptId)).rejects.toThrow();
+    await expect(retryStart(t, attemptId)).rejects.toThrow();
+    const [transaction] = await rows(t, 'transactions');
+    expect(transaction).toMatchObject({ stripeCheckoutSessionId: 'cs_test_1' });
+    expect(transaction.sessionAttempt).toBeUndefined();
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect((await rows(t, 'orders'))[0].status).toBe('paid');
+  });
+});
+
 describe('stripe webhook and delivery', () => {
   it('shows links only after a verified payment and applies a repeated event once', async () => {
     const { t, admin } = await campaign();
@@ -311,7 +347,6 @@ describe('stripe webhook and delivery', () => {
     await start(t);
     await start(t);
     await sendWebhook(t, stripeEvent('checkout.session.expired', { id: 'cs_test_1', payment_status: 'unpaid' }));
-    await sendWebhook(t, paidSession('cs_test_1', 2700));
     expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).status).toBe('expired');
 
     await sendWebhook(t, paidSession('cs_test_2', 2700));
@@ -320,6 +355,40 @@ describe('stripe webhook and delivery', () => {
     await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_2', refunded: true }));
     const refunded = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' });
     expect(refunded).toMatchObject({ status: 'refunded', deliveries: [], postPurchaseOffer: null });
+  });
+});
+
+describe('stripe events out of order', () => {
+  it('applies a refund that arrives before its payment instead of delivering the links', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_1', refunded: true }));
+    expect((await rows(t, 'orders'))[0].status).toBe('pending');
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).toMatchObject({ status: 'refunded', deliveries: [], postPurchaseOffer: null });
+    expect((await admin.query(api.orders.list, {}))[0]).toMatchObject({ status: 'refunded', stripePaymentIntentId: 'pi_cs_test_1', buyer: { email: 'buyer@example.com' }, email: null });
+    expect((await rows(t, 'webhookEvents')).map(event => event.status)).toEqual(['processed', 'processed']);
+  });
+
+  it('ignores partial refunds and refunds of other payments that arrive first', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_1', payment_intent: 'pi_cs_test_1', refunded: false }));
+    await sendWebhook(t, stripeEvent('charge.refunded', { id: 'ch_2', payment_intent: 'pi_other', refunded: true }));
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).status).toBe('paid');
+  });
+
+  it('holds a payment reported for an order that had already expired', async () => {
+    const { t, admin } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, stripeEvent('checkout.session.expired', { id: 'cs_test_1', payment_status: 'unpaid' }));
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).toMatchObject({ status: 'needs_review', deliveries: [] });
+    expect((await admin.query(api.orders.list, {}))[0]).toMatchObject({ reviewReason: 'late', charged: { amount: 2700, currency: 'USD' } });
   });
 });
 
@@ -456,6 +525,34 @@ describe('post-purchase offer', () => {
     // Stripe does not ask the name again, so the order keeps the one from the first purchase.
     await sendWebhook(t, paidSession('cs_test_2', 4700, { customer_details: { email: 'buyer@example.com', name: null } }));
     expect((await admin.query(api.orders.list, {}))[0]).toMatchObject({ isPostPurchase: true, status: 'paid', buyer: { email: 'buyer@example.com', name: 'Compradora' } });
+  });
+
+  it('shares one order between tabs so the offer can only be paid once', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    const first = await startPost(t, 'cs_test_1');
+    expect(await startPost(t, 'cs_test_1')).toEqual(first);
+    expect((await rows(t, 'orders')).filter(order => order.parentOrderId)).toHaveLength(1);
+    expect(new Set(stripe.requests.slice(1).map(request => request.headers['Idempotency-Key'])).size).toBe(1);
+  });
+
+  it('holds for review a second paid order of the same offer instead of delivering it again', async () => {
+    const { t, admin, store, storeId } = await campaign();
+    mockStripe();
+    await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { ...store.postPurchase, downsellPercent: 50 } });
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    await startPost(t, 'cs_test_1');
+    await t.action(api.checkout.startPostPurchase, { parentSessionId: 'cs_test_1', attemptId: attempt(), via: 'path', downsell: true });
+    await sendWebhook(t, paidSession('cs_test_2', 4700));
+    await sendWebhook(t, paidSession('cs_test_3', 2350));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' })).status).toBe('paid');
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_3' })).toMatchObject({ status: 'needs_review', deliveries: [] });
+    const held = (await admin.query(api.orders.list, {})).find(order => order.status === 'needs_review');
+    expect(held).toMatchObject({ downsell: true, reviewReason: 'duplicate', charged: { amount: 2350, currency: 'USD' } });
+    await expect(startPost(t, 'cs_test_1')).rejects.toThrow();
   });
 
   it('is not offered when the store has it disabled', async () => {

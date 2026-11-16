@@ -70,6 +70,8 @@ export const getDelivery = query({
     const store = await ctx.db.get(order.storeId);
     const landing = await ctx.db.get(order.landingId);
     const paid = transaction.status === 'paid';
+    // Same published palette and brand as the landing, so the thank-you page matches it.
+    const content = store ? await purchaseContent(ctx, store) : null;
 
     let deliveries = paid ? transaction.deliveries : [];
     if (paid && order.parentOrderId) {
@@ -82,7 +84,7 @@ export const getDelivery = query({
     if (paid && !order.parentOrderId && store?.status === 'active' && store.postPurchase.enabled && store.postPurchase.productId) {
       const children = await ctx.db.query('orders').withIndex('by_parent', q => q.eq('parentOrderId', order._id)).collect();
       if (!children.some(child => child.status === 'paid' || child.status === 'refunded')) {
-        postPurchaseOffer = await buildPostPurchaseView(ctx, store, await purchaseContent(ctx, store));
+        postPurchaseOffer = await buildPostPurchaseView(ctx, store, content ?? undefined);
       }
     }
 
@@ -98,6 +100,12 @@ export const getDelivery = query({
       items: order.items.map(item => ({ name: item.name, role: item.role, price: item.price })),
       deliveries,
       postPurchaseOffer,
+      presentation: {
+        accentColor: content?.style?.accentColor ?? '',
+        brandName: content?.footer?.brandName ?? '',
+        termsUrl: content?.footer?.termsUrl ?? '',
+        privacyUrl: content?.footer?.privacyUrl ?? '',
+      },
     };
   },
 });

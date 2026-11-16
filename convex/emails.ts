@@ -39,6 +39,7 @@ export const context = internalQuery({
       items: order.items.map(item => ({ name: item.name, price: item.price })),
       deliveries: transaction.deliveries,
       charged: transaction.charged ?? null,
+      reviewReason: transaction.reviewReason ?? 'amount',
       paymentIntentId: transaction.stripePaymentIntentId ?? '',
     };
   },
@@ -55,7 +56,7 @@ export const record = internalMutation({
 type Context = {
   status: string; email: { status: string; attempts: number } | null; storeName: string; buyer: { email: string; name: string } | null;
   currency: string; total: number; items: { name: string; price: number }[]; deliveries: { productName: string; title: string; url: string }[];
-  charged: { amount: number; currency: string } | null; paymentIntentId: string;
+  charged: { amount: number; currency: string } | null; reviewReason: 'amount' | 'duplicate' | 'late'; paymentIntentId: string;
 };
 
 export const send = internalAction({
@@ -126,8 +127,13 @@ export function reviewEmail(data: Context): Omit<EmailMessage, 'from'> {
   const charged = data.charged ? money(data.charged.amount, data.charged.currency) : 'un importe desconocido';
   const expected = money(data.total, data.currency);
   const buyer = data.buyer?.email || 'sin email';
+  const reason = {
+    amount: `Stripe cobró ${charged}, pero la orden era de ${expected}.`,
+    duplicate: `Stripe cobró ${charged} por una oferta post-compra que este comprador ya había pagado en otra orden.`,
+    late: `Stripe cobró ${charged} por una orden que ya figuraba vencida o rechazada.`,
+  };
   const lines = [
-    `Stripe cobró ${charged}, pero la orden era de ${expected}.`,
+    reason[data.reviewReason] ?? reason.amount,
     `Comprador: ${buyer}. Pago: ${data.paymentIntentId || 'sin identificador'}.`,
     'No se entregaron los links. Revisá el pago en Stripe: reembolsalo o entregá la compra a mano.',
   ];

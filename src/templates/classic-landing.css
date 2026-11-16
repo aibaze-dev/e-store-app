@@ -280,3 +280,45 @@
   .sales-landing.classic-landing .sales-cta:hover:not(:disabled), .sales-landing.classic-landing .sales-cta:hover:not(:disabled) > svg:last-child { transform: none; }
   .classic-purchase-progress { display: none; }
 }
+
+/* Thank-you page and post-purchase offer: the landing's palette and components, plus light UI tokens for shared controls. */
+.purchase-landing {
+  --background: #fffaf5; --foreground: var(--sales-ink); --card: #ffffff; --card-foreground: var(--sales-ink);
+  --muted-foreground: var(--sales-muted); --primary: var(--classic-action); --primary-foreground: var(--classic-on-action);
+  --ring: var(--classic-action); --border: var(--sales-border); --input: var(--sales-border);
+  display: flex; flex-direction: column; min-height: 100vh; color: var(--sales-ink);
+}
+.purchase-landing > main { flex: 1; }
+.sales-landing.classic-landing .purchase-masthead { padding: 44px 0; }
+.sales-landing.classic-landing .purchase-masthead .sales-hero-heading { margin: auto; text-align: center; }
+.sales-landing.classic-landing .purchase-masthead .sales-hero-heading h1 { font-size: clamp(28px, 3.4vw, 40px); }
+.purchase-spinner { display: inline-block; width: .9em; height: .9em; margin-right: 12px; vertical-align: -.1em; }
+.sales-landing.classic-landing .post-purchase-content { padding-top: 48px; }
+.sales-landing.classic-landing .purchase-offer-description { max-width: 600px; margin: 0 auto 20px; line-height: 1.8; }
+.purchase-decline { min-height: 44px; padding: 8px 12px; border: 0; background: transparent; color: var(--sales-muted); font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.purchase-decline:hover:not(:disabled) { color: var(--sales-ink); }
+.purchase-decline:disabled { opacity: .6; cursor: default; }
+.purchase-video { display: grid; gap: 10px; width: 100%; min-width: 0; }
+.purchase-video h3 { text-align: center; }
+.purchase-video iframe, .purchase-video video { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; background: #000; box-shadow: 0 12px 26px #42240f1a; }
+.purchase-video a { justify-self: center; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--sales-muted); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.purchase-video a svg { width: 15px; height: 15px; }
+.purchase-links { display: grid; gap: 12px; }
+.purchase-links li { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--sales-border); border-radius: 12px; background: white; box-shadow: 0 3px 14px #42240f08; }
+.purchase-links strong { display: block; color: var(--sales-ink); font-size: 15px; font-weight: 800; }
+.purchase-links li p { font-size: 13px; }
+.purchase-link-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--sales-soft); color: var(--classic-action); }
+.purchase-link-icon svg { width: 20px; height: 20px; }
+.purchase-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px; border: 1px solid #ffffff26; border-radius: 11px; background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); box-shadow: 0 6px 16px color-mix(in srgb, var(--sales-accent) 28%, transparent); font-size: 14px; font-weight: 800; white-space: nowrap; transition: filter 180ms ease; }
+.purchase-open:hover:not(.is-disabled) { filter: saturate(1.08) brightness(1.04); }
+.purchase-open:focus-visible { outline: 3px solid var(--sales-ink); outline-offset: 3px; }
+.purchase-open.is-disabled { opacity: .72; box-shadow: none; cursor: default; }
+.purchase-open svg { width: 16px; height: 16px; }
+.purchase-notice { display: grid; justify-items: center; gap: 18px; padding: 28px 24px; border: 1px dashed var(--sales-border); border-radius: 14px; background: var(--sales-soft); text-align: center; font-size: 15px; }
+.purchase-notice > [data-slot], .purchase-notice > div { width: 100%; }
+@media (max-width: 540px) {
+  .sales-landing.classic-landing .purchase-masthead { padding: 32px 0; }
+  .purchase-links li { grid-template-columns: 42px minmax(0, 1fr); }
+  .purchase-links .purchase-open { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .purchase-spinner { animation: none; } }

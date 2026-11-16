@@ -13,7 +13,7 @@ import { normalizeContent, offerTotals, timeAgo } from './content.js';
 
 export const FEATURE_ICONS = { check: Check, book: BookOpen, target: Target, growth: TrendingUp, strength: Dumbbell, brain: Brain, settings: Settings, cart: ShoppingCart, mail: Mail, sparkles: Sparkles };
 
-function Cover({ src, name }) {
+export function Cover({ src, name }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   if (src && !failed) return <img src={src} alt={`Portada de ${name}`} className="sales-cover" onError={() => setFailed(true)} />;
@@ -28,7 +28,7 @@ function SectionImage({ src, alt, className = '' }) {
   return <img className={`classic-section-image ${className}`} src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
 }
 
-function Heading({ section, eyebrow = section.eyebrow }) {
+export function Heading({ section, eyebrow = section.eyebrow }) {
   return <div className="sales-heading">{eyebrow && <span className="sales-eyebrow">{eyebrow}</span>}{section.title && <h2>{section.title}</h2>}{section.subtitle && <p>{section.subtitle}</p>}</div>;
 }
 
@@ -59,7 +59,7 @@ export default function ClassicLanding({ view, onCta }) {
   const activity = view.activity || { sales: 0, recent: [] };
   const clock = countdown => countdown.split(':').flatMap((part, index) => [index > 0 && <i key={`colon-${index}`} aria-hidden="true">:</i>, <span key={index}>{part}</span>]);
   const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { preview: !onCta, promotion: content.promotion });
-  const countdown = content.promotion.enabled && !(content.promotion.timerMode === 'date' && timeLeft === '00:00') ? timeLeft : null;
+  const countdown = content.promotion.enabled ? timeLeft : null;
   const landingRef = useRef(null);
   const stickyRef = useRef(null);
   const promoRef = useRef(null);

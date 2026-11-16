@@ -6,24 +6,29 @@ import { checkoutDeadline, checkoutTimeLeft, randomShoppers } from './checkoutSi
 const fallbackDeadlines = new Map();
 const memoryStorage = { getItem: key => fallbackDeadlines.get(key), setItem: (key, value) => fallbackDeadlines.set(key, value) };
 
-export function useSimulatedCheckoutSignals(subdomain, { preview = false, promotion } = {}) {
+// The countdown is always a random ~15 minute cycle per visitor; `promotion` is kept for callers.
+export function useSimulatedCheckoutSignals(subdomain, { preview = false } = {}) {
   const [shoppers, setShoppers] = useState(() => randomShoppers());
   const [deadline, setDeadline] = useState(null);
   const [now, setNow] = useState(Date.now);
 
-  const fixedDeadline = promotion?.enabled && promotion?.timerMode === 'date' ? promotion.endsAt : undefined;
   useEffect(() => {
     if (preview) { setDeadline(null); return; }
     let storage;
     try { storage = window.sessionStorage; storage.getItem('checkout-simulation:probe'); } catch { storage = memoryStorage; }
-    setDeadline(fixedDeadline ?? checkoutDeadline(subdomain, storage));
+    let current = checkoutDeadline(subdomain, storage);
+    setDeadline(current);
     setNow(Date.now());
-    const clock = setInterval(() => setNow(Date.now()), 1000);
+    const clock = setInterval(() => {
+      const time = Date.now();
+      if (time >= current) { current = checkoutDeadline(subdomain, storage, time); setDeadline(current); }
+      setNow(time);
+    }, 1000);
     const activity = setInterval(() => setShoppers(previous => randomShoppers(previous)), 15_000);
     return () => { clearInterval(clock); clearInterval(activity); };
-  }, [subdomain, preview, fixedDeadline]);
+  }, [subdomain, preview]);
 
-  return { shoppers: preview ? 5 : shoppers, timeLeft: preview ? '11:37' : deadline === null ? null : checkoutTimeLeft(deadline, now) };
+  return { shoppers: preview ? 5 : shoppers, timeLeft: preview ? '14:37' : deadline === null ? null : checkoutTimeLeft(deadline, now) };
 }
 
 export function CheckoutActivityBar({ shoppers }) {

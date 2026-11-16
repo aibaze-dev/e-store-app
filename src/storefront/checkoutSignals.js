@@ -6,14 +6,19 @@ export function randomShoppers(previous, random = Math.random) {
   return next >= previous ? next + 1 : next;
 }
 
+// Each cycle starts at a random value around 15 minutes (14:00–15:59), never from a fixed date.
+export const COUNTDOWN_MIN_SECONDS = 840;
+export const COUNTDOWN_MAX_SECONDS = 959;
+
 export function checkoutDeadline(subdomain, storage, now = Date.now(), random = Math.random) {
-  const key = `checkout-simulation:v1:${subdomain}`;
+  const key = `checkout-simulation:v2:${subdomain}`;
   try {
     const saved = Number(storage?.getItem(key));
-    // Keep expired deadlines too: refreshing must not restart the countdown.
-    if (Number.isFinite(saved) && saved > 0 && saved <= now + 899_000) return saved;
+    // Reloading keeps the running countdown; an expired one starts a new cycle instead of staying at 00:00.
+    if (Number.isFinite(saved) && saved > now && saved <= now + COUNTDOWN_MAX_SECONDS * 1000) return saved;
   } catch { /* Storage may be unavailable in private browsing. */ }
-  const deadline = now + (481 + Math.floor(random() * 419)) * 1000;
+  const seconds = COUNTDOWN_MIN_SECONDS + Math.floor(random() * (COUNTDOWN_MAX_SECONDS - COUNTDOWN_MIN_SECONDS + 1));
+  const deadline = now + seconds * 1000;
   try { storage?.setItem(key, String(deadline)); } catch { /* Continue in memory. */ }
   return deadline;
 }

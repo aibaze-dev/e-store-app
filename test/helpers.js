@@ -29,20 +29,28 @@ export async function signedIn(t, email) {
 }
 
 // Replaces only the Stripe API; every other request keeps using the real fetch.
-export function mockStripe({ fail = false } = {}) {
+// `failFirst` makes that many new keys fail with a 500 that, like Stripe, is replayed for
+// every later request with the same key. `forget()` drops saved keys (Stripe does so after ~24 h).
+export function mockStripe({ fail = false, failFirst = 0 } = {}) {
   const realFetch = globalThis.fetch;
   const requests = [];
   const sessions = new Map();
+  let created = 0;
   vi.stubGlobal('fetch', async (url, init) => {
     if (!String(url).startsWith('https://api.stripe.com/')) return realFetch(url, init);
     const body = Object.fromEntries(new URLSearchParams(init.body));
     const key = init.headers['Idempotency-Key'];
     requests.push({ url: String(url), headers: init.headers, body });
-    if (fail) return new Response(JSON.stringify({ error: { type: 'api_error' } }), { status: 500 });
-    if (!sessions.has(key)) sessions.set(key, { id: `cs_test_${sessions.size + 1}`, client_secret: `secret_${sessions.size + 1}` });
+    const error = new Response(JSON.stringify({ error: { type: 'api_error' } }), { status: 500 });
+    if (fail) return error;
+    if (!sessions.has(key)) {
+      if (failFirst > 0) { failFirst -= 1; sessions.set(key, 'failed'); }
+      else { created += 1; sessions.set(key, { id: `cs_test_${created}`, client_secret: `secret_${created}` }); }
+    }
+    if (sessions.get(key) === 'failed') return error;
     return new Response(JSON.stringify(sessions.get(key)), { status: 200 });
   });
-  return { requests };
+  return { requests, forget: () => sessions.clear() };
 }
 
 // Replaces only the Resend API on top of whatever fetch is installed (for example mockStripe).

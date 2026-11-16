@@ -7,9 +7,10 @@ const memoryStorage = () => {
 };
 
 describe('temporary checkout simulation', () => {
-  it('starts strictly above 8 minutes and below 15 minutes', () => {
-    expect(checkoutTimeLeft(checkoutDeadline('a', null, 1000, () => 0), 1000)).toBe('08:01');
-    expect(checkoutTimeLeft(checkoutDeadline('a', null, 1000, () => 0.999999), 1000)).toBe('14:59');
+  it('starts at a random value around 15 minutes', () => {
+    expect(checkoutTimeLeft(checkoutDeadline('a', null, 1000, () => 0), 1000)).toBe('14:00');
+    expect(checkoutTimeLeft(checkoutDeadline('a', null, 1000, () => 0.5), 1000)).toBe('15:00');
+    expect(checkoutTimeLeft(checkoutDeadline('a', null, 1000, () => 0.999999), 1000)).toBe('15:59');
   });
 
   it('always changes the shopper count within 2–15, including both endpoints', () => {
@@ -25,25 +26,26 @@ describe('temporary checkout simulation', () => {
     }
   });
 
-  it('preserves the deadline across reloads, catches up after suspension and stops at zero', () => {
+  it('preserves the deadline across reloads and starts a new cycle instead of staying at zero', () => {
     const storage = memoryStorage();
     const deadline = checkoutDeadline('a', storage, 1000, () => 0);
     expect(checkoutDeadline('a', storage, 4000)).toBe(deadline);
-    expect(checkoutTimeLeft(deadline, 4000)).toBe('07:58');
-    expect(checkoutTimeLeft(deadline, 121000)).toBe('06:01');
+    expect(checkoutTimeLeft(deadline, 4000)).toBe('13:57');
+    expect(checkoutTimeLeft(deadline, 121000)).toBe('12:00');
     expect(checkoutTimeLeft(deadline, deadline)).toBe('00:00');
-    expect(checkoutDeadline('a', storage, deadline + 60000)).toBe(deadline);
-    expect(checkoutTimeLeft(deadline, deadline + 60000)).toBe('00:00');
-    expect(checkoutDeadline('b', storage, 4000, () => 0)).toBe(485000);
+    const next = checkoutDeadline('a', storage, deadline + 60000, () => 0.5);
+    expect(checkoutTimeLeft(next, deadline + 60000)).toBe('15:00');
+    expect(checkoutDeadline('a', storage, deadline + 61000)).toBe(next);
+    expect(checkoutDeadline('b', storage, 4000, () => 0)).toBe(844000);
   });
 
   it('works with blocked storage and replaces corrupt or out-of-range values', () => {
     const blocked = { getItem() { throw Error(); }, setItem() { throw Error(); } };
-    expect(checkoutDeadline('a', blocked, 1000, () => 0)).toBe(482000);
+    expect(checkoutDeadline('a', blocked, 1000, () => 0)).toBe(841000);
     for (const value of ['bad', '-4', 'Infinity', '99999999']) {
       const storage = memoryStorage();
-      storage.setItem('checkout-simulation:v1:a', value);
-      expect(checkoutDeadline('a', storage, 1000, () => 0)).toBe(482000);
+      storage.setItem('checkout-simulation:v2:a', value);
+      expect(checkoutDeadline('a', storage, 1000, () => 0)).toBe(841000);
     }
   });
 });

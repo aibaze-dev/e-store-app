@@ -29,6 +29,7 @@ export const list = query({
         stripePaymentIntentId: transaction?.stripePaymentIntentId ?? '',
         deliveries: transaction?.deliveries ?? [],
         charged: transaction?.charged ?? null,
+        reviewReason: transaction?.reviewReason ?? null,
         email: transaction?.email ? { status: transaction.email.status, error: transaction.email.error ?? '' } : null,
       };
     }));

@@ -14,12 +14,32 @@ const attemptId = v.string();
 const downsell = v.optional(v.boolean());
 const origin = v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct')));
 const quizToken = v.optional(v.string());
+// Set by the browser when the previous call for this attempt failed.
+const retry = v.optional(v.boolean());
 
-type OpenOrder = { orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; customerEmail?: string };
+type OpenOrder = { orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string };
 type Snapshot = ReturnType<typeof buildInitialOrder>;
 
 const lineItems = (items: { name: string; price: number }[]) =>
   items.filter(item => item.price > 0).map(item => ({ name: item.name, amount: item.price }));
+
+// Stripe replays the saved result of an idempotency key, 500 errors included, so retrying
+// with the same key can fail forever. A retry gets a new key only while no session was ever
+// attached: a session Stripe created but never returned to a browser cannot be paid.
+async function idempotencyKey(ctx: MutationCtx, transaction: Doc<'transactions'>, retry?: boolean) {
+  let attempt = transaction.sessionAttempt ?? 0;
+  if (retry && !transaction.stripeCheckoutSessionId) {
+    attempt += 1;
+    await ctx.db.patch(transaction._id, { sessionAttempt: attempt });
+  }
+  return attempt ? `order-${transaction.orderId}-retry-${attempt}` : `order-${transaction.orderId}`;
+}
+
+async function reopen(ctx: MutationCtx, order: Doc<'orders'>, subdomain: string, retry?: boolean): Promise<OpenOrder> {
+  const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
+  if (!transaction || order.status !== 'pending') fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
+  return { orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry) };
+}
 
 async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
   const products = new Map<string, Doc<'products'>>();
@@ -33,16 +53,15 @@ async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
 // Creates the order and its pending transaction once per attempt. A retry of the same
 // attempt returns the order already created, so it can never produce a second one.
 async function openOrder(ctx: MutationCtx, input: {
-  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; build: () => Promise<Snapshot>;
+  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; retry?: boolean; build: () => Promise<Snapshot>;
 }): Promise<OpenOrder> {
-  if (!/^[A-Za-z0-9-]{16,64}$/.test(input.attemptId)) fail('No se pudo iniciar el pago. Recargá la página e intentá de nuevo.');
+  checkAttempt(input.attemptId);
   const existing = await ctx.db.query('orders').withIndex('by_attempt', q => q.eq('attemptId', input.attemptId)).first();
   if (existing) {
-    const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', existing._id)).first();
-    if (!transaction || existing.status !== 'pending' || existing.storeId !== input.store._id || existing.parentOrderId !== input.parentOrderId || existing.quizSessionId !== input.quizSessionId || (existing.origin ?? 'direct') !== (input.origin ?? 'direct')) {
+    if (existing.storeId !== input.store._id || existing.parentOrderId !== input.parentOrderId || existing.quizSessionId !== input.quizSessionId || (existing.origin ?? 'direct') !== (input.origin ?? 'direct')) {
       fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
     }
-    return { orderId: existing._id, transactionId: transaction._id, currency: existing.currency, subdomain: input.landing.subdomain, lineItems: lineItems(existing.items) };
+    return await reopen(ctx, existing, input.landing.subdomain, input.retry);
   }
 
   const snapshot = await input.build();
@@ -66,11 +85,15 @@ async function openOrder(ctx: MutationCtx, input: {
     currency: input.store.currency,
     deliveries: snapshot.deliveries,
   });
-  return { orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items) };
+  return { orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}` };
+}
+
+function checkAttempt(attemptId: string) {
+  if (!/^[A-Za-z0-9-]{16,64}$/.test(attemptId)) fail('No se pudo iniciar el pago. Recargá la página e intentá de nuevo.');
 }
 
 export const createOrder = internalMutation({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, origin, quizToken },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, origin, quizToken, retry },
   handler: async (ctx, args): Promise<OpenOrder> => {
     if (args.downsell && args.upsellProductIds.length > 0) fail('La oferta con descuento no incluye extras.');
     const record = await checkoutRecord(ctx,args.subdomain);
@@ -82,7 +105,7 @@ export const createOrder = internalMutation({
     if(args.origin==='classic') {const classic=await forStore(ctx,store._id);if(!classic?.published)fail('Landing no publicada.');landing=classic;}
     if(session) {landing=(await ctx.db.get(session.landingId))!;await ctx.db.patch(session._id,{checkoutAt:session.checkoutAt ?? Date.now()});}
     return await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin ?? 'direct', quizSessionId:session?._id,
+      store, landing, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
       build: async () => {
         const products = await loadProducts(ctx, [
           store.offer.mainProductId,
@@ -96,8 +119,9 @@ export const createOrder = internalMutation({
 });
 
 export const createPostPurchaseOrder = internalMutation({
-  args: { parentSessionId: v.string(), attemptId, downsell },
+  args: { parentSessionId: v.string(), attemptId, downsell, retry },
   handler: async (ctx, args): Promise<OpenOrder> => {
+    checkAttempt(args.attemptId);
     const parentTransaction = await ctx.db.query('transactions')
       .withIndex('by_session', q => q.eq('stripeCheckoutSessionId', args.parentSessionId)).first();
     const parent = parentTransaction && await ctx.db.get(parentTransaction.orderId);
@@ -106,9 +130,12 @@ export const createPostPurchaseOrder = internalMutation({
     const landing = await ctx.db.get(parent.landingId);
     if (!store || !landing || store.status !== 'active') fail('Esta oferta ya no está disponible.');
     const children = await ctx.db.query('orders').withIndex('by_parent', q => q.eq('parentOrderId', parent._id)).collect();
-    if (children.some(child => child.status === 'paid' || child.status === 'refunded')) fail('Ya compraste esta oferta.');
-    const order = await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: args.downsell, origin:parent.origin, quizSessionId:parent.quizSessionId,
+    if (children.some(child => child.status === 'paid' || child.status === 'refunded' || child.status === 'needs_review')) fail('Ya compraste esta oferta.');
+    // Another tab (or a reload) that already opened this offer shares its order, and with it
+    // the same Stripe session, so the buyer can only pay it once.
+    const open = children.find(child => child.status === 'pending' && Boolean(child.downsell) === Boolean(args.downsell));
+    const order = open ? await reopen(ctx, open, landing.subdomain, args.retry) : await openOrder(ctx, {
+      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: args.downsell, origin:parent.origin, quizSessionId:parent.quizSessionId, retry: args.retry,
       build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), args.downsell),
     });
     // The buyer just paid the parent order: their email is reused instead of asked again.
@@ -118,11 +145,14 @@ export const createPostPurchaseOrder = internalMutation({
 
 export const attachSession = internalMutation({
   args: { transactionId: v.id('transactions'), sessionId: v.string() },
-  handler: async (ctx, { transactionId, sessionId }) => {
+  // Never replaces a session already linked: the first one may still be paid (delayed
+  // methods take days), and losing its link would hide that charge.
+  handler: async (ctx, { transactionId, sessionId }): Promise<boolean> => {
     const transaction = await ctx.db.get(transactionId);
-    if (transaction && transaction.stripeCheckoutSessionId !== sessionId) {
-      await ctx.db.patch(transactionId, { stripeCheckoutSessionId: sessionId });
-    }
+    if (!transaction) return false;
+    if (transaction.stripeCheckoutSessionId) return transaction.stripeCheckoutSessionId === sessionId;
+    await ctx.db.patch(transactionId, { stripeCheckoutSessionId: sessionId });
+    return true;
   },
 });
 
@@ -142,32 +172,38 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
     collectContact: !order.customerEmail,
     customerEmail: elements ? order.customerEmail : undefined,
     orderId: order.orderId,
+    idempotencyKey: order.idempotencyKey,
     currency: order.currency,
     lineItems: order.lineItems,
     returnUrl: `${base}/gracias?session_id={CHECKOUT_SESSION_ID}`,
   });
   if (!session) throw new ConvexError('No se pudo iniciar el pago. Volvé a intentar en unos minutos.');
-  await ctx.runMutation(internal.checkout.attachSession, { transactionId: order.transactionId, sessionId: session.id });
+  // Stripe forgets idempotency keys after about a day; a late retry then gets a different
+  // session. It is never handed out, so it expires unpaid.
+  if (!(await ctx.runMutation(internal.checkout.attachSession, { transactionId: order.transactionId, sessionId: session.id }))) {
+    console.error('Stripe returned a different session for an order that already has one', order.orderId);
+    throw new ConvexError('Este pago ya se inició en otra ventana. Recargá la página para continuar.');
+  }
   return { clientSecret: session.clientSecret };
 }
 
 export const start = action({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, origin, quizToken, elements: v.optional(v.boolean()) },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, origin, quizToken, retry, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createOrder, {
-      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin, quizToken:args.quizToken,
+      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },
 });
 
 export const startPostPurchase = action({
-  args: { parentSessionId: v.string(), attemptId, via, downsell, elements: v.optional(v.boolean()) },
+  args: { parentSessionId: v.string(), attemptId, via, downsell, retry, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createPostPurchaseOrder, {
-      parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell,
+      parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell, retry: args.retry,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },
@@ -176,6 +212,64 @@ export const startPostPurchase = action({
 async function setStatus(ctx: MutationCtx, transaction: Doc<'transactions'>, status: Doc<'transactions'>['status'], extra: Partial<Doc<'transactions'>> = {}) {
   await ctx.db.patch(transaction._id, { status, ...extra });
   await ctx.db.patch(transaction.orderId, { status });
+}
+
+type Outcome = 'processed' | 'ignored' | 'rejected' | 'deferred';
+type PaidEvent = { eventId: string; sessionId?: string; paymentIntentId?: string; amountTotal?: number; currency?: string; email?: string; name?: string };
+
+// A post-purchase offer can be bought once. Two tabs can still end up paying two separate
+// orders for it, so the second one is held for review (and refunded) instead of delivered.
+async function offerAlreadyBought(ctx: MutationCtx, order: Doc<'orders'> | null) {
+  if (!order?.parentOrderId) return false;
+  const siblings = await ctx.db.query('orders').withIndex('by_parent', q => q.eq('parentOrderId', order.parentOrderId)).collect();
+  return siblings.some(sibling => sibling._id !== order._id && (sibling.status === 'paid' || sibling.status === 'refunded' || sibling.status === 'needs_review'));
+}
+
+async function applyPayment(ctx: MutationCtx, transaction: Doc<'transactions'>, event: PaidEvent): Promise<Outcome> {
+  const stripeIds = { stripeCheckoutSessionId: event.sessionId, stripePaymentIntentId: event.paymentIntentId };
+  const charged = { amount: event.amountTotal ?? 0, currency: (event.currency ?? '').toUpperCase() };
+  const order = await ctx.db.get(transaction.orderId);
+  let status: 'paid' | 'needs_review' | 'refunded';
+  let reviewReason: Doc<'transactions'>['reviewReason'];
+
+  if (transaction.status !== 'pending') {
+    // The same charge reported again (for example completed + async_payment_succeeded).
+    if (transaction.stripePaymentIntentId && transaction.stripePaymentIntentId === event.paymentIntentId) return 'ignored';
+    if (transaction.status !== 'expired' && transaction.status !== 'failed') {
+      // A second charge on a settled order. Sessions are never replaced, so this is not expected.
+      console.error('Stripe reported another charge for an order that is already settled', event.eventId);
+      return 'rejected';
+    }
+    status = 'needs_review'; reviewReason = 'late';
+  } else if (event.amountTotal !== transaction.amount || event.currency?.toUpperCase() !== transaction.currency.toUpperCase()) {
+    status = 'needs_review'; reviewReason = 'amount';
+  } else if (await offerAlreadyBought(ctx, order)) {
+    status = 'needs_review'; reviewReason = 'duplicate';
+  } else {
+    status = 'paid';
+  }
+
+  // Stripe does not guarantee event order: a refund may have arrived before this payment.
+  const refund = event.paymentIntentId ? (await ctx.db.query('webhookEvents')
+    .withIndex('by_payment_intent', q => q.eq('paymentIntentId', event.paymentIntentId)).collect())
+    .find(row => row.type === 'charge.refunded' && row.status === 'deferred') : undefined;
+  if (refund) {
+    status = 'refunded'; reviewReason = undefined;
+    await ctx.db.patch(refund._id, { status: 'processed' });
+  }
+
+  if (status === 'needs_review') console.error('Stripe charge held for review', reviewReason, event.eventId);
+  await setStatus(ctx, transaction, status, {
+    ...stripeIds,
+    ...(status === 'paid' ? { paidAt: Date.now() } : {}),
+    ...(status === 'needs_review' ? { charged, reviewReason } : {}),
+  });
+  // Post-purchase sessions do not ask for a name again: it is taken from the parent order.
+  const parent = !event.name && order?.parentOrderId ? await ctx.db.get(order.parentOrderId) : null;
+  await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' } });
+  // Links go to the buyer only when paid; a held charge alerts the admins instead.
+  if (status !== 'refunded') await queueEmail(ctx, transaction._id);
+  return status === 'needs_review' ? 'rejected' : 'processed';
 }
 
 // Applies a verified Stripe event exactly once. Receiving an event is not proof of a new
@@ -194,11 +288,11 @@ export const handleStripeEvent = internalMutation({
     name: v.optional(v.string()),
     refunded: v.optional(v.boolean()),
   },
-  handler: async (ctx, event): Promise<'duplicate' | 'processed' | 'ignored' | 'rejected'> => {
+  handler: async (ctx, event): Promise<'duplicate' | Outcome> => {
     const seen = await ctx.db.query('webhookEvents').withIndex('by_event', q => q.eq('stripeEventId', event.eventId)).first();
     if (seen) return 'duplicate';
 
-    let outcome: 'processed' | 'ignored' | 'rejected' = 'ignored';
+    let outcome: Outcome = 'ignored';
     if (event.type.startsWith('checkout.session.') && event.sessionId) {
       let transaction = await ctx.db.query('transactions')
         .withIndex('by_session', q => q.eq('stripeCheckoutSessionId', event.sessionId)).first();
@@ -207,25 +301,8 @@ export const handleStripeEvent = internalMutation({
         transaction = orderId && await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', orderId)).first();
       }
       const paidEvent = event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded';
-      if (transaction && paidEvent && event.paymentStatus === 'paid' && transaction.status === 'pending') {
-        const stripeIds = { stripeCheckoutSessionId: event.sessionId, stripePaymentIntentId: event.paymentIntentId };
-        if (event.amountTotal !== transaction.amount || event.currency?.toUpperCase() !== transaction.currency.toUpperCase()) {
-          // Money was taken but does not match the order: links stay hidden and the admins are alerted.
-          console.error('Stripe amount does not match the order', event.eventId);
-          await setStatus(ctx, transaction, 'needs_review', {
-            ...stripeIds,
-            charged: { amount: event.amountTotal ?? 0, currency: (event.currency ?? '').toUpperCase() },
-          });
-          outcome = 'rejected';
-        } else {
-          await setStatus(ctx, transaction, 'paid', { ...stripeIds, paidAt: Date.now() });
-          outcome = 'processed';
-        }
-        // Post-purchase sessions do not ask for a name again: it is taken from the parent order.
-        const order = await ctx.db.get(transaction.orderId);
-        const parent = !event.name && order?.parentOrderId ? await ctx.db.get(order.parentOrderId) : null;
-        await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' } });
-        await queueEmail(ctx, transaction._id);
+      if (transaction && paidEvent && event.paymentStatus === 'paid') {
+        outcome = await applyPayment(ctx, transaction, event);
       } else if (transaction && event.type === 'checkout.session.async_payment_failed' && transaction.status === 'pending') {
         // A delayed method (ACH, SEPA…) was declined. The session never expires after this.
         await setStatus(ctx, transaction, 'failed', { stripeCheckoutSessionId: event.sessionId, stripePaymentIntentId: event.paymentIntentId });
@@ -241,10 +318,16 @@ export const handleStripeEvent = internalMutation({
       if (transaction && (transaction.status === 'paid' || transaction.status === 'needs_review')) {
         await setStatus(ctx, transaction, 'refunded');
         outcome = 'processed';
+      } else if (!transaction) {
+        // The payment is not confirmed yet: kept so it is applied when the payment arrives.
+        outcome = 'deferred';
       }
     }
 
-    await ctx.db.insert('webhookEvents', { stripeEventId: event.eventId, type: event.type, status: outcome });
+    await ctx.db.insert('webhookEvents', {
+      stripeEventId: event.eventId, type: event.type, status: outcome,
+      ...(event.type === 'charge.refunded' && event.paymentIntentId ? { paymentIntentId: event.paymentIntentId } : {}),
+    });
     return outcome;
   },
 });

@@ -167,6 +167,11 @@ export default defineSchema({
     paidAt: v.optional(v.number()),
     // What Stripe actually charged when it did not match the order (status needs_review).
     charged: v.optional(v.object({ amount: v.number(), currency: v.string() })),
+    // Why the charge is held: wrong amount, a second purchase of the same post-purchase
+    // offer, or a payment reported for an order that had already expired or failed.
+    reviewReason: v.optional(v.union(v.literal('amount'), v.literal('duplicate'), v.literal('late'))),
+    // Bumped when a retry needs a new Stripe idempotency key (Stripe caches failures too).
+    sessionAttempt: v.optional(v.number()),
     // Delivery email to the buyer, or the review alert to the admins, sent through Resend.
     email: v.optional(v.object({ status: emailStatus, attempts: v.number(), updatedAt: v.number(), error: v.optional(v.string()) })),
     deliveries: v.array(v.object({ productName: v.string(), title: v.string(), url: v.string() })),
@@ -190,6 +195,8 @@ export default defineSchema({
   webhookEvents: defineTable({
     stripeEventId: v.string(),
     type: v.string(),
-    status: v.union(v.literal('processed'), v.literal('ignored'), v.literal('rejected')),
-  }).index('by_event', ['stripeEventId']),
+    // deferred: a refund that arrived before its payment; it is applied when the payment does.
+    status: v.union(v.literal('processed'), v.literal('ignored'), v.literal('rejected'), v.literal('deferred')),
+    paymentIntentId: v.optional(v.string()),
+  }).index('by_event', ['stripeEventId']).index('by_payment_intent', ['paymentIntentId']),
 });

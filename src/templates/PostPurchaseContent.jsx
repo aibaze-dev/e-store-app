@@ -1,23 +1,68 @@
+import './classic-landing.css';
 import { useId, useState } from 'react';
-import { Check, ExternalLink, LoaderCircle, LockKeyhole } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, ExternalLink, LoaderCircle, LockKeyhole, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/Field.jsx';
 import { storefrontMoney as money } from '@/lib/storefront-money.js';
-import { FEATURE_ICONS } from './ClassicLanding.jsx';
+import { classicTheme } from '../../shared/classic-design.js';
+import { Cover, FEATURE_ICONS, Heading } from './ClassicLanding.jsx';
+import { normalizeContent } from './content.js';
 import { POST_PURCHASE_CONTENT, postPurchaseContent, videoSource } from '../../shared/post-purchase.js';
+
+// Thank-you page shell: same palette, masthead and footer as the classic landing.
+export function PurchaseLanding({ presentation = {}, storeName = '', eyebrow, title, subtitle, busy = false, children }) {
+  return <div className="sales-landing classic-landing purchase-landing" style={classicTheme(presentation.accentColor)}>
+    <main>
+      <header className="classic-masthead purchase-masthead">
+        <div className="sales-container sales-slim">
+          <div className="sales-hero-heading">
+            {eyebrow && <span className="sales-eyebrow">{eyebrow}</span>}
+            <h1>{busy && <LoaderCircle className="purchase-spinner animate-spin" aria-hidden="true" />}{title}</h1>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+        </div>
+      </header>
+      {children}
+    </main>
+    <footer className="sales-footer"><div className="sales-container sales-slim">
+      <p>© {new Date().getFullYear()} {presentation.brandName || storeName}. Todos los derechos reservados.</p>
+      {(presentation.termsUrl || presentation.privacyUrl) && <nav aria-label="Información legal">{presentation.termsUrl && <a href={presentation.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}{presentation.privacyUrl && <a href={presentation.privacyUrl} target="_blank" rel="noreferrer">Política de privacidad</a>}</nav>}
+    </div></footer>
+  </div>;
+}
+
+export function PurchaseSection({ soft = false, label, children }) {
+  return <section className={`sales-section ${soft ? 'sales-soft' : ''}`} aria-label={label}><div className="sales-container sales-slim">{children}</div></section>;
+}
+
+// The links the buyer paid for. In the preview they are examples and cannot be opened.
+export function DeliveryLinks({ deliveries, preview = false }) {
+  return <PurchaseSection soft label="Tus links de acceso">
+    <Heading section={{ title: 'Tus links de acceso', subtitle: preview ? 'Ejemplo: acá el comprador ve los links de los productos que pagó.' : '' }} eyebrow="Tu compra" />
+    {deliveries.length === 0
+      ? <p className="purchase-notice">Esta compra no tiene links cargados. Escribile a quien te vendió el producto.</p>
+      : <ul className="purchase-links">{deliveries.map((link, index) => <li key={index}>
+        <span className="purchase-link-icon" aria-hidden="true"><BookOpen /></span>
+        <div><strong>{link.productName}</strong>{link.title && <p>{link.title}</p>}</div>
+        {preview
+          ? <span className="purchase-open is-disabled" aria-disabled="true">Abrir<ExternalLink aria-hidden="true" /></span>
+          : <a className="purchase-open" href={link.url} target="_blank" rel="noreferrer">Abrir<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>}
+      </li>)}</ul>}
+  </PurchaseSection>;
+}
 
 function Video({ video }) {
   const [failed, setFailed] = useState(false);
   const source = videoSource(video.url);
   if (!video.enabled || !source) return null;
-  return <section className="space-y-3" aria-label={video.title || 'Video de la oferta'}>
-    {video.title && <h3 className="text-lg font-semibold">{video.title}</h3>}
+  return <div className="purchase-video">
+    {video.title && <h3>{video.title}</h3>}
     {source.kind === 'embed'
-      ? <iframe className="aspect-video w-full rounded-xl border-0 bg-black" src={source.src} title={video.title || 'Video de la oferta'} allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
-      : failed ? <p role="status" className="text-sm text-muted-foreground">No se pudo cargar el video. Podés abrirlo en otra pestaña o continuar con la oferta.</p>
-        : <video className="aspect-video w-full rounded-xl bg-black" src={source.src} controls playsInline preload="metadata" onError={() => setFailed(true)}>Tu navegador no puede reproducir este video.</video>}
-    <a className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4" href={video.url} target="_blank" rel="noreferrer">Abrir video en otra pestaña<ExternalLink className="size-4" aria-hidden="true" /></a>
-  </section>;
+      ? <iframe src={source.src} title={video.title || 'Video de la oferta'} allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+      : failed ? <p role="status" className="purchase-notice">No se pudo cargar el video. Podés abrirlo en otra pestaña o continuar con la oferta.</p>
+        : <video src={source.src} controls playsInline preload="metadata" onError={() => setFailed(true)}>Tu navegador no puede reproducir este video.</video>}
+    <a href={video.url} target="_blank" rel="noreferrer">Abrir video en otra pestaña<ExternalLink aria-hidden="true" /></a>
+  </div>;
 }
 
 // The preview and the real paid flow use the same presentation; checkout stays in Storefront.
@@ -27,46 +72,56 @@ export default function PostPurchaseContent({ offer, currency, downsell = false,
   const defaults = POST_PURCHASE_CONTENT.postPurchase;
   const title = downsell ? copy.downsellTitle || copy.title || offer.name : copy.title || offer.name;
   const description = copy.description || offer.description;
-  return <article className="post-purchase-content space-y-6 rounded-2xl border bg-card p-5 text-card-foreground sm:p-8" aria-labelledby={titleId}>
-    <header className="space-y-3">
-      {copy.eyebrow && <p className="text-xs font-semibold tracking-widest text-primary uppercase">{copy.eyebrow}</p>}
-      <h2 id={titleId} className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
-      {copy.subtitle && <p className="leading-7 text-muted-foreground">{copy.subtitle}</p>}
-    </header>
-    {video.enabled && videoSource(video.url) ? <Video key={video.url} video={video} /> : offer.coverUrl && <img className="mx-auto max-h-72 max-w-full rounded-xl object-contain" src={offer.coverUrl} alt={`Portada de ${offer.name}`} />}
-    {description && <p className="leading-7 whitespace-pre-line text-muted-foreground">{description}</p>}
-    {benefits.enabled && benefits.items.length > 0 && <section className="space-y-4" aria-label={benefits.title || 'Beneficios de la oferta'}>
-      {benefits.title && <h3 className="text-xl font-semibold">{benefits.title}</h3>}
-      {benefits.subtitle && <p className="text-sm leading-6 text-muted-foreground">{benefits.subtitle}</p>}
-      <ul className="grid gap-4 sm:grid-cols-2">{benefits.items.map((item, index) => { const Icon = FEATURE_ICONS[item.icon] || Check; return <li className="flex gap-3 rounded-xl border p-4" key={index}>
-        <Icon className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
-        <div className="min-w-0"><h4 className="font-semibold">{item.title}</h4>{item.description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>}</div>
-      </li>; })}</ul>
-    </section>}
-    <section className="space-y-4 border-t pt-6" aria-label="Aceptar o rechazar la oferta">
-      <p className="font-medium">{offer.name}</p>
-      <p className="flex flex-wrap items-baseline gap-3">
-        {downsell && <del className="text-muted-foreground">{money(offer.price, currency)}</del>}
-        <strong className="text-3xl text-primary">{money(downsell ? offer.downsellPrice : offer.price, currency)}</strong>
-        {downsell && <span className="text-sm font-semibold text-primary">Ahorrás {offer.downsellPercent}%</span>}
-      </p>
-      {downsell && copy.downsellText && <p className="leading-7 whitespace-pre-line">{copy.downsellText}</p>}
-      <p className="text-sm leading-6 text-muted-foreground">Se paga aparte, con un segundo checkout. Tu compra anterior no cambia.</p>
-      <ErrorAlert>{error}</ErrorAlert>
-      <div className="flex flex-wrap gap-3">
-        <Button size="lg" className="h-auto min-h-12 max-w-full whitespace-normal" onClick={onAccept} disabled={busy || !canPurchase}>{busy && <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" />}{busy ? 'Preparando el pago…' : downsell ? copy.downsellCtaText || defaults.downsellCtaText : copy.ctaText || defaults.ctaText}</Button>
-        <Button size="lg" className="h-auto min-h-12 max-w-full whitespace-normal" variant="outline" onClick={onDecline} disabled={busy || !onDecline}>{copy.declineText || defaults.declineText}</Button>
+  const hasVideo = video.enabled && Boolean(videoSource(video.url));
+  return <>
+    <section className="sales-hero sales-section post-purchase-content" aria-labelledby={titleId}>
+      <div className="sales-container sales-slim">
+        <div className="sales-heading">
+          {copy.eyebrow && <span className="sales-eyebrow">{copy.eyebrow}</span>}
+          <h2 id={titleId}>{title}</h2>
+          {copy.subtitle && <p>{copy.subtitle}</p>}
+        </div>
+        <div className="classic-hero-media">
+          {hasVideo ? <Video key={video.url} video={video} /> : <div className="classic-hero-image"><Cover src={offer.coverUrl} name={offer.name} /></div>}
+        </div>
+        <div className="sales-offer">
+          {description && <p className="purchase-offer-description">{description}</p>}
+          <h2>{offer.name}</h2>
+          <div className="sales-offer-card">
+            {downsell && <span className="sales-offer-tag">Ahorrás {offer.downsellPercent}%</span>}
+            <div className="sales-price">{downsell && <del>{money(offer.price, currency)}</del>}<strong>{money(downsell ? offer.downsellPrice : offer.price, currency)}</strong></div>
+            {downsell && copy.downsellText && <p className="classic-hero-note">{copy.downsellText}</p>}
+            <ErrorAlert>{error}</ErrorAlert>
+            <Button type="button" className="sales-cta" onClick={onAccept} disabled={busy || !canPurchase}>
+              {busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+              <span>{busy ? 'Preparando el pago…' : downsell ? copy.downsellCtaText || defaults.downsellCtaText : copy.ctaText || defaults.ctaText}</span>
+              {!busy && <ArrowRight aria-hidden="true" />}
+            </Button>
+            <button type="button" className="purchase-decline" onClick={onDecline} disabled={busy || !onDecline}>{copy.declineText || defaults.declineText}</button>
+            <div className="sales-trust"><span><Zap aria-hidden="true" />Acceso inmediato</span><span><LockKeyhole aria-hidden="true" />Pago seguro</span></div>
+            <p className="classic-hero-note">Se paga aparte, con un segundo checkout. Tu compra anterior no cambia.</p>
+          </div>
+        </div>
       </div>
-      <p className="flex items-center gap-2 text-xs text-muted-foreground"><LockKeyhole className="size-4" aria-hidden="true" />Pago seguro</p>
     </section>
-  </article>;
+    {benefits.enabled && benefits.items.length > 0 && <section className="sales-section sales-soft" aria-label={benefits.title || 'Beneficios de la oferta'}><div className="sales-container sales-narrow">
+      <Heading section={benefits} eyebrow="Lo que te llevás" />
+      <div className="sales-features">{benefits.items.map((item, index) => {
+        const Icon = FEATURE_ICONS[item.icon] || Check;
+        return <article key={index} className="sales-feature"><span className="sales-feature-icon" aria-hidden="true"><Icon aria-hidden="true" /></span><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}</article>;
+      })}</div>
+    </div></section>}
+  </>;
 }
 
 export function PostPurchasePreview({ view, downsell = false }) {
-  return <main className="min-h-screen bg-background px-5 py-8 text-foreground"><div className="mx-auto max-w-2xl space-y-6">
-    <h1 className="text-2xl font-semibold">¡Gracias por tu compra!</h1>
+  const content = normalizeContent(view.content);
+  const offer = view.offer;
+  const examples = offer ? [offer.main, ...(offer.bonuses || [])].map(product => ({ productName: product.name, title: 'Link de descarga' })) : [];
+  return <PurchaseLanding presentation={{ accentColor: content.style.accentColor, ...content.footer }} storeName={view.store?.name} eyebrow="Compra confirmada" title="¡Gracias por tu compra!" subtitle="Estos son tus links. También te los enviamos por email.">
     {view.postPurchaseOffer
       ? <PostPurchaseContent offer={{ ...view.postPurchaseOffer, content: view.content }} currency={view.store.currency} downsell={downsell && Boolean(view.postPurchaseOffer.downsellPrice)} />
-      : <p className="rounded-xl border bg-card p-5 text-sm leading-6">Activá la oferta post-compra y elegí un producto en «Oferta post-compra» para ver esta página.</p>}
-  </div></main>;
+      : <PurchaseSection><p className="purchase-notice">Activá la oferta post-compra y elegí un producto en «Oferta post-compra» para ver esta página.</p></PurchaseSection>}
+    <DeliveryLinks deliveries={examples} preview />
+  </PurchaseLanding>;
 }

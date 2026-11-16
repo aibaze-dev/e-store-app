@@ -7,6 +7,7 @@ import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
 
 const ROLE_LABELS = { main: 'Principal', bonus: 'Bono', upsell: 'Extra', post_purchase: 'Post-compra' };
+const REVIEW_REASONS = { amount: ' y no coincide con la orden', duplicate: ' por una oferta post-compra que ya estaba pagada', late: ' por una orden vencida o rechazada' };
 
 export default function OrdersPage() {
   const { store } = useStoreWorkspace();
@@ -40,7 +41,7 @@ export default function OrdersPage() {
           </TableCell>
           <TableCell className="font-medium whitespace-nowrap">{formatMoney(order.total, order.currency)}</TableCell>
           <TableCell className="min-w-32"><Badge variant={statusVariant(order.status)}>{STATUS_LABELS[order.status]}</Badge>
-            {order.status === 'needs_review' && order.charged && <p className="mt-2 text-xs leading-5 text-muted-foreground">Stripe cobró {formatMoney(order.charged.amount, order.charged.currency)}. Revisá el pago {order.stripePaymentIntentId} en Stripe: reembolsalo o entregá a mano.</p>}</TableCell>
+            {order.status === 'needs_review' && order.charged && <p className="mt-2 text-xs leading-5 text-muted-foreground">Stripe cobró {formatMoney(order.charged.amount, order.charged.currency)}{REVIEW_REASONS[order.reviewReason] ?? ''}. Revisá el pago {order.stripePaymentIntentId} en Stripe: reembolsalo o entregá a mano.</p>}</TableCell>
         </TableRow>)}</TableBody>
       </Table>
     </div>}

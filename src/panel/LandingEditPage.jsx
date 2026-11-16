@@ -21,11 +21,6 @@ import LandingWizard from './LandingWizard.jsx';
 const ICONS = { check: 'Check', book: 'Libro', target: 'Objetivo', growth: 'Progreso', strength: 'Fuerza', brain: 'Aprendizaje', settings: 'Herramientas', cart: 'Compra', mail: 'Entrega', sparkles: 'Resultado' };
 const newFeature = () => ({ title: '', description: '', icon: 'check' });
 const slug = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63).replace(/-+$/, '');
-const localDate = timestamp => {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return new Date(timestamp - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
 
 function Section({ id, number, title, description, children, defaultOpen = false }) {
   return <details id={id} className="landing-form-section" open={defaultOpen || undefined}>
@@ -229,9 +224,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
         </Section>
         <Section id="promotion" number="16" title="Promoción y actividad" description="Contador compartido, cupos y actividad">
           {toggle('promotion', 'Mostrar promoción')}{field('promotion', 'message', 'Mensaje', { maxLength: 120 })}
-          <Field label="Tipo de contador">{ids => <NativeSelect {...ids} value={content.promotion.timerMode} onChange={event => change('promotion', { timerMode: event.target.value })} disabled={Boolean(busy)}><option value="session">Por visita · entre 8 y 15 minutos</option><option value="date">Fecha de vencimiento</option></NativeSelect>}</Field>
-          <p className="text-xs text-muted-foreground">El contador por visita es simulado, se comparte con el checkout y no reinicia al navegar o recargar. No modifica precios ni bloquea pagos.</p>
-          {content.promotion.timerMode === 'date' && <Field label="Vencimiento" hint="Hora local de tu dispositivo. Al vencer se ocultan la barra y el contador. El precio se administra en la oferta de la tienda.">{ids => <Input {...ids} type="datetime-local" value={localDate(content.promotion.endsAt)} onChange={event => change('promotion', { endsAt: event.target.value ? new Date(event.target.value).getTime() : undefined })} disabled={Boolean(busy)} required />}</Field>}
+          <p className="text-xs text-muted-foreground">El contador es simulado: cada visita arranca en un valor al azar cercano a 15 minutos, se comparte con el checkout, no reinicia al recargar y vuelve a empezar al llegar a cero. No modifica precios ni bloquea pagos.</p>
           {field('promotion', 'timerLabel', 'Texto del contador', { maxLength: 120, hint: 'Aparece junto al tiempo en la landing, el botón fijo y el checkout.' })}
           {field('promotion', 'spotsText', 'Texto de cupos', { maxLength: 240, hint: 'Usá {cantidad} para insertar los cupos disponibles.' })}
           {numberField('promotion', 'remainingSpots', 'Cupos disponibles (opcional)', 1000000)}
