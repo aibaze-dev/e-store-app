@@ -3,7 +3,7 @@ import { makeFunctionReference as ref } from 'convex/server';
 // Function references by name, so the build does not depend on generated bindings.
 export const api = {
   media: { uploadUrl: ref('media:uploadUrl'), finalize: ref('media:finalize') },
-  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival','imageUploadUrl','imageUrl'].map(name=>[name,ref(`quizzes:${name}`)])),
+  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival','checkoutContact','imageUploadUrl','imageUrl'].map(name=>[name,ref(`quizzes:${name}`)])),
   quizWizard: {generate:ref('quiz_wizard:generate')},
   quizImages: {generate:ref('quiz_images:generate')},
   analytics: { recordView: ref('analytics:recordView'), report: ref('analytics:report') },
