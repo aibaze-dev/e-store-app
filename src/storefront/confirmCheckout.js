@@ -9,13 +9,11 @@ export async function confirmCheckout(checkout, buyer, expected, onInitiate, ema
     onInitiate();
     return checkout.confirm(checkout.email ? undefined : { email: email.trim() });
   }
-  const first = buyer.firstName.trim();
-  const last = buyer.lastName.trim();
-  if (!first || !last) return { type: 'error', error: { message: 'Completá tu nombre y apellido.' } };
-  const phoneNumber = buyer.phone.replace(/[ ()-]/g, '');
-  if (!/^\+[1-9]\d{6,14}$/.test(phoneNumber)) return { type: 'error', error: { message: 'Revisá el teléfono e incluí el código de país.' } };
-  const named = await checkout.updateIndividualName(`${first} ${last}`);
+  const name = buyer.name.trim().replace(/\s+/g, ' ');
+  if (!name) return { type: 'error', error: { message: 'Completá tu nombre.' } };
+  if (!buyer.email.trim()) return { type: 'error', error: { message: 'Ingresá tu email.' } };
+  const named = await checkout.updateIndividualName(name);
   if (named.type === 'error') return named;
   onInitiate();
-  return checkout.confirm({ email: buyer.email.trim(), phoneNumber });
+  return checkout.confirm({ email: buyer.email.trim() });
 }

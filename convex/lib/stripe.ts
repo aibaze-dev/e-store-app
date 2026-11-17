@@ -10,7 +10,7 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   orderId: string; currency: string; lineItems: LineItem[]; returnUrl: string; elements?: boolean;
   // Defaults to one key per order; a retry after a cached Stripe failure passes a new one.
   idempotencyKey?: string;
-  // Elements only: ask for name and phone (new buyers) or reuse a known buyer's email.
+  // Elements only: ask for the name (new buyers) or reuse a known buyer's email.
   collectContact?: boolean; customerEmail?: string;
 }) {
   const body = new URLSearchParams({
@@ -23,7 +23,6 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   });
   if (input.elements && input.collectContact !== false) {
     body.set('name_collection[individual][enabled]', 'true');
-    body.set('phone_number_collection[enabled]', 'true');
   }
   if (input.customerEmail) body.set('customer_email', input.customerEmail);
   input.lineItems.forEach((item, index) => {

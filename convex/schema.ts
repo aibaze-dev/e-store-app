@@ -67,6 +67,8 @@ export const storeDownsell = v.object({
   declineText: v.string(),
   pageTitle: v.string(),
   pageSubtitle: v.string(),
+  // Optional VSL on the offer page. Empty or absent: no video.
+  videoUrl: v.optional(v.string()),
 });
 
 // Presentation of the public checkout. Reference prices are informative and never charged.
@@ -154,6 +156,8 @@ export default defineSchema({
     quizSessionId: v.optional(v.id('quizSessions')),
     // Sold at the store's downsell discount; the items hold the price actually charged.
     downsell: v.optional(v.boolean()),
+    // Post-purchase only: the last, fixed extra discount offered after the downsell. Also has `downsell`.
+    finalDownsell: v.optional(v.boolean()),
     buyer: v.optional(v.object({ email: v.string(), name: v.string() })),
     status: paymentStatus,
     currency: v.string(),

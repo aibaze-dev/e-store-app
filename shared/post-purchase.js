@@ -10,6 +10,16 @@ export const POST_PURCHASE_CONTENT = {
   postPurchaseVideo: { enabled: false, title: 'Conocé esta oferta', url: '' },
 };
 
+// Last post-purchase discount: 10 more points than the store's downsell, or 10% without
+// one, never above 90%. The server charges it with this same rule.
+export const FINAL_EXTRA_PERCENT = 10;
+export function finalPostPurchasePercent(postPurchase = {}) {
+  return Math.min((postPurchase.downsellPercent ?? 0) + FINAL_EXTRA_PERCENT, 90);
+}
+
+// Pages of the post-purchase preview and the modal step each one shows.
+export const POST_PURCHASE_PREVIEW_STAGES = { post: 'offer', 'post-downsell': 'downsell', 'post-final': 'final' };
+
 export function postPurchaseContent(content = {}) {
   return Object.fromEntries(Object.entries(POST_PURCHASE_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
 }

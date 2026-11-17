@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PostPurchasePreview } from '@/templates/PostPurchaseContent.jsx';
+import { POST_PURCHASE_PREVIEW_STAGES } from '../../shared/post-purchase.js';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from 'convex/react';
@@ -23,12 +24,12 @@ export default function LandingPreviewPage() {
     <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3 text-sm">
       <p><strong className="font-semibold">Vista previa del borrador.</strong> <span className="text-muted-foreground">La compra está deshabilitada acá.</span></p>
       <div className="flex items-center gap-2">
-        <NativeSelect aria-label="Página de la vista previa" value={target} onChange={event => setTarget(event.target.value)}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{view.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra con descuento</option>}</NativeSelect>
+        <NativeSelect aria-label="Página de la vista previa" value={target} onChange={event => setTarget(event.target.value)}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{view.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra con descuento</option>}{view.postPurchaseOffer && <option value="post-final">Post-compra con último descuento</option>}</NativeSelect>
         <ThemeToggle />
         <Button asChild variant="outline"><Link to={`/panel/tiendas/${storeId}/landing`}>Volver a editar</Link></Button>
       </div>
     </div>
     </InternalTheme>
-    {target === 'landing' ? <Template view={view} /> : <PostPurchasePreview view={view} downsell={target === 'post-downsell'} />}
+    {target === 'landing' ? <Template view={view} /> : <PostPurchasePreview view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} />}
   </>;
 }

@@ -120,7 +120,7 @@ export default function Quiz({ subdomain, view }) {
       await arrival({ token: readQuizToken(subdomain) });
       // The checkout starts with the contact the visitor already typed in the quiz.
       const contact = contextFor(data.quiz, data.session.answers).contact || {};
-      navigate(`${base}/checkout`, { state: { origin: 'quiz', buyer: { email: contact.email || '', firstName: (contact.name || '').split(/\s+/)[0] || '' } } });
+      navigate(`${base}/checkout`, { state: { origin: 'quiz', buyer: { email: contact.email || '', name: (contact.name || '').trim() } } });
     } catch (e) { setError(errorText(e, 'No se pudo continuar.')); }
     finally { setBusy(false); }
   }

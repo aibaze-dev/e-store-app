@@ -301,3 +301,11 @@
   .purchase-links .purchase-open { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .purchase-spinner { animation: none; } }
+
+/* Panel preview of the post-purchase modal: a static copy of the dialog over the thank-you page. */
+.post-offer-preview { position: relative; min-height: 100%; }
+.post-offer-preview-overlay { position: absolute; inset: 0; z-index: 10; display: flex; justify-content: center; align-items: flex-start; padding: 24px 16px; background: #00000099; }
+.post-offer-preview-dialog { position: sticky; top: 24px; display: grid; gap: 20px; width: 100%; max-width: 32rem; padding: 24px; color: var(--foreground); }
+.post-offer-preview-close { position: absolute; top: 12px; right: 12px; display: grid; width: 44px; height: 44px; place-items: center; color: var(--muted-foreground); }
+.post-offer-preview-close svg { width: 20px; height: 20px; }
+@media (min-width: 640px) { .post-offer-preview-dialog { padding: 32px; } }

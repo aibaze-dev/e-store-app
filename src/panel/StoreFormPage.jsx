@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
+import { UploadContext, VideoField, useMediaUpload } from './ImageField.jsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 
@@ -19,7 +20,7 @@ import OfferSection from './OfferSection.jsx';
 const EMPTY = {
   name: '', status: 'draft', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
   bonuses: [], upsells: [], postEnabled: false, postProductId: '', postPrice: '', postDownPercent: '', metaPixelId: '',
-  downEnabled: false, downPercent: '', downTexts: DOWNSELL_DEFAULTS,
+  downEnabled: false, downPercent: '', downTexts: DOWNSELL_DEFAULTS, downVideoUrl: '',
 };
 
 const DOWNSELL_TEXTS = [
@@ -48,6 +49,7 @@ function fromStore(store) {
     postDownPercent: store.postPurchase.downsellPercent ? String(store.postPurchase.downsellPercent) : '',
     downEnabled: Boolean(store.downsell?.enabled), downPercent: store.downsell?.percent ? String(store.downsell.percent) : '',
     downTexts: Object.fromEntries(DOWNSELL_TEXTS.map(({ key }) => [key, store.downsell?.[key] || DOWNSELL_DEFAULTS[key]])),
+    downVideoUrl: store.downsell?.videoUrl ?? '',
   };
 }
 
@@ -86,6 +88,7 @@ function toArgs(form) {
       enabled: form.downEnabled,
       percent: form.downEnabled ? percent(form.downPercent, 'Descuento del downsell') : percentOf(form.downPercent) || 0,
       ...form.downTexts,
+      ...(form.downVideoUrl.trim() ? { videoUrl: form.downVideoUrl.trim() } : {}),
     },
     tracking: { metaPixelId: form.metaPixelId.trim() },
   };
@@ -105,6 +108,7 @@ export default function StoreFormPage({ section }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const upload = useMediaUpload();
 
   useEffect(() => { if (existing && !form) setForm(fromStore(existing)); }, [existing, form]);
 
@@ -155,7 +159,7 @@ export default function StoreFormPage({ section }) {
     finally { setBusy(false); }
   }
 
-  return <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" aria-busy={busy}>
+  return <UploadContext.Provider value={upload}><form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" aria-busy={busy}>
     <div className="space-y-3">
       <Button asChild variant="ghost" className="-ml-3"><Link to={storeId ? `/panel/tiendas/${storeId}` : "/panel/tiendas"}><ArrowLeft aria-hidden="true" />{storeId ? "Inicio de la tienda" : "Tiendas"}</Link></Button>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -226,7 +230,7 @@ export default function StoreFormPage({ section }) {
         {form.postEnabled && <div className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">
           <Field label="Producto">{props => productSelect(props, form.postProductId, postProductId => set({ postProductId }))}</Field>
           <Field label="Precio">{props => priceInput(props, form.postPrice, postPrice => set({ postPrice }))}</Field>
-          <Field label="Downsell: descuento % (opcional)" className="sm:col-span-2" hint={`Si el comprador responde «No, gracias», se le ofrece una vez el mismo producto con este descuento. Vacío: sin downsell. ${discountHint(form.postPrice, form.postDownPercent)}`}>{props => percentInput(props, form.postDownPercent, postDownPercent => set({ postDownPercent }))}</Field>
+          <Field label="Downsell: descuento % (opcional)" className="sm:col-span-2" hint={`Si el comprador responde «No, gracias», se le ofrece el mismo producto con este descuento. Si también lo rechaza y vuelve a la página, se le ofrece una última vez con 10 puntos más de descuento (o 10% si este campo queda vacío). ${discountHint(form.postPrice, form.postDownPercent)}`}>{props => percentInput(props, form.postDownPercent, postDownPercent => set({ postDownPercent }))}</Field>
         </div>}
       </CardContent>
     </Card>}
@@ -244,6 +248,7 @@ export default function StoreFormPage({ section }) {
             const Control = long ? Textarea : Input;
             return <Field key={key} label={label} hint={hint} className={long ? 'sm:col-span-2' : ''}>{props => <Control {...props} value={form.downTexts[key]} onChange={event => set({ downTexts: { ...form.downTexts, [key]: event.target.value } })} maxLength={max} disabled={busy} />}</Field>;
           })}
+          <div className="sm:col-span-2"><VideoField label="Video VSL de la oferta (opcional)" hint="Se muestra en la página de la oferta con descuento. Vacío: sin video." value={form.downVideoUrl} onChange={downVideoUrl => set({ downVideoUrl })} disabled={busy} /></div>
         </div>}
       </CardContent>
     </Card>}
@@ -260,5 +265,5 @@ export default function StoreFormPage({ section }) {
       <Button type="submit" size="lg" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Guardando…' : storeId ? 'Guardar cambios' : 'Crear tienda y armar landing'}</Button>
       <p className="text-sm text-muted-foreground" role="status">{saved && <span className="inline-flex items-center gap-2"><Check className="size-4" aria-hidden="true" />Cambios guardados.</span>}</p>
     </div>
-  </form>;
+  </form></UploadContext.Provider>;
 }

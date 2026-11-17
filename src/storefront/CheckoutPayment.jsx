@@ -16,15 +16,18 @@ export const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 let stripe;
 const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b', borderRadius: '10px', fontFamily: 'Arial, sans-serif', fontSizeBase: '16px' } };
 
+// Only email and name: card, wallets and anything else are Stripe's own Payment Element.
 export function PersonalDetails({ buyer, setBuyer, disabled, formId }) {
-  const field = (key, label, autocomplete, type = 'text', hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={key === 'email' ? 'tu@email.com' : key === 'firstName' ? 'Tu nombre' : 'Tu apellido'} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
+  const field = (key, label, autocomplete, type, placeholder, hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={placeholder} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
   return <fieldset disabled={disabled} className="checkout-personal space-y-6">
     <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />Datos personales</legend>
-    {field('email', 'Email *', 'email', 'email', 'Usaremos este email para identificar tu compra.')}
-    <div className="grid gap-5 sm:grid-cols-2">{field('firstName', 'Nombre *', 'given-name')}{field('lastName', 'Apellido *', 'family-name')}</div>
-    <Field label="Teléfono *" hint="Incluí el código de país, por ejemplo +54 9 11 1234 5678.">{ids => <Input {...ids} form={formId} type="tel" name="phone" autoComplete="tel" required maxLength={25} pattern={String.raw`\+[0-9 \(\)\-]{7,24}`} placeholder="+54 9 11 1234 5678" value={buyer.phone} onChange={event => setBuyer(current => ({ ...current, phone: event.target.value }))} />}</Field>
+    {field('email', 'Email *', 'email', 'email', 'tu@email.com', 'Te enviamos ahí el acceso a tu compra.')}
+    {field('name', 'Nombre *', 'name', 'text', 'Tu nombre')}
   </fieldset>;
 }
+
+// No Link sign-up box and billing address only when the card really needs it.
+const PAYMENT_ELEMENT_OPTIONS = { layout: 'tabs', wallets: { link: 'never' }, fields: { billingDetails: { address: 'if_required' } } };
 
 function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onInitiate, payRef }) {
   const state = useCheckoutElements();
@@ -50,7 +53,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
     <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
     <ErrorAlert>{state.type === 'error' ? 'No pudimos cargar el pago seguro. Recargá la página para reintentar.' : error}</ErrorAlert>
     {askEmail && <Field label="Email *" hint="Te enviamos ahí el acceso a tu compra.">{ids => <Input {...ids} type="email" name="email" autoComplete="email" required maxLength={254} placeholder="tu@email.com" value={email} disabled={busy} onChange={event => setEmail(event.target.value)} />}</Field>}
-    {state.type === 'success' && <PaymentElement options={{ layout: 'tabs' }} onReady={() => setReady(true)} onLoadError={() => setLoadError(true)} />}
+    {state.type === 'success' && <PaymentElement options={PAYMENT_ELEMENT_OPTIONS} onReady={() => setReady(true)} onLoadError={() => setLoadError(true)} />}
     {loadError && <ErrorAlert>No se pudo cargar el medio de pago. Recargá la página para reintentar.</ErrorAlert>}
     {!ready && state.type !== 'error' && !loadError && <p role="status" className="text-sm text-muted-foreground">Cargando medios de pago…</p>}
     <Button ref={payRef} className="checkout-pay h-16 w-full text-lg" type="submit" disabled={busy || state.type !== 'success' || !ready || loadError}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Procesando…' : `Pagar ${totalLabel}`}</Button>
@@ -60,7 +63,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
 export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer }) {
   const start = useAction(api.checkout.start);
   // A quiz may hand over the name and email the visitor already typed; they stay editable.
-  const [buyer, setBuyer] = useState(() => ({ email: '', firstName: '', lastName: '', phone: '', ...Object.fromEntries(Object.entries(initialBuyer ?? {}).filter(([key, value]) => ['email', 'firstName'].includes(key) && typeof value === 'string')) }));
+  const [buyer, setBuyer] = useState(() => ({ email: typeof initialBuyer?.email === 'string' ? initialBuyer.email : '', name: typeof initialBuyer?.name === 'string' ? initialBuyer.name : '' }));
   const [paying, setPaying] = useState(false);
   const [session, setSession] = useState(null);
   const [error, setError] = useState('');
@@ -101,9 +104,10 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
 
 // Payment Element for a session that was already created (downsell and post-purchase offers).
 // `askContact` shows the personal details form; without it the session already knows the buyer.
-export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, onInitiate = () => {} }) {
-  const [buyer, setBuyer] = useState({ email: '', firstName: '', lastName: '', phone: '' });
-  const [paying, setPaying] = useState(false);
+export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, onInitiate = () => {}, onPayingChange = () => {} }) {
+  const [buyer, setBuyer] = useState({ email: '', name: '' });
+  const [paying, setPayingState] = useState(false);
+  const setPaying = value => { setPayingState(value); onPayingChange(value); };
   if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });
   return <div className="space-y-8 rounded-xl border bg-card p-5 sm:p-6">
     {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" />}

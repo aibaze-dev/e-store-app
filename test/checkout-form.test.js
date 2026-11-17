@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { confirmCheckout } from '../src/storefront/confirmCheckout.js';
 import { storefrontMoney } from '../src/lib/storefront-money.js';
 
-const buyer = { firstName: ' Ana ', lastName: ' Pérez ', email: ' ana@example.com ', phone: '+54 (9) 11-1234-5678' };
+const buyer = { name: ' Ana   Pérez ', email: ' ana@example.com ' };
 const checkout = () => ({ currency: 'ars', total: { total: { minorUnitsAmount: 1699000 } }, updateIndividualName: vi.fn().mockResolvedValue({ type: 'success' }), confirm: vi.fn().mockResolvedValue({ type: 'success' }) });
 describe('Spanish checkout confirmation', () => {
   it('passes contact details to Stripe and confirms only after the name is accepted', async () => {
@@ -10,7 +10,7 @@ describe('Spanish checkout confirmation', () => {
     const initiate = vi.fn();
     expect(await confirmCheckout(stripe, buyer, { total: 1699000, currency: 'ARS' }, initiate)).toEqual({ type: 'success' });
     expect(stripe.updateIndividualName).toHaveBeenCalledWith('Ana Pérez');
-    expect(stripe.confirm).toHaveBeenCalledWith({ email: 'ana@example.com', phoneNumber: '+5491112345678' });
+    expect(stripe.confirm).toHaveBeenCalledWith({ email: 'ana@example.com' });
     expect(initiate).toHaveBeenCalledOnce();
   });
   it('blocks payment if the server price or currency changed', async () => {
@@ -25,7 +25,7 @@ describe('Spanish checkout confirmation', () => {
     stripe.updateIndividualName.mockResolvedValue({ type: 'error', error: { message: 'Nombre inválido' } });
     expect((await confirmCheckout(stripe, buyer, { total: 1699000, currency: 'ARS' }, vi.fn())).error.message).toBe('Nombre inválido');
     expect(stripe.confirm).not.toHaveBeenCalled();
-    expect((await confirmCheckout(checkout(), { ...buyer, firstName: '  ' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
+    expect((await confirmCheckout(checkout(), { ...buyer, name: '  ' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
   });
   it('confirms a post-purchase session with the email Stripe already has, or asks for it', async () => {
     const known = { ...checkout(), email: 'ana@example.com' };
@@ -39,9 +39,9 @@ describe('Spanish checkout confirmation', () => {
     await confirmCheckout(unknown, null, { total: 1699000, currency: 'ARS' }, vi.fn(), ' ana@example.com ');
     expect(unknown.confirm).toHaveBeenCalledWith({ email: 'ana@example.com' });
   });
-  it('rejects incomplete international phone numbers before contacting Stripe', async () => {
+  it('asks only for name and email, never a phone number', async () => {
     const stripe = checkout();
-    expect((await confirmCheckout(stripe, { ...buyer, phone: '1234' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
+    expect((await confirmCheckout(stripe, { ...buyer, email: ' ' }, { total: 1699000, currency: 'ARS' }, vi.fn())).type).toBe('error');
     expect(stripe.updateIndividualName).not.toHaveBeenCalled();
     expect(stripe.confirm).not.toHaveBeenCalled();
   });

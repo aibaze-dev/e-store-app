@@ -20,6 +20,7 @@ export const list = query({
         storeName: store?.name ?? '',
         isPostPurchase: Boolean(order.parentOrderId),
         downsell: Boolean(order.downsell),
+        finalDownsell: Boolean(order.finalDownsell),
         buyer: order.buyer ?? null,
         status: order.status,
         currency: order.currency,

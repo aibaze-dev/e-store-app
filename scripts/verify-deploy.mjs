@@ -47,13 +47,11 @@ export async function verifyDeployment({ siteUrl, distDir, fetchImpl = fetch }) 
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const result = await verifyDeployment({
+    await verifyDeployment({
       siteUrl: process.env.VITE_CONVEX_SITE_URL || process.env.SITE_URL,
       distDir: fileURLToPath(new URL('../dist', import.meta.url)),
     });
-    console.log(`Deploy verificado: ${result.url}`);
-    console.log(`Versión ${result.fingerprint}: HTML y ${result.assets} archivos JS/CSS coinciden con el build local.`);
-    console.log('Si una pestaña abierta sigue mostrando lo anterior, recargala por completo (Cmd+Shift+R en Mac / Ctrl+Shift+R en Windows).');
+    console.log(`Deploy OK · ${new Date().toISOString()}`);
   } catch (error) {
     console.error(`No se pudo verificar el deploy: ${error.message}`);
     process.exitCode = 1;

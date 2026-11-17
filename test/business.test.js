@@ -171,7 +171,7 @@ describe('checkout', () => {
     const first = await t.action(api.checkout.start, args);
     expect(await t.action(api.checkout.start, args)).toEqual(first);
     expect(await rows(t, 'orders')).toHaveLength(1);
-    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', locale: 'es', 'name_collection[individual][enabled]': 'true', 'phone_number_collection[enabled]': 'true', 'line_items[1][price_data][unit_amount]': '900' });
+    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', locale: 'es', 'name_collection[individual][enabled]': 'true', 'line_items[1][price_data][unit_amount]': '900' });
     expect(stripe.requests[0].headers['Idempotency-Key']).toBe(stripe.requests[1].headers['Idempotency-Key']);
   });
 

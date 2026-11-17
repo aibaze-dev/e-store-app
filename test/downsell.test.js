@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, mockStripe, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
 import { DOWNSELL_DEFAULTS, discountedPrice, downsellCopy, watchBackIntent } from '../src/storefront/downsell.js';
+import { afterDecline, claimReopen, initialFunnel, nextStage } from '../src/storefront/postPurchaseFunnel.js';
 
 const ADMIN = 'owner@example.com';
 beforeEach(() => {
@@ -78,7 +79,7 @@ describe('main product downsell', () => {
     const { t } = await campaign();
     const stripe = mockStripe();
     await start(t, { downsell: true, elements: true });
-    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', 'name_collection[individual][enabled]': 'true', 'phone_number_collection[enabled]': 'true', 'line_items[0][price_data][unit_amount]': '2025' });
+    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', 'name_collection[individual][enabled]': 'true', 'line_items[0][price_data][unit_amount]': '2025' });
     expect(stripe.requests[0].body.customer_email).toBeUndefined();
   });
 
@@ -190,5 +191,95 @@ describe('back intent', () => {
     expect(win.history.pushed).toHaveLength(1);
     stop();
     expect(win.listeners.size).toBe(0);
+  });
+});
+
+describe('post-purchase last discount', () => {
+  it('charges 10 more points than the downsell in its own order', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    await start(t);
+    await sendWebhook(t, paid('cs_test_1', 2700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).postPurchaseOffer).toMatchObject({ finalPercent: 40, finalPrice: 2820 });
+
+    await startPost(t, { downsell: true });
+    await startPost(t, { downsell: true, finalDownsell: true });
+    // Asking again for the same step reuses its pending order.
+    await startPost(t, { downsell: true, finalDownsell: true });
+    expect(stripe.requests.slice(1, 3).map(request => request.body['line_items[0][price_data][unit_amount]'])).toEqual(['3290', '2820']);
+    const children = (await rows(t, 'orders')).filter(order => order.parentOrderId);
+    expect(children.map(order => [order.total, Boolean(order.downsell), Boolean(order.finalDownsell)])).toEqual([[3290, true, false], [2820, true, true]]);
+  });
+
+  it('takes 10% off the regular price when the store set no downsell', async () => {
+    const { t, admin, ids, store, storeId } = await campaign();
+    await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { enabled: true, productId: ids.post, price: 4700 } });
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paid('cs_test_1', 2700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).postPurchaseOffer).toMatchObject({ finalPercent: 10, finalPrice: 4230 });
+    await startPost(t, { downsell: true, finalDownsell: true });
+    expect((await rows(t, 'orders')).find(order => order.finalDownsell)).toMatchObject({ total: 4230 });
+  });
+
+  it('never goes above 90% off', async () => {
+    const { t, admin, ids, store, storeId } = await campaign();
+    await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { enabled: true, productId: ids.post, price: 4700, downsellPercent: 85 } });
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paid('cs_test_1', 2700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).postPurchaseOffer).toMatchObject({ finalPercent: 90, finalPrice: 470 });
+  });
+});
+
+describe('post-purchase modal steps', () => {
+  const withDownsell = { price: 4700, downsellPrice: 3290, finalPrice: 2820 };
+  const withoutDownsell = { price: 4700, finalPrice: 4230 };
+
+  it('moves from the offer to the downsell, then closes and keeps the last discount for later', () => {
+    let funnel = initialFunnel();
+    expect(nextStage(withDownsell, funnel)).toBe('offer');
+    let result = afterDecline(withDownsell, funnel, 'offer', false);
+    expect(result.stage).toBe('downsell');
+    result = afterDecline(withDownsell, result.funnel, 'downsell', false);
+    expect(result.stage).toBeNull();
+    funnel = claimReopen(withDownsell, result.funnel, 'visibility');
+    expect(nextStage(withDownsell, funnel)).toBe('final');
+    result = afterDecline(withDownsell, funnel, 'final', true);
+    expect(result.stage).toBeNull();
+    expect(claimReopen(withDownsell, result.funnel, 'mouse')).toBeNull();
+  });
+
+  it('shows the last discount right after the downsell when the modal was reopened', () => {
+    const funnel = claimReopen(withDownsell, { ...initialFunnel(), declined: ['offer'] }, 'mouse');
+    expect(nextStage(withDownsell, funnel)).toBe('downsell');
+    expect(afterDecline(withDownsell, funnel, 'downsell', true).stage).toBe('final');
+  });
+
+  it('goes straight to the last discount when the store set no downsell', () => {
+    const first = afterDecline(withoutDownsell, initialFunnel(), 'offer', false);
+    expect(first.stage).toBeNull();
+    expect(nextStage(withoutDownsell, claimReopen(withoutDownsell, first.funnel, 'visibility'))).toBe('final');
+  });
+
+  it('reopens once when the buyer comes back to the tab and twice when the mouse leaves', () => {
+    let funnel = { ...initialFunnel(), declined: ['offer'] };
+    funnel = claimReopen(withDownsell, funnel, 'visibility');
+    expect(claimReopen(withDownsell, funnel, 'visibility')).toBeNull();
+    funnel = claimReopen(withDownsell, funnel, 'mouse');
+    funnel = claimReopen(withDownsell, funnel, 'mouse');
+    expect(funnel.reopens).toEqual({ visibility: 1, mouse: 2 });
+    expect(claimReopen(withDownsell, funnel, 'mouse')).toBeNull();
+  });
+});
+
+describe('downsell offer video', () => {
+  it('saves an optional VSL and rejects links that are not a known player or video', async () => {
+    const { t, admin, store, storeId } = await campaign();
+    await admin.mutation(api.stores.update, { id: storeId, ...store, downsell: { ...store.downsell, videoUrl: ' https://youtu.be/dQw4w9WgXcQ ' } });
+    expect((await t.query(api.storefront.getCheckout, { subdomain: 'inversion' })).downsell.videoUrl).toBe('https://youtu.be/dQw4w9WgXcQ');
+    await expect(admin.mutation(api.stores.update, { id: storeId, ...store, downsell: { ...store.downsell, videoUrl: 'https://example.com/page' } })).rejects.toThrow(/Video de la oferta/);
+    await admin.mutation(api.stores.update, { id: storeId, ...store, downsell: { ...store.downsell, videoUrl: '' } });
+    expect((await t.query(api.storefront.getCheckout, { subdomain: 'inversion' })).downsell.videoUrl).toBeUndefined();
   });
 });

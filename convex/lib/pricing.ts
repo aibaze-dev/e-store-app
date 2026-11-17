@@ -59,11 +59,16 @@ export function buildDownsellOrder(store: Store, products: Map<string, Product>)
   ], products);
 }
 
-export function buildPostPurchaseOrder(store: Store, products: Map<string, Product>, downsell = false) {
+// Last chance after the buyer declined the post-purchase offer (and its downsell, when set).
+export { finalPostPurchasePercent } from '../../shared/post-purchase.js';
+import { finalPostPurchasePercent } from '../../shared/post-purchase.js';
+
+export type PostPurchaseStage = 'offer' | 'downsell' | 'final';
+export function buildPostPurchaseOrder(store: Store, products: Map<string, Product>, stage: PostPurchaseStage = 'offer') {
   if (!store.postPurchase.enabled || !store.postPurchase.productId) fail('Esta oferta ya no está disponible.');
-  const percent = store.postPurchase.downsellPercent ?? 0;
-  if (downsell && !percent) fail('Esta oferta ya no está disponible.');
+  const percent = stage === 'final' ? finalPostPurchasePercent(store.postPurchase) : stage === 'downsell' ? store.postPurchase.downsellPercent ?? 0 : 0;
+  if (stage === 'downsell' && !percent) fail('Esta oferta ya no está disponible.');
   return snapshot([
-    { productId: store.postPurchase.productId, role: 'post_purchase', price: downsell ? discounted(store.postPurchase.price, percent) : store.postPurchase.price },
+    { productId: store.postPurchase.productId, role: 'post_purchase', price: percent ? discounted(store.postPurchase.price, percent) : store.postPurchase.price },
   ], products);
 }

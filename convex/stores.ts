@@ -4,6 +4,15 @@ import { mutation, query, type MutationCtx } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { cleanAmount, cleanCurrency, cleanPercent, cleanText, fail } from './lib/validation';
 import { storeCheckout, storeDownsell, storeOffer, storePostPurchase } from './schema';
+import { videoSource } from '../shared/post-purchase.js';
+
+// Optional VSL of the downsell page: only known players or a stored/direct video file.
+function cleanVideoUrl(value: string | undefined) {
+  const url = (value ?? '').trim();
+  if (!url) return undefined;
+  if (url.length > 2000 || !videoSource(url)) fail('Video de la oferta: usá un link de YouTube, Vimeo o un video subido.');
+  return url;
+}
 
 const fields = {
   name: v.string(),
@@ -77,6 +86,7 @@ async function clean(ctx: MutationCtx, args: {
       declineText: cleanText(downsell.declineText, 'Texto del botón secundario', 40),
       pageTitle: cleanText(downsell.pageTitle, 'Título de la oferta', 80),
       pageSubtitle: cleanText(downsell.pageSubtitle, 'Subtítulo de la oferta', 240),
+      ...(cleanVideoUrl(downsell.videoUrl) ? { videoUrl: cleanVideoUrl(downsell.videoUrl) } : {}),
     } } : {}),
     tracking: { metaPixelId: pixel },
   };

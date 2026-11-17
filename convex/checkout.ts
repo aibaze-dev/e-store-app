@@ -12,6 +12,8 @@ const via = v.union(v.literal('subdomain'), v.literal('path'));
 const attemptId = v.string();
 // Asks for the store's downsell price. The discount itself always comes from the store.
 const downsell = v.optional(v.boolean());
+// Post-purchase only: the last discount, offered after the downsell. Sent together with `downsell`.
+const finalDownsell = v.optional(v.boolean());
 const origin = v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct')));
 const quizToken = v.optional(v.string());
 // Set by the browser when the previous call for this attempt failed.
@@ -53,7 +55,7 @@ async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
 // Creates the order and its pending transaction once per attempt. A retry of the same
 // attempt returns the order already created, so it can never produce a second one.
 async function openOrder(ctx: MutationCtx, input: {
-  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; retry?: boolean; build: () => Promise<Snapshot>;
+  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; finalDownsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; retry?: boolean; build: () => Promise<Snapshot>;
 }): Promise<OpenOrder> {
   checkAttempt(input.attemptId);
   const existing = await ctx.db.query('orders').withIndex('by_attempt', q => q.eq('attemptId', input.attemptId)).first();
@@ -72,7 +74,8 @@ async function openOrder(ctx: MutationCtx, input: {
     attemptId: input.attemptId,
     origin: input.origin ?? 'direct',
     quizSessionId: input.quizSessionId,
-    ...(input.downsell ? { downsell: true } : {}),
+    ...(input.downsell || input.finalDownsell ? { downsell: true } : {}),
+    ...(input.finalDownsell ? { finalDownsell: true } : {}),
     status: 'pending',
     currency: input.store.currency,
     total: snapshot.total,
@@ -119,7 +122,7 @@ export const createOrder = internalMutation({
 });
 
 export const createPostPurchaseOrder = internalMutation({
-  args: { parentSessionId: v.string(), attemptId, downsell, retry },
+  args: { parentSessionId: v.string(), attemptId, downsell, finalDownsell, retry },
   handler: async (ctx, args): Promise<OpenOrder> => {
     checkAttempt(args.attemptId);
     const parentTransaction = await ctx.db.query('transactions')
@@ -133,10 +136,12 @@ export const createPostPurchaseOrder = internalMutation({
     if (children.some(child => child.status === 'paid' || child.status === 'refunded' || child.status === 'needs_review')) fail('Ya compraste esta oferta.');
     // Another tab (or a reload) that already opened this offer shares its order, and with it
     // the same Stripe session, so the buyer can only pay it once.
-    const open = children.find(child => child.status === 'pending' && Boolean(child.downsell) === Boolean(args.downsell));
+    const stage = args.finalDownsell ? 'final' : args.downsell ? 'downsell' : 'offer';
+    const stageOf = (child: Doc<'orders'>) => child.finalDownsell ? 'final' : child.downsell ? 'downsell' : 'offer';
+    const open = children.find(child => child.status === 'pending' && stageOf(child) === stage);
     const order = open ? await reopen(ctx, open, landing.subdomain, args.retry) : await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: args.downsell, origin:parent.origin, quizSessionId:parent.quizSessionId, retry: args.retry,
-      build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), args.downsell),
+      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, retry: args.retry,
+      build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), stage),
     });
     // The buyer just paid the parent order: their email is reused instead of asked again.
     return { ...order, customerEmail: parent.buyer?.email || undefined };
@@ -199,11 +204,11 @@ export const start = action({
 });
 
 export const startPostPurchase = action({
-  args: { parentSessionId: v.string(), attemptId, via, downsell, retry, elements: v.optional(v.boolean()) },
+  args: { parentSessionId: v.string(), attemptId, via, downsell, finalDownsell, retry, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createPostPurchaseOrder, {
-      parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell, retry: args.retry,
+      parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, retry: args.retry,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },

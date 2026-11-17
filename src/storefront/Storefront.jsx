@@ -1,6 +1,8 @@
 import { readQuizToken } from './quiz-session.js';
 const Quiz = lazy(() => import('./Quiz.jsx'));
-import PostPurchaseContent, { DeliveryLinks, PurchaseLanding, PurchaseSection } from '@/templates/PostPurchaseContent.jsx';
+import { DeliveryLinks, PurchaseLanding, PurchaseSection, Video } from '@/templates/PostPurchaseContent.jsx';
+import { videoSource } from '../../shared/post-purchase.js';
+import PostPurchaseModal from './PostPurchaseModal.jsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAction, useQuery } from 'convex/react';
@@ -210,6 +212,7 @@ function DownsellOffer({ view, via }) {
         <h1 className="text-3xl font-semibold tracking-tight">{copy.pageTitle}</h1>
         <p className="leading-7 text-muted-foreground">{copy.pageSubtitle}</p>
       </div>
+      {downsell.videoUrl && videoSource(downsell.videoUrl) && <Video key={downsell.videoUrl} video={{ enabled: true, url: downsell.videoUrl, title: '' }} editKey="downsell" />}
       <CheckoutOfferTimer timeLeft={timeLeft} label={view.content?.promotion?.timerLabel} />
       <section className="overflow-hidden rounded-xl border bg-card" aria-label="Tu oferta">
         <div className="space-y-4 p-5">
@@ -251,36 +254,6 @@ function DownsellOffer({ view, via }) {
   </div>;
 }
 
-function PostPurchaseOffer({ offer, currency, sessionId, via }) {
-  const start = useAction(api.checkout.startPostPurchase);
-  const attemptFor = useAttempt();
-  // Declining the regular price shows the downsell once, when the store set one.
-  const [state, setState] = useState({ clientSecret: '', busy: false, error: '', stage: 'offer' });
-  if (state.stage === 'declined') return null;
-  const downsell = state.stage === 'downsell';
-
-  async function accept() {
-    if (state.busy) return;
-    setState({ ...state, busy: true, error: '' });
-    const attempt = attemptFor(`${sessionId}:${state.stage}`);
-    try {
-      const result = await start({ parentSessionId: sessionId, ...attemptArgs(attempt), via, elements: true, ...(downsell ? { downsell: true } : {}) });
-      setState({ ...state, busy: false, clientSecret: result.clientSecret });
-    } catch (failure) { attempt.failed = true; setState({ ...state, busy: false, error: errorText(failure, 'No se pudo iniciar el pago. Volvé a intentar.') }); }
-  }
-
-  if (state.clientSecret) {
-    const total = downsell ? offer.downsellPrice : offer.price;
-    return <PurchaseSection label="Pago de la oferta">
-      <div className="sales-heading"><span className="sales-eyebrow">Último paso</span><h2>Sumá {offer.name} por {formatMoney(total, currency)}</h2></div>
-      <SessionPayment clientSecret={state.clientSecret} total={total} currency={currency} totalLabel={formatMoney(total, currency)} />
-    </PurchaseSection>;
-  }
-  return <PostPurchaseContent offer={offer} currency={currency} downsell={downsell}
-    busy={state.busy} error={state.error} canPurchase={Boolean(stripeKey)} onAccept={accept}
-    onDecline={() => setState({ ...state, error: '', stage: !downsell && offer.downsellPrice ? 'downsell' : 'declined' })} />;
-}
-
 function ThankYou({ via }) {
   const [params] = useSearchParams();
   const sessionId = params.get('session_id') || '';
@@ -304,7 +277,7 @@ function ThankYou({ via }) {
 
   return <PurchaseLanding presentation={delivery.presentation} storeName={delivery.storeName} eyebrow="Compra confirmada" title="¡Gracias por tu compra!"
     subtitle={`Estos son tus links. ${delivery.emailed ? 'También te los enviamos por email.' : 'Guardá la dirección de esta página: es la forma de volver a verlos.'}`}>
-    {delivery.postPurchaseOffer && <PostPurchaseOffer offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} />}
+    {delivery.postPurchaseOffer && <PostPurchaseModal offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} accentColor={delivery.presentation?.accentColor} />}
     <DeliveryLinks deliveries={delivery.deliveries} />
   </PurchaseLanding>;
 }

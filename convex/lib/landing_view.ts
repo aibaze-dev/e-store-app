@@ -1,5 +1,5 @@
 import type { Doc, QueryCtx } from './functions';
-import { discounted } from './pricing';
+import { discounted, finalPostPurchasePercent } from './pricing';
 import { ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
 import { postPurchaseContent } from '../../shared/post-purchase.js';
 
@@ -15,6 +15,7 @@ export async function buildPostPurchaseView(ctx: QueryCtx, store: Doc<'stores'>,
     name: product.name, description: product.description, coverUrl: product.coverUrl, price: config.price,
     content: postPurchaseContent(content),
     ...(config.downsellPercent ? { downsellPercent: config.downsellPercent, downsellPrice: discounted(config.price, config.downsellPercent) } : {}),
+    finalPercent: finalPostPurchasePercent(config), finalPrice: discounted(config.price, finalPostPurchasePercent(config)),
   };
 }
 
