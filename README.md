@@ -311,3 +311,11 @@ La prueba aislada del aviso no incluía el padre `.checkout-page`. La regla `.ch
 Se reprodujo el fondo negro con el contenedor y CSS completos, y se verificó el cambio a `rgba(0, 0, 0, 0)` preservando la barra oscura. Pasaron 188 pruebas. Se publicó solo frontend con `static-hosting deploy --skip-convex`, deployment `8c0a3f59-a923-4b9e-aa0a-b8fa4abf879c`, y se verificaron el HTML y los 11 JS/CSS por hash (versión `7af0710362bb`). En el checkout público `/l/aprende-claude-en-7-dias/checkout` se confirmó el fondo transparente con el navegador. No se ingresaron datos personales ni se enviaron pagos.
 
 La lectura pública de esa oferta mostró un principal «Aprende IA en 7 dias para mayores de 50» y un único extra «Guia para empresarios», sin portada, descripción ni referencia de precio. La diferencia de contenido del combo respecto de la captura de referencia corresponde a esos datos del catálogo y oferta; no se modificaron los productos.
+
+### Tarjetas del combo y etiqueta OFF por producto (18/11/2026)
+
+Se ajustaron las tarjetas actuales a filas compactas con tipografía de 14 px, columna de precios alineada, borde suave y fondo claro para la selección. El precio sigue a la derecha también en móvil; títulos largos se equilibran y descripciones se limitan a dos líneas. El ahorro queda como una línea discreta, con separación del total y botón sin resplandor. No se cambiaron los productos ni los precios de venta.
+
+La pastilla roja «−X% OFF» aparece junto al nombre tanto del principal como de los extras cuando tienen un precio de referencia mayor al de venta. **Productos → Editar → Presentación en la compra → Precio normal (tachado)** configura ese valor centralmente; se reutiliza en landing y checkout y el porcentaje se calcula automáticamente. `productDiscount` comparte el cálculo y evita mostrar «100% OFF» en artículos que todavía se cobran. Sin referencia no se inventa un descuento.
+
+Verificación local: 189 pruebas pasan. Se revisó con los dos productos reales de la landing indicada, en escritorio y a 550/390/320 px, sin desbordes, con precios alineados, etiqueta OFF, selección por teclado y total de US$19 a US$28 al agregar el extra.

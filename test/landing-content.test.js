@@ -1,10 +1,18 @@
 import { formatLandingText } from '../shared/landing-copy.js';
 import { classicTheme, plainText } from '../shared/classic-design.js';
 import { describe, it, expect } from 'vitest';
-import { normalizeContent, mergeGeneratedContent, offerTotals, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
+import { normalizeContent, mergeGeneratedContent, offerTotals, productDiscount, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
 import { content } from './helpers';
 
 describe('sales template content', () => {
+  it('uses each product reference for OFF badges and never labels a paid product as free', () => {
+    expect(productDiscount(900, 1800)).toBe(50);
+    expect(productDiscount(1900, 4900)).toBe(61);
+    expect(productDiscount(999, 1899)).toBe(47);
+    expect(productDiscount(1, 99999999)).toBe(99);
+    for (const reference of [undefined, 0, 500, 900, NaN, Infinity]) expect(productDiscount(900, reference)).toBe(0);
+    expect(productDiscount(0, 1800)).toBe(0);
+  });
   it('separates the trailing hero accent without reordering legacy titles', () => {
     const hero = { title: 'Aprendé en 7 días y *tené el trabajo hecho*' };
     expect(normalizeContent({ hero }).hero).toMatchObject({ title: 'Aprendé en 7 días y', titleAccent: 'tené el trabajo hecho' });

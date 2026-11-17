@@ -51,6 +51,12 @@ export function mergeGeneratedContent(content, generated) {
   return normalizeContent(merged);
 }
 
+// Product badges compare this item's real reference and selling prices only.
+export function productDiscount(price, reference) {
+  if (!Number.isSafeInteger(price) || !Number.isSafeInteger(reference) || price <= 0 || reference <= price) return 0;
+  return Math.min(99, Math.round((1 - price / reference) * 100));
+}
+
 export function offerTotals(offer) {
   const bonusValue = offer.bonuses.reduce((total, bonus) => total + (bonus.referenceValue || 0), 0);
   const reference = Math.max(offer.main.price, offer.main.compareAtPrice || 0) + bonusValue;

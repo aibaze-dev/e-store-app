@@ -10,7 +10,7 @@ import { errorText } from '@/lib/format.js';
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { trackPixel, trackPixelOnce } from '@/lib/pixel.js';
 import { templateFor } from '@/templates/index.js';
-import { checkoutTotals, normalizeContent } from '@/templates/content.js';
+import { checkoutTotals, normalizeContent, productDiscount } from '@/templates/content.js';
 import { plainText } from '../../shared/classic-design.js';
 import DemoPurchaseToasts from './DemoPurchaseToasts.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
@@ -117,9 +117,9 @@ export function Checkout({ view, via }) {
           <div className="hidden lg:block"><CheckoutOfferTimer timeLeft={timeLeft} label={view.content?.promotion?.timerLabel} /></div>
           {offer.upsells.map(upsell => {
             const on = selected.includes(upsell.productId);
-            const percent = upsell.compareAtPrice ? Math.round((1 - upsell.price / upsell.compareAtPrice) * 100) : 0;
+            const percent = productDiscount(upsell.price, upsell.compareAtPrice);
             return <article key={upsell.productId} className={`relative overflow-hidden rounded-xl border-2 p-4 transition-colors ${on ? 'checkout-extra-selected' : 'border-border'}`}>
-              {percent > 0 && <span className="absolute top-0 right-0 rounded-bl-lg bg-destructive px-2 py-1 text-xs font-bold text-white">-{percent}%</span>}
+              {percent > 0 && <span className="absolute top-0 right-0 rounded-bl-lg bg-destructive px-2 py-1 text-xs font-bold text-white">−{percent}% OFF</span>}
               <div className="flex gap-4">
                 <Thumb src={upsell.coverUrl} name={upsell.name} className="size-14" />
                 <div className="min-w-0 flex-1 space-y-2">

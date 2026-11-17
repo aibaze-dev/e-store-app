@@ -12,7 +12,7 @@ import { ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, Gi
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { useSimulatedCheckoutSignals } from '@/storefront/CheckoutSignals.jsx';
 import DemoPurchaseToasts from '@/storefront/DemoPurchaseToasts.jsx';
-import { checkoutTotals, normalizeContent, offerTotals } from './content.js';
+import { checkoutTotals, normalizeContent, offerTotals, productDiscount } from './content.js';
 
 // Used by the post-purchase page, which keeps its own icon list.
 export const FEATURE_ICONS = { check: Check, book: BookOpen, target: Target, growth: TrendingUp, strength: Dumbbell, brain: Brain, settings: Settings, cart: ShoppingCart, mail: Mail, sparkles: Sparkles };
@@ -136,12 +136,12 @@ function Testimonial({ item }) {
 }
 
 function ComboRow({ item, money, checked, locked, extra, onToggle }) {
-  const percent = extra && item.compareAtPrice > item.price ? Math.round((1 - item.price / item.compareAtPrice) * 100) : 0;
+  const percent = productDiscount(item.price, item.compareAtPrice);
   return <label className={`cl-combo-row ${checked ? 'is-on' : ''} ${extra ? '' : 'is-main'} ${item.featured ? 'is-featured' : ''}`}>
     <input type="checkbox" checked={checked} disabled={locked} onChange={onToggle} aria-label={locked ? `${item.name}, incluido en tu compra` : `Agregar ${item.name}`} />
     <span className="cl-combo-check" aria-hidden="true"><Check /></span>
     <Picture className="cl-combo-thumb" src={item.coverUrl} alt="" />
-    <span className="cl-combo-text"><strong>{item.name}{percent > 0 && <i>-{percent}%</i>}</strong>{(item.shortDescription || item.description) && <small>{item.shortDescription || item.description}</small>}</span>
+    <span className="cl-combo-text"><strong>{item.name}{percent > 0 && <span className="cl-combo-discount" aria-label={`${percent}% de descuento`}>−{percent}% OFF</span>}</strong>{(item.shortDescription || item.description) && <small>{item.shortDescription || item.description}</small>}</span>
     <span className="cl-combo-price">{item.compareAtPrice > item.price && <del>{money(item.compareAtPrice)}</del>}<b>{extra ? '+' : ''}{money(item.price)}</b></span>
   </label>;
 }

@@ -1,6 +1,6 @@
 import { ImageField, VideoField } from './ImageField.jsx';
 import { Button } from '@/components/ui/button';
-import { OPS, clone } from '../../shared/quiz.js';
+import { BLOCK_TYPES, OPS, clone } from '../../shared/quiz.js';
 import { QField } from './QuizFields.jsx';
 
 // Advanced editors (conditions, formulas, jumps, variants, legacy blocks). Shared by the
