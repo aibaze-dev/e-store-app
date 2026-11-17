@@ -290,3 +290,9 @@ El combo del final de la landing usa tarjetas compactas con portada, descripció
 Los productos anteriores sin `referencePrice` mantienen como respaldo los precios de referencia de la tienda. Configurar el campo en el producto reemplaza ese respaldo; vaciarlo guarda `null` y oculta el precio tachado sin restaurar valores anteriores. Las actualizaciones de clientes anteriores conservan los campos nuevos. Checkout enlaza a los productos para editar su presentación, y Productos y oferta conserva el campo anterior del principal únicamente mientras todavía se usa esa configuración. No se ejecutó migración de datos. Desplegar frontend y backend juntos.
 
 Verificación local: 183 pruebas pasan, incluyendo permisos, validación, respaldo anterior, moneda, borrado explícito y precios cobrados sin cambios. Build correcto. Se revisó el combo a 550 y 320 px, selección de extras, total e IDs enviados al checkout; formulario de producto a 390 px y guardado con backend simulado. Captura con productos de prueba: `/tmp/landing-combo-productos.png`. Sin subida de archivos ni despliegue cloud.
+
+### Bordes de las notificaciones del checkout
+
+Se separaron los selectores de los avisos flotantes (`purchase-toast`) del panel de estado del pago (`purchase-notice`): compartían clase y heredaban el borde punteado y la alineación del otro componente. El aviso usa borde cero, fondo blanco, sombra suave y botón de cierre sin borde propio, con foco visible para teclado. La posición y frecuencia se mantienen.
+
+Verificación: 183 pruebas y build correctos. Aviso real del componente revisado en navegador a 390 px con ambos archivos CSS cargados: borde calculado `0px none`, sin desborde y cierre funcional. Captura local: `/tmp/checkout-notificacion-corregida.png`. Sin despliegue cloud.

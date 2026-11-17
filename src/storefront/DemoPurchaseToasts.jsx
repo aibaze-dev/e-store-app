@@ -40,8 +40,8 @@ export default function DemoPurchaseToasts({ copy = ACTIVITY_COPY, placement = '
   }, []);
 
   const [before, after = ''] = (copy.purchaseText ?? ACTIVITY_COPY.purchaseText).split('{nombre}');
-  return <div className={`purchase-notice-region ${placement === 'bottom' ? 'is-bottom' : ''}`} role="status" aria-live="polite" aria-atomic="true">
-    {purchase && <div className="purchase-notice">
+  return <div className={`purchase-toast-region ${placement === 'bottom' ? 'is-bottom' : ''}`} role="status" aria-live="polite" aria-atomic="true">
+    {purchase && <div className="purchase-toast">
       <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(copy.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, { ciudad: purchase.place })}</p>
       <small>hace {purchase.minutes} min · <span aria-hidden="true">★★★★★</span> · Aviso de ejemplo</small>
       <button type="button" aria-label="Cerrar aviso de compra" onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
