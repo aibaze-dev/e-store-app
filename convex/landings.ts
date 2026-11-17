@@ -53,8 +53,8 @@ export function cleanContent(content: typeof landingContent.type) {
   const remainingSpots = number(content.promotion?.remainingSpots, 'Cupos', 1000000);
   const post = postPurchaseContent(content);
   const videoUrl = cleanUrl(post.postPurchaseVideo.url, 'Video post-compra');
-  if (videoUrl && !videoSource(videoUrl)) fail('Video post-compra: usá una URL HTTPS de YouTube, Vimeo o un archivo MP4, WebM u OGV.');
-  if (post.postPurchaseVideo.enabled && !videoUrl) fail('Video post-compra: agregá una URL para activar el VSL.');
+  if (videoUrl && !videoSource(videoUrl)) fail('Video post-compra: subí un archivo MP4, WebM u OGV.');
+  if (post.postPurchaseVideo.enabled && !videoUrl) fail('Video post-compra: subí un archivo para activar el VSL.');
   const storyHeading = (key: keyof typeof CLASSIC_STORY) => {
     const value = { ...CLASSIC_STORY[key], ...content[key] };
     return { ...section(value), eyebrow: cleanText(value.eyebrow, 'Antetítulo', 120), title: cleanText(value.title, 'Título de sección', 120) };
@@ -68,7 +68,7 @@ export function cleanContent(content: typeof landingContent.type) {
   const chips = content.bonuses.chips ?? [];
   if (chips.length > 4) fail('Bonos: usá hasta 4 etiquetas.');
   const kitVideo = cleanUrl(content.benefits.videoUrl ?? '', 'Video del kit');
-  if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: usá una URL HTTPS de YouTube, Vimeo o un archivo MP4, WebM u OGV.');
+  if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: subí un archivo MP4, WebM u OGV.');
   const combo = { ...CLASSIC_STORY.combo, ...content.combo };
   return {
     introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400), badge: cleanText(content.introduction?.badge ?? '', 'Frase destacada', 120) },

@@ -735,7 +735,7 @@ describe('post-purchase landing content', () => {
     const draft = normalizeContent(content);
     draft.postPurchase = { ...draft.postPurchase, title: 'Continuá con el curso', ctaText: 'Agregar a mi compra' };
     draft.postPurchaseBenefits = { enabled: true, title: 'Tu siguiente paso', items: [{ title: 'Profundizá', description: 'Contenido adicional', icon: 'book' }] };
-    draft.postPurchaseVideo = { enabled: true, title: 'Presentación del curso', url: 'https://youtu.be/dQw4w9WgXcQ' };
+    draft.postPurchaseVideo = { enabled: true, title: 'Presentación del curso', url: 'https://example-123.convex.cloud/api/storage/4e364f57-c5e6-4e8f-a3cb-0d97e097b5dc' };
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     const preview = await admin.query(api.landings.preview, { storeId });
     expect(preview.postPurchaseOffer.content.postPurchase.title).toBe('Continuá con el curso');

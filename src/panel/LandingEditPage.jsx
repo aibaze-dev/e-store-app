@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
-import { ImageField, UploadContext, useImageUpload } from './ImageField.jsx';
+import { ImageField, VideoField, UploadContext, useMediaUpload } from './ImageField.jsx';
 import { Switch } from '@/components/ui/switch';
 import { ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import StoreOfferSummary from './StoreOfferSummary.jsx';
@@ -58,18 +58,19 @@ export default function LandingEditPage() {
   const products = useQuery(api.products.list, {});
   const saveDraft = useMutation(api.landings.saveDraft);
   const publish = useMutation(api.landings.publish);
-  const upload = useImageUpload();
+  const upload = useMediaUpload();
   if (landing === undefined || !store || !products) return <PageSkeleton label="Cargando landing" />;
   async function save(form, action) {
     await saveDraft({ storeId, subdomain: form.subdomain, template: 'classic', draft: form.content });
     if (action === 'publish') await publish({ storeId });
   }
-  return <UploadContext.Provider value={upload}><LandingConfigurator key={storeId} landing={landing} store={store} products={products} hash={hash} onSave={save} /></UploadContext.Provider>;
+  return <UploadContext.Provider value={upload}><LandingConfigurator key={storeId} landing={landing} store={store} products={products} hash={hash} uploading={upload.pending} onSave={save} /></UploadContext.Provider>;
 }
 
-export function LandingConfigurator({ landing, store, products, hash = '', onSave }) {
+export function LandingConfigurator({ landing, store, products, hash = '', uploading = false, onSave }) {
   const [form, setForm] = useState(() => ({ subdomain: landing?.subdomain ?? '', content: normalizeContent(landing?.draft) }));
-  const [busy, setBusy] = useState('');
+  const [saving, setBusy] = useState('');
+  const busy = saving || (uploading ? 'upload' : '');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState('mobile');
@@ -89,11 +90,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
     element?.scrollIntoView({ block: 'start' });
   }, [hash]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !uploading) return;
     const warn = event => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, uploading]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
   const change = (key, patch) => { setNotice(''); setForm(current => ({ ...current, content: { ...current.content, [key]: { ...current.content[key], ...patch } } })); };
@@ -286,7 +287,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           {heading('benefits')}
           {image('benefits', 'imageUrl', 'Foto del kit (opcional)', 'Si además cargás un video, se usa como imagen de espera.')}
           {field('benefits', 'imageAlt', 'Descripción de la foto o del video', { maxLength: 240 })}
-          {field('benefits', 'videoUrl', 'Video del kit (URL, opcional)', { type: 'url', maxLength: 2000, placeholder: 'https://', hint: 'YouTube, Vimeo o un enlace HTTPS directo a MP4, WebM u OGV. Un archivo directo arranca en silencio con el botón “Tocá para escuchar”.' })}
+          <VideoField label="Video del kit (opcional)" value={content.benefits.videoUrl} onChange={videoUrl => change('benefits', { videoUrl })} disabled={Boolean(busy)} hint="Se reproduce en silencio con el botón ‘Tocá para escuchar’." />
           {features('benefits', 'elemento', 12)}
           <fieldset className="landing-item-fields"><legend>Recuadro con el precio</legend>
             {toggle('summary', 'Mostrar el recuadro con el valor total y el precio de hoy')}
@@ -378,10 +379,10 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
         </Section>
         <Section id="postPurchaseBenefits" attention={checks.postPurchaseBenefits} description="Qué incluye el producto adicional">{toggle('postPurchaseBenefits')}{field('postPurchaseBenefits', 'title', 'Título de la sección', { maxLength: 120 })}{field('postPurchaseBenefits', 'subtitle', 'Subtítulo (opcional)', { maxLength: 400 })}{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
         <Section id="postPurchaseVideo" attention={checks.postPurchaseVideo} description="Activá una presentación en video para esta oferta">
-          {field('postPurchaseVideo', 'url', 'URL del video VSL', { type: 'url', maxLength: 2000, placeholder: 'https://', hint: 'YouTube, Vimeo o un enlace HTTPS directo a MP4, WebM u OGV. El video aparece al activar el switch.' })}
+          <VideoField label="Video VSL" value={content.postPurchaseVideo.url} onChange={url => change('postPurchaseVideo', { url, ...(!url ? { enabled: false } : {}) })} disabled={Boolean(busy)} hint="Subí el video y activá el switch para mostrarlo." />
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar video VSL en post-compra" checked={content.postPurchaseVideo.enabled} disabled={Boolean(busy) || !content.postPurchaseVideo.url.trim()} onCheckedChange={enabled => change('postPurchaseVideo', { enabled })} />Mostrar video VSL en post-compra</label>
           {field('postPurchaseVideo', 'title', 'Título del video (opcional)', { maxLength: 120 })}
-          <p className="text-xs leading-6 text-muted-foreground">La IA conserva la URL y el switch. Con el VSL apagado se muestra la portada del producto.</p>
+          <p className="text-xs leading-6 text-muted-foreground">La IA conserva el archivo subido y el switch. Con el VSL apagado se muestra la portada del producto.</p>
         </Section>
         <Section id="postPurchaseDownsell" attention={checks.postPurchaseDownsell} description="El cierre que aparece si rechazan la oferta inicial">
           <p className="text-xs leading-6 text-muted-foreground">Este bloque aparece solo si configurás un descuento en Oferta post-compra. El importe y el porcentaje se calculan automáticamente.</p>
@@ -391,7 +392,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', onSav
           <Button type="button" variant="outline" disabled={!preview?.postPurchaseOffer?.downsellPrice} onClick={() => { setPreviewTarget('post-downsell'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver oferta con descuento</Button>
         </Section>
         <div ref={errorRef} tabIndex={-1}><ErrorAlert>{error}</ErrorAlert></div>
-        <div className="landing-save-bar"><div className="flex flex-wrap gap-3"><Button type="submit" name="action" value="save" variant="outline" disabled={Boolean(busy)}>{busy === 'save' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar borrador</Button><Button type="submit" name="action" value="publish" disabled={Boolean(busy)}>{busy === 'publish' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar y publicar</Button></div><p className="text-xs leading-5 text-muted-foreground" role="status">{notice || (dirty ? 'Cambios sin guardar' : 'Tu borrador está al día')}</p></div>
+        <div className="landing-save-bar"><div className="flex flex-wrap gap-3"><Button type="submit" name="action" value="save" variant="outline" disabled={Boolean(busy)}>{busy === 'save' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar borrador</Button><Button type="submit" name="action" value="publish" disabled={Boolean(busy)}>{busy === 'publish' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar y publicar</Button></div><p className="text-xs leading-5 text-muted-foreground" role="status">{uploading ? 'Subiendo archivo… Esperá para guardar.' : notice || (dirty ? 'Cambios sin guardar' : 'Tu borrador está al día')}</p></div>
       </form>
       <aside className="landing-preview-panel"><div className="landing-preview-toolbar"><div><strong>Vista previa</strong><span>Hacé clic en una sección para editarla</span></div><div className="flex gap-1"><Button type="button" variant={mode === 'desktop' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de escritorio" aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}><Monitor aria-hidden="true" /></Button><Button type="button" variant={mode === 'mobile' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de celular" aria-pressed={mode === 'mobile'} onClick={() => setMode('mobile')}><Smartphone aria-hidden="true" /></Button></div></div><div className="border-b p-3"><Field label="Página de la vista previa">{ids => <NativeSelect {...ids} value={previewTarget} onChange={event => setPreviewTarget(event.target.value)}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{preview?.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra con descuento</option>}</NativeSelect>}</Field></div>{preview ? <LandingFrame view={preview} mode={mode} target={previewTarget} onSelectSection={openSection} /> : <p className="p-6 text-sm">Elegí un producto principal para ver la landing.</p>}</aside>
     </div>

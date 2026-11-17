@@ -9,15 +9,16 @@ import { QuizPreview } from '@/storefront/Quiz.jsx';
 import { clone, validateQuiz } from '../../shared/quiz.js';
 import QuizWizard from './QuizWizard.jsx';
 import QuizBuilder from './QuizBuilder.jsx';
-import { UploadContext, useImageUpload } from './ImageField.jsx';
+import { ImageField, UploadContext, useMediaUpload } from './ImageField.jsx';
 import { Blocks, CopyField, Conditions, Expression, Reorder, StepForm, Toggle, uid } from './QuizAdvanced.jsx';
 import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
 export { QField } from './QuizFields.jsx';
 
-export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published}) {
+export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,uploading=false}) {
  const [quiz,setQuiz]=useState(()=>clone(initial)),[subdomain,setSubdomain]=useState(address),[tab,setTab]=useState('Contenido');
- const [error,setError]=useState(''),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
+ const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
+ const busy=working||uploading;
  const set=patch=>{setQuiz(q=>({...q,...patch}));setDirty(true);setStatus('');};
  const errors=validateQuiz(quiz,true);
  const task=async(fn,message)=>{setBusy(true);setError('');setStatus('');try{await fn();setStatus(message);}catch(e){setError(errorText(e,'No se pudo completar la operación.'));}finally{setBusy(false);}};
@@ -41,8 +42,8 @@ export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,
    <nav className="qe-tabs" aria-label="Apartados del editor">{['Contenido','Diseño','Avanzado'].map(name=><button disabled={busy} key={name} onClick={()=>setTab(name)} aria-current={tab===name?'page':undefined}>{name}</button>)}</nav>
    <UploadContext.Provider value={onUploadImage}><fieldset disabled={busy} className="qe-main qe-stack">
     {tab==='Contenido'&&<QuizBuilder quiz={quiz} view={view} set={set}/>}
-    {tab==='Diseño'&&<div className="qe-card qe-stack"><h2>Marca y colores</h2>
-     {Object.entries({name:'Nombre de marca',logoUrl:'Logo (URL)',color:'Color de botones',background:'Color de fondo',textColor:'Color de texto'}).map(([key,label])=><QField key={key} label={label} type={['color','background','textColor'].includes(key)?'color':'text'} value={quiz.identity[key]} onChange={value=>set({identity:{...quiz.identity,[key]:value}})}/>)}
+    {tab==='Diseño'&&<div className="qe-card qe-stack"><h2>Marca y colores</h2><ImageField label="Logo" value={quiz.identity.logoUrl} onChange={logoUrl=>set({identity:{...quiz.identity,logoUrl}})}/>
+     {Object.entries({name:'Nombre de marca',color:'Color de botones',background:'Color de fondo',textColor:'Color de texto'}).map(([key,label])=><QField key={key} label={label} type={['color','background','textColor'].includes(key)?'color':'text'} value={quiz.identity[key]} onChange={value=>set({identity:{...quiz.identity,[key]:value}})}/>)}
      <details><summary>Enlaces, dirección y textos de navegación</summary>
       <QField label="Subdominio compartido de la tienda" value={subdomain} onChange={v=>{setSubdomain(v);setDirty(true);}}/>
       <p className="qe-hint">Cambiarlo actualiza la dirección de ambas landings.</p>
@@ -80,7 +81,7 @@ export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,
 export default function QuizEditor(){
  const {storeId}=useParams();const data=useQuery(api.quizzes.get,{storeId});
  const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
- const upload=useImageUpload();
+ const upload=useMediaUpload();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
- return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload}/></>;
+ return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
 }

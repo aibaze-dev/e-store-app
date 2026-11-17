@@ -7,3 +7,5 @@
 .image-field-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .image-field-error { color: var(--destructive); font-size: 12px; }
 .image-field.is-large .image-field-thumb { width: 132px; height: 99px; }
+
+.media-field-video { display: block; width: 100%; max-height: 280px; border-radius: 12px; background: var(--muted); }

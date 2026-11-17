@@ -31,6 +31,7 @@ export function videoSource(value) {
       if (!/^\d+$/.test(id || '') || (hash && !/^[a-zA-Z0-9]+$/.test(hash))) return null;
       return { kind: 'embed', src: `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ''}` };
     }
-    return /\.(mp4|webm|ogv)$/i.test(url.pathname) ? { kind: 'video', src: url.href } : null;
+    const stored = /^[a-z0-9-]+\.convex\.cloud$/.test(host) && /^\/api\/storage\/[a-zA-Z0-9-]+$/.test(url.pathname);
+    return stored || /\.(mp4|webm|ogv)$/i.test(url.pathname) ? { kind: 'video', src: url.href } : null;
   } catch { return null; }
 }

@@ -1,3 +1,4 @@
+import { ImageField, FileField, UploadContext, useMediaUpload } from './ImageField.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -22,7 +23,9 @@ export default function ProductFormPage() {
   const create = useMutation(api.products.create);
   const update = useMutation(api.products.update);
   const [form, setForm] = useState(productId ? null : EMPTY);
-  const [busy, setBusy] = useState(false);
+  const [saving, setBusy] = useState(false);
+  const upload = useMediaUpload();
+  const busy = saving || upload.pending;
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function ProductFormPage() {
     } catch (failure) { setError(errorText(failure, 'No se pudo guardar el producto. Volvé a intentar.')); setBusy(false); }
   }
 
-  return <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" aria-busy={busy}>
+  return <UploadContext.Provider value={upload}><form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" aria-busy={busy}>
     <div className="space-y-3">
       <Button asChild variant="ghost" className="-ml-3"><Link to={productsPath}><ArrowLeft aria-hidden="true" />Productos</Link></Button>
       <h1 className="text-3xl font-semibold tracking-tight">{productId ? 'Editar producto' : 'Nuevo producto'}</h1>
@@ -62,7 +65,7 @@ export default function ProductFormPage() {
       <CardContent className="space-y-5">
         <Field label="Nombre">{props => <Input {...props} value={form.name} onChange={event => set({ name: event.target.value })} maxLength={120} required disabled={busy} />}</Field>
         <Field label="Descripción">{props => <Textarea {...props} value={form.description} onChange={event => set({ description: event.target.value })} maxLength={2000} disabled={busy} />}</Field>
-        <Field label="Portada" hint="Link a una imagen. Podés dejarlo vacío.">{props => <Input {...props} type="url" inputMode="url" placeholder="https://" value={form.coverUrl} onChange={event => set({ coverUrl: event.target.value })} disabled={busy} />}</Field>
+        <ImageField label="Portada" value={form.coverUrl} onChange={coverUrl => set({ coverUrl })} disabled={busy} hint="Opcional. Subí la portada del producto." />
         <Field label="Estado" hint="Un producto archivado deja de ofrecerse al armar tiendas nuevas; las tiendas que ya lo usan no cambian.">{props => <NativeSelect {...props} value={form.status} onChange={event => set({ status: event.target.value })} disabled={busy}>
           <option value="active">Activo</option><option value="archived">Archivado</option>
         </NativeSelect>}</Field>
@@ -70,13 +73,13 @@ export default function ProductFormPage() {
     </Card>
 
     <Card>
-      <CardHeader><CardTitle>Entregables</CardTitle><CardDescription>Links que ve el comprador después de pagar. No se muestran en la landing. Quien reciba un link puede compartirlo si el servicio de destino lo permite.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Entregables</CardTitle><CardDescription>Subí los archivos que recibe el comprador después de pagar. No se muestran en la landing.</CardDescription></CardHeader>
       <CardContent className="space-y-5">
         {form.deliverables.length === 0 && <p className="text-sm text-muted-foreground">Sin entregables. Agregá al menos uno para poder vender este producto.</p>}
         {form.deliverables.map((link, index) => <fieldset key={index} className="grid gap-4 rounded-lg border p-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
           <legend className="sr-only">Entregable {index + 1}</legend>
           <Field label="Título">{props => <Input {...props} value={link.title} onChange={event => setLink(index, { title: event.target.value })} maxLength={120} required disabled={busy} />}</Field>
-          <Field label="Link">{props => <Input {...props} type="url" inputMode="url" placeholder="https://" value={link.url} onChange={event => setLink(index, { url: event.target.value })} required disabled={busy} />}</Field>
+          <FileField label={`Archivo del entregable ${index + 1}`} value={link.url} onChange={url => setLink(index, { url })} disabled={busy} />
           <Button type="button" variant="outline" size="icon" disabled={busy} aria-label={`Quitar entregable ${index + 1}`} onClick={() => set({ deliverables: form.deliverables.filter((_, i) => i !== index) })}><Trash2 aria-hidden="true" /></Button>
         </fieldset>)}
         <Button type="button" variant="outline" disabled={busy || form.deliverables.length >= 30} onClick={() => set({ deliverables: [...form.deliverables, { title: '', url: '' }] })}><Plus aria-hidden="true" />Agregar entregable</Button>
@@ -85,8 +88,8 @@ export default function ProductFormPage() {
 
     <ErrorAlert>{error}</ErrorAlert>
     <div className="flex flex-wrap gap-3">
-      <Button type="submit" size="lg" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Guardando…' : 'Guardar producto'}</Button>
+      <Button type="submit" size="lg" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{upload.pending ? 'Subiendo archivo…' : saving ? 'Guardando…' : 'Guardar producto'}</Button>
       <Button asChild variant="outline" size="lg"><Link to={productsPath}>Cancelar</Link></Button>
     </div>
-  </form>;
+  </form></UploadContext.Provider>;
 }
