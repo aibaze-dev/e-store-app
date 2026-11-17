@@ -137,11 +137,11 @@ function Testimonial({ item }) {
 
 function ComboRow({ item, money, checked, locked, extra, onToggle }) {
   const percent = extra && item.compareAtPrice > item.price ? Math.round((1 - item.price / item.compareAtPrice) * 100) : 0;
-  return <label className={`cl-combo-row ${checked ? 'is-on' : ''} ${extra ? '' : 'is-main'}`}>
-    <input type="checkbox" checked={checked} disabled={locked} onChange={onToggle} />
+  return <label className={`cl-combo-row ${checked ? 'is-on' : ''} ${extra ? '' : 'is-main'} ${item.featured ? 'is-featured' : ''}`}>
+    <input type="checkbox" checked={checked} disabled={locked} onChange={onToggle} aria-label={locked ? `${item.name}, incluido en tu compra` : `Agregar ${item.name}`} />
     <span className="cl-combo-check" aria-hidden="true"><Check /></span>
     <Picture className="cl-combo-thumb" src={item.coverUrl} alt="" />
-    <span className="cl-combo-text"><strong>{item.name}{percent > 0 && <i>-{percent}%</i>}</strong>{item.description && <small>{item.description}</small>}</span>
+    <span className="cl-combo-text"><strong>{item.name}{percent > 0 && <i>-{percent}%</i>}</strong>{(item.shortDescription || item.description) && <small>{item.shortDescription || item.description}</small>}</span>
     <span className="cl-combo-price">{item.compareAtPrice > item.price && <del>{money(item.compareAtPrice)}</del>}<b>{extra ? '+' : ''}{money(item.price)}</b></span>
   </label>;
 }
@@ -350,7 +350,7 @@ export default function ClassicLanding({ view, onCta }) {
       {hasCombo && <section ref={comboRef} className="cl-section cl-combo-section" aria-labelledby="cl-combo-title" {...edit('combo')}><div className="cl-wrap cl-w-520"><div className="cl-combo">
         {combo.eyebrow && <span className="cl-pill">{combo.eyebrow}</span>}
         <h2 id="cl-combo-title">{combo.title || 'Tu compra'}</h2>
-        <ComboRow item={{ ...offer.main, description: offer.bonuses.length > 0 ? `Incluye ${offer.bonuses.length} ${offer.bonuses.length === 1 ? 'bono gratis' : 'bonos gratis'}` : '' }} money={money} checked locked />
+        <ComboRow item={offer.main} money={money} checked locked />
         {combo.upsellText && <p className="cl-combo-lead">{combo.upsellText}</p>}
         {upsells.map(upsell => <ComboRow key={upsell.productId} item={upsell} money={money} extra checked={selected.includes(upsell.productId)} onToggle={() => toggle(upsell.productId)} />)}
         {upsells.length > 1 && combo.allText && <button type="button" className="cl-combo-all" aria-pressed={allSelected} onClick={() => setSelected(allSelected ? [] : upsells.map(upsell => upsell.productId))}>{allSelected ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{allSelected ? 'Todo agregado' : combo.allText}</button>}

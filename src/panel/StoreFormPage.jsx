@@ -139,7 +139,10 @@ export default function StoreFormPage({ section }) {
     if (busy) return;
     setError(''); setSaved(false);
     let args;
-    try { args = toArgs(form); } catch (invalid) {
+    try {
+      const productReference = products.find(product => product._id === form.mainProductId)?.referencePrice;
+      args = toArgs(productReference !== undefined ? { ...form, compareAtPrice: '' } : form);
+    } catch (invalid) {
       event.currentTarget.querySelectorAll('details').forEach(details => { details.open = true; });
       setError(invalid.message);
       return;
@@ -177,7 +180,8 @@ export default function StoreFormPage({ section }) {
       <CardContent className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">
         <Field label="Producto principal">{props => productSelect(props, form.mainProductId, mainProductId => set({ mainProductId }))}</Field>
         <Field label="Precio">{props => priceInput(props, form.price, price => set({ price }))}</Field>
-        <Field label="Precio de referencia (opcional)" hint="Se muestra tachado en la landing. Debe ser mayor al precio de venta.">{props => priceInput(props, form.compareAtPrice, compareAtPrice => set({ compareAtPrice }))}</Field>
+        {form.mainProductId && <p className="text-sm leading-6 text-muted-foreground sm:col-span-2">La portada, descripción corta y precio de referencia se configuran en el producto. <Link to={`${productsPath}/${form.mainProductId}`} className="underline underline-offset-4">Editar presentación del producto</Link></p>}
+        {form.compareAtPrice && products.find(product => product._id === form.mainProductId)?.referencePrice === undefined && <Field label="Precio de referencia anterior" hint="Se conserva por compatibilidad. Configurá el precio en el producto para unificarlo en todas las tiendas.">{props => priceInput(props, form.compareAtPrice, compareAtPrice => set({ compareAtPrice }))}</Field>}
       </CardContent>
     </OfferSection>}
 

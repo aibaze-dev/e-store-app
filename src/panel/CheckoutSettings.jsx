@@ -1,22 +1,23 @@
+import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation } from 'convex/react';
 import { Check, LoaderCircle } from 'lucide-react';
 import { api } from '@/lib/api.js';
-import { errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
+import { errorText } from '@/lib/format.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ErrorAlert, Field } from '@/components/Field.jsx';
 
 // What the public checkout shows besides the offer. None of it changes what is charged.
 export default function CheckoutSettings({ store, products, landingNotifications }) {
+  const { productsPath } = useStoreWorkspace();
   const save = useMutation(api.stores.updateCheckout);
   const upsells = [...store.offer.upsells].sort((a, b) => a.displayOrder - b.displayOrder);
   const [form, setForm] = useState(() => ({
     notifications: store.checkout?.notifications ?? landingNotifications,
     liveVisitors: store.checkout?.liveVisitors ?? false,
     upsellTitle: store.checkout?.upsellTitle ?? '',
-    references: Object.fromEntries((store.checkout?.upsellReferences ?? []).map(reference => [reference.productId, fromMinor(reference.value, store.currency)])),
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -27,14 +28,7 @@ export default function CheckoutSettings({ store, products, landingNotifications
     event.preventDefault();
     if (busy) return;
     setError(''); setSaved(false);
-    const upsellReferences = [];
-    for (const upsell of upsells) {
-      const text = form.references[upsell.productId]?.trim();
-      if (!text) continue;
-      const value = toMinor(text, store.currency);
-      if (!Number.isInteger(value) || value <= upsell.price) { setError('El precio de referencia de un extra debe ser mayor a su precio de venta.'); return; }
-      upsellReferences.push({ productId: upsell.productId, value });
-    }
+    const upsellReferences = store.checkout?.upsellReferences ?? [];
     setBusy(true);
     try {
       await save({ id: store._id, checkout: { notifications: form.notifications, liveVisitors: form.liveVisitors, upsellTitle: form.upsellTitle, upsellReferences } });
@@ -54,14 +48,12 @@ export default function CheckoutSettings({ store, products, landingNotifications
       <p className="text-xs leading-5 text-muted-foreground">Por ahora, el checkout muestra entre 2 y 15 personas y cambia cada 15 segundos. El contador arranca al azar entre 8:01 y 14:59 y conserva el tiempo al recargar esta pestaña. Todavía no está conectado a actividad real ni al vencimiento de la oferta.</p>
     </div>
     <Field label="Título del bloque de extras" hint="Si queda vacío, usamos «Sumá a tu compra».">{props => <Input {...props} value={form.upsellTitle} onChange={event => set({ upsellTitle: event.target.value })} maxLength={60} placeholder="Sumá a tu compra" disabled={busy} />}</Field>
-    <fieldset className="space-y-4">
-      <legend className="text-sm font-semibold">Precio de referencia de cada extra (opcional)</legend>
-      <p className="text-xs leading-5 text-muted-foreground">Se muestra tachado junto al precio del extra, con el porcentaje de descuento. Usá el precio real al que lo vendés por separado.</p>
-      {upsells.length === 0 && <p className="text-sm text-muted-foreground">Esta tienda no ofrece extras. <Link to={`/panel/tiendas/${store._id}/productos#upsells`} className="underline underline-offset-4">Agregá uno en Productos y oferta</Link>.</p>}
-      {upsells.map(upsell => <Field key={upsell.productId} label={`${products.find(product => product._id === upsell.productId)?.name || 'Producto no disponible'} · se vende a ${formatMoney(upsell.price, store.currency)}`}>
-        {props => <Input {...props} className="max-w-48" inputMode="decimal" placeholder="0.00" value={form.references[upsell.productId] || ''} onChange={event => set({ references: { ...form.references, [upsell.productId]: event.target.value } })} disabled={busy} />}
-      </Field>)}
-    </fieldset>
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">Presentación de los productos</h3>
+      <p className="text-xs leading-5 text-muted-foreground">La portada, descripción corta y precio de referencia se editan en el producto y se reutilizan en la landing y el checkout.</p>
+      {upsells.map(upsell => <p key={upsell.productId} className="text-sm"><Link className="underline underline-offset-4" to={`${productsPath}/${upsell.productId}`}>Editar {products.find(product => product._id === upsell.productId)?.name || 'producto'}</Link></p>)}
+      <Link className="text-sm underline underline-offset-4" to={`/panel/tiendas/${store._id}/productos#upsells`}>Elegir extras y precios de venta</Link>
+    </div>
     <ErrorAlert>{error}</ErrorAlert>
     <div className="flex flex-wrap items-center gap-3">
       <Button type="submit" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Guardando…' : 'Guardar ajustes'}</Button>

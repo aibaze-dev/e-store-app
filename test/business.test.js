@@ -1145,3 +1145,50 @@ describe('classic editorial content', () => {
     for (const patch of patches) await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...base, ...patch } })).rejects.toThrow();
   });
 });
+
+describe('product presentation shared by the purchase cards', () => {
+  it('reuses product copy and reference prices in landing and checkout without changing charges', async () => {
+    const { t, admin, ids, storeId } = await campaign();
+    await admin.mutation(api.stores.updateCheckout, { id: storeId, checkout: { notifications: false, upsellTitle: '', upsellReferences: [{ productId: ids.upsellA, value: 1800 }] } });
+    const data = { ...product('Audiolibro', 'upsellA'), shortDescription: ' Resumen para escuchar ', featured: true, referencePrice: { currency: ' usd ', value: 2400 } };
+    await admin.mutation(api.products.update, { id: ids.upsellA, ...data });
+    await admin.mutation(api.products.update, { id: ids.main, ...product('Ebook principal', 'main'), referencePrice: { currency: 'USD', value: 5400 } });
+    for (const query of [api.storefront.getLanding, api.storefront.getCheckout]) {
+      const view = await t.query(query, { subdomain: 'inversion' });
+      expect(view.offer.main.compareAtPrice).toBe(5400);
+      expect(view.offer.upsells[0]).toMatchObject({ shortDescription: 'Resumen para escuchar', featured: true, compareAtPrice: 2400, price: 900 });
+      expect(JSON.stringify(view)).not.toContain('deliverables');
+    }
+    mockStripe();
+    await start(t, [ids.upsellA]);
+    expect((await rows(t, 'orders'))[0].total).toBe(3600);
+    // Old clients can edit general data without deleting the new presentation fields.
+    await admin.mutation(api.products.update, { id: ids.upsellA, ...product('Audio actualizado', 'upsellA') });
+    expect((await admin.query(api.products.get, { id: ids.upsellA })).referencePrice).toEqual({ currency: 'USD', value: 2400 });
+  });
+
+  it('does not invent discounts across currencies or restore legacy prices after an explicit clear', async () => {
+    const { t, admin, ids, storeId } = await campaign();
+    await admin.mutation(api.stores.updateCheckout, { id: storeId, checkout: { notifications: false, upsellTitle: '', upsellReferences: [{ productId: ids.upsellA, value: 1800 }] } });
+    const view = () => t.query(api.storefront.getLanding, { subdomain: 'inversion' });
+    expect((await view()).offer.upsells[0].compareAtPrice).toBe(1800);
+    for (const referencePrice of [{ currency: 'EUR', value: 5000 }, { currency: 'USD', value: 900 }, { currency: 'USD', value: 800 }, null]) {
+      await admin.mutation(api.products.update, { id: ids.upsellA, ...product('Audio', 'upsellA'), referencePrice });
+      expect((await view()).offer.upsells[0].compareAtPrice).toBeUndefined();
+    }
+  });
+
+  it('validates and protects product presentation fields on the server', async () => {
+    const { t, admin, ids } = await campaign();
+    const data = { id: ids.main, ...product('Ebook', 'main'), shortDescription: 'Resumen', featured: true, referencePrice: { currency: 'USD', value: 4800 } };
+    await expect(t.mutation(api.products.update, data)).rejects.toThrow();
+    const stranger = await signedIn(t, 'stranger@example.com');
+    await expect(stranger.mutation(api.products.update, data)).rejects.toThrow();
+    for (const patch of [{ shortDescription: 'x'.repeat(181) }, { referencePrice: { currency: 'US', value: 4800 } }, { referencePrice: { currency: 'USD', value: -10 } }, { referencePrice: { currency: 'USD', value: 1.5 } }]) {
+      await expect(admin.mutation(api.products.update, { ...data, ...patch })).rejects.toThrow();
+    }
+    await admin.mutation(api.products.update, data);
+    await admin.mutation(api.products.update, { ...data, shortDescription: '', featured: false, referencePrice: null });
+    expect(await admin.query(api.products.get, { id: ids.main })).toMatchObject({ shortDescription: '', featured: false, referencePrice: null });
+  });
+});

@@ -344,6 +344,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         <Section id="combo" attention={checks.combo} description="El resumen de la compra con los extras y el botón que acompaña al pie" hidden={off('combo')}>
           {toggle('combo', 'Mostrar el armado de la compra con los extras')}
           <p className="text-xs leading-6 text-muted-foreground">{store.offer.upsells.length > 0 ? 'Lista los extras de la tienda con sus precios. Con este bloque activo, los botones de la landing llevan hasta acá y el pago se inicia desde su botón.' : 'Esta tienda no tiene extras cargados: el bloque no se muestra y los botones van directo al checkout.'} <Link to={`/panel/tiendas/${storeId}/productos#upsells`} target="_blank" rel="noreferrer" className="underline">Configurar extras y precios</Link></p>
+          <p className="text-xs leading-6 text-muted-foreground">Las portadas, descripciones cortas, precios tachados y destacados se configuran en cada producto. Los porcentajes se calculan automáticamente. <Link to={`/panel/tiendas/${storeId}/catalogo`} className="underline">Editar productos</Link></p>
           {field('combo', 'eyebrow', 'Etiqueta', { maxLength: 120 })}
           {field('combo', 'title', 'Título', { maxLength: 120 })}
           {field('combo', 'upsellText', 'Frase sobre los extras', { maxLength: 120 })}

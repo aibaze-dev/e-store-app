@@ -263,11 +263,13 @@
 .cl-closing .cl-btn { margin-top: 26px; }
 .cl-closing .cl-trust { margin-top: 20px; font-size: 12px; }
 .cl-closing-footnote { position: absolute; left: clamp(20px, 4.5vw, 84px); bottom: 6px; margin: 0; font-size: 11px; color: #d9b99f; }
-.cl-combo-section { scroll-margin-top: calc(var(--classic-promo-height, 0px) + 8px); padding-top: 34px; }
-.cl-combo { display: grid; gap: 10px; padding: 18px; border: 1px solid #f7dcc8; border-radius: 16px; background: #fff; box-shadow: 0 16px 44px #f56b2014; text-align: center; }
+.cl-combo-section { scroll-margin-top: calc(var(--classic-promo-height, 0px) + 8px); padding-top: 34px; background: #fffaf7; }
+.cl-combo { display: grid; gap: 10px; padding: 18px; border: 1px solid #e9e4e0; border-radius: 20px; background: #fff; text-align: center; }
 .cl-combo > .cl-pill { justify-self: center; margin-bottom: 2px; }
 .cl-landing .cl-combo h2 { margin-bottom: 6px; font-size: 18px; font-weight: 500; letter-spacing: 0; }
-.cl-combo-row { display: grid; grid-template-columns: auto 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 10px; border: 1px solid var(--cl-line); border-radius: 10px; background: #fff; text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.cl-combo-row { display: grid; grid-template-columns: auto 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 70px; padding: 10px 11px; border: 1px solid #e9e4e0; border-radius: 14px; background: #fff; text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.cl-combo-row.is-featured { border-color: #ffb697; background: linear-gradient(180deg, #fff, #fff5ec); }
+.cl-combo-row:hover:not(.is-main) { border-color: var(--classic-cta-start); }
 .cl-combo-row.is-on { border-color: #f7c9a8; background: #fff1e4; }
 .cl-combo-row.is-main { cursor: default; }
 .cl-combo-row input { position: absolute; width: 1px; height: 1px; opacity: 0; }
@@ -275,7 +277,7 @@
 .cl-combo-check svg { width: 14px; height: 14px; stroke-width: 3.5; }
 .cl-combo-row.is-on .cl-combo-check { border-color: var(--classic-cta-start); background: var(--classic-cta-start); color: #fff; }
 .cl-combo-row input:focus-visible + .cl-combo-check { outline: 3px solid var(--cl-ink); outline-offset: 2px; }
-.cl-combo-thumb, .cl-combo-thumb.cl-placeholder { width: 46px; height: 46px; min-height: 0; padding: 0; border-radius: 7px; object-fit: cover; }
+.cl-combo-thumb, .cl-combo-thumb.cl-placeholder { width: 46px; height: 46px; min-height: 0; padding: 0; border-radius: 7px; object-fit: contain; background: #f5f3f0; }
 .cl-combo-thumb.cl-placeholder svg { width: 20px; height: 20px; }
 .cl-combo-text { display: grid; gap: 2px; min-width: 0; }
 .cl-combo-text strong { font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--cl-ink); }
@@ -333,6 +335,13 @@
   .cl-combo-thumb, .cl-combo-thumb.cl-placeholder { width: 40px; height: 40px; }
   .cl-sticky > div { gap: 12px; }
   .cl-landing .cl-sticky strong { font-size: 17px; }
+}
+@media (max-width: 399px) {
+  .cl-combo-row { grid-template-columns: 22px 40px minmax(0, 1fr); gap: 5px 8px; }
+  .cl-combo-check, .cl-combo-thumb { grid-row: 1 / span 2; }
+  .cl-combo-text { grid-column: 3; }
+  .cl-combo-price { grid-column: 3; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; white-space: normal; }
+  .cl-combo-text strong { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cl-promo, .cl-sticky { animation: none; }

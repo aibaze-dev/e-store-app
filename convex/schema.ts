@@ -108,6 +108,9 @@ export default defineSchema({
   products: defineTable({
     // Optional for existing records; product mutations always persist this value.
     type: v.optional(v.literal('e-book')),
+    shortDescription: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    referencePrice: v.optional(v.union(v.null(), v.object({ currency: v.string(), value: v.number() }))),
     name: v.string(),
     description: v.string(),
     coverUrl: v.string(),

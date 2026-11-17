@@ -5,7 +5,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { ArrowLeft, LoaderCircle, Plus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api.js';
-import { errorText } from '@/lib/format.js';
+import business from '@/config/businessData.json';
+import { errorText, fromMinor, toMinor } from '@/lib/format.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +14,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 
-const EMPTY = { name: '', description: '', coverUrl: '', status: 'active', deliverables: [{ title: '', url: '' }] };
+const EMPTY = { shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [{ title: '', url: '' }] };
 
 export default function ProductFormPage() {
   const { productsPath } = useStoreWorkspace();
@@ -31,7 +32,7 @@ export default function ProductFormPage() {
   useEffect(() => {
     if (existing && !form) {
       const { name, description, coverUrl, status, deliverables } = existing;
-      setForm({ name, description, coverUrl, status, deliverables });
+      setForm({ name, description, coverUrl, status, deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
     }
   }, [existing, form]);
 
@@ -48,8 +49,14 @@ export default function ProductFormPage() {
     if (busy) return;
     setBusy(true); setError('');
     try {
-      if (productId) await update({ id: productId, ...form });
-      else await create(form);
+      const { referenceConfigured, referenceAmount, referenceCurrency, ...data } = form;
+      if (referenceConfigured) {
+        const value = referenceAmount.trim() ? toMinor(referenceAmount, referenceCurrency) : null;
+        if (value !== null && (!Number.isInteger(value) || value <= 0)) { setError('Ingresá un precio de referencia válido o dejalo vacío.'); setBusy(false); return; }
+        data.referencePrice = value === null ? null : { currency: referenceCurrency, value };
+      }
+      if (productId) await update({ id: productId, ...data });
+      else await create(data);
       navigate(productsPath);
     } catch (failure) { setError(errorText(failure, 'No se pudo guardar el producto. Volvé a intentar.')); setBusy(false); }
   }
@@ -69,6 +76,20 @@ export default function ProductFormPage() {
         <Field label="Estado" hint="Un producto archivado deja de ofrecerse al armar tiendas nuevas; las tiendas que ya lo usan no cambian.">{props => <NativeSelect {...props} value={form.status} onChange={event => set({ status: event.target.value })} disabled={busy}>
           <option value="active">Activo</option><option value="archived">Archivado</option>
         </NativeSelect>}</Field>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader><CardTitle>Presentación en la compra</CardTitle><CardDescription>Estos datos se reutilizan en todas las tiendas. El precio de venta y los extras incluidos se eligen en Productos y oferta de cada tienda.</CardDescription></CardHeader>
+      <CardContent className="space-y-5">
+        <Field label="Descripción corta" hint="Opcional. Se usa en las tarjetas de compra; si queda vacía, se muestra la descripción del producto.">{props => <Textarea {...props} value={form.shortDescription} onChange={event => set({ shortDescription: event.target.value })} maxLength={180} disabled={busy} />}</Field>
+        <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
+          <Field label="Precio de referencia" hint="Precio real de venta por separado. Se muestra tachado y calcula el descuento cuando supera el precio de la oferta.">{props => <Input {...props} inputMode="decimal" value={form.referenceAmount} placeholder="Opcional" onChange={event => set({ referenceAmount: event.target.value, referenceConfigured: true })} disabled={busy} />}</Field>
+          <Field label="Moneda" hint="Solo se aplica a tiendas con esta moneda.">{props => <Input {...props} value={form.referenceCurrency} maxLength={3} autoCapitalize="characters" onChange={event => set({ referenceCurrency: event.target.value.toUpperCase(), referenceConfigured: true })} disabled={busy} />}</Field>
+        </div>
+        {!form.referenceConfigured && <p className="text-xs text-muted-foreground">Este producto conserva los precios de referencia anteriores de cada tienda hasta que configures este campo.</p>}
+        <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="size-5 accent-primary" checked={form.featured} onChange={event => set({ featured: event.target.checked })} disabled={busy} />Destacar este producto en el combo</label>
+        <p className="text-xs text-muted-foreground">Resalta el borde de su tarjeta. El comprador sigue eligiendo si lo agrega.</p>
       </CardContent>
     </Card>
 

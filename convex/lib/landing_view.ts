@@ -37,11 +37,17 @@ async function buildActivity(ctx: QueryCtx, store: Doc<'stores'>, show: { recent
 
 // Public shape of a landing. It never includes deliverables.
 export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, landing: Doc<'landings'>, content: Content) {
-  const card = async (productId: Doc<'products'>['_id']) => {
+  const card = async (productId: Doc<'products'>['_id'], price?: number, legacyReference?: number) => {
     const product = await ctx.db.get(productId);
-    return product && { productId: product._id, name: product.name, description: product.description, coverUrl: product.coverUrl };
+    if (!product) return null;
+    // Absent means a legacy product; null explicitly removes its reference price.
+    const reference = product.referencePrice === undefined ? legacyReference
+      : product.referencePrice?.currency.toUpperCase() === store.currency.toUpperCase() ? product.referencePrice.value : undefined;
+    return { productId: product._id, name: product.name, description: product.description, coverUrl: product.coverUrl,
+      shortDescription: product.shortDescription ?? '', featured: product.featured ?? false,
+      ...(price !== undefined && reference !== undefined && reference > price ? { compareAtPrice: reference } : {}) };
   };
-  const main = await card(store.offer.mainProductId);
+  const main = await card(store.offer.mainProductId, store.offer.price, store.offer.compareAtPrice);
   if (!main) return null;
   const bonuses = (await Promise.all(store.offer.bonuses.map(async bonus => {
     const product = await card(bonus.productId);
@@ -51,10 +57,8 @@ export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, land
   const upsells = (await Promise.all([...store.offer.upsells]
     .sort((a, b) => a.displayOrder - b.displayOrder)
     .map(async upsell => {
-      const product = await card(upsell.productId);
-      const reference = references.get(upsell.productId) ?? 0;
-      // A reference at or below the current price would not be a saving, so it is not shown.
-      return product && { ...product, price: upsell.price, ...(reference > upsell.price ? { compareAtPrice: reference } : {}) };
+      const product = await card(upsell.productId, upsell.price, references.get(upsell.productId));
+      return product && { ...product, price: upsell.price };
     }))).filter(item => item !== null);
 
   return {
@@ -62,7 +66,7 @@ export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, land
     template: landing.template,
     content,
     store: { id: store._id, name: store.name, currency: store.currency, metaPixelId: store.tracking.metaPixelId },
-    offer: { main: { ...main, price: store.offer.price, compareAtPrice: store.offer.compareAtPrice }, bonuses, upsells },
+    offer: { main: { ...main, price: store.offer.price }, bonuses, upsells },
     downsell: store.downsell?.enabled ? { ...store.downsell, price: discounted(store.offer.price, store.downsell.percent) } : null,
     checkout: { upsellTitle: store.checkout?.upsellTitle ?? '', notifications: store.checkout?.notifications ?? content.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications, liveVisitors: store.checkout?.liveVisitors ?? false },
     activity: await buildActivity(ctx, store, {

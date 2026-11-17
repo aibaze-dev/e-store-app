@@ -125,7 +125,7 @@ export function Checkout({ view, via }) {
                 <div className="min-w-0 flex-1 space-y-2">
                   <h3 className="pr-10 leading-snug font-semibold">{upsell.name}</h3>
                   <p className="flex flex-wrap items-baseline gap-x-2 text-sm">{upsell.compareAtPrice && <del className="text-muted-foreground">{money(upsell.compareAtPrice)}</del>}<strong className="text-base checkout-positive">+ {money(upsell.price)}</strong></p>
-                  {upsell.description && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{upsell.description}</p>}
+                  {(upsell.shortDescription || upsell.description) && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{upsell.shortDescription || upsell.description}</p>}
                 </div>
               </div>
               <Button type="button" variant={on ? 'outline' : 'default'} className={`checkout-extra-button mt-4 w-full ${on ? 'is-selected' : ''}`} aria-pressed={on} disabled={locked}
@@ -222,7 +222,7 @@ function DownsellOffer({ view, via }) {
                 <strong className="text-xl text-primary">{money(downsell.price)}</strong>
                 <span className="text-sm font-semibold text-primary">(Ahorrás {downsell.percent}%)</span>
               </p>
-              {offer.main.description && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.main.description}</p>}
+              {(offer.main.shortDescription || offer.main.description) && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.main.shortDescription || offer.main.description}</p>}
             </div>
           </div>
           {offer.bonuses.length > 0 && <div className="space-y-2">
