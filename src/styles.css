@@ -337,6 +337,10 @@
 .landing-preview-canvas { height: 100%; margin-inline: auto; overflow: hidden; border-radius: 8px; }
 .landing-preview-viewport iframe { display: block; margin-inline: auto; border: none; width: 1040px; height: 100%; background: white; border-radius: 8px; }
 .landing-preview-viewport.is-mobile iframe { width: min(100%, 390px); }
+[data-editor-section] { cursor: pointer; }
+[data-editor-section]:is(:hover, :focus-visible):not(:has([data-editor-section]:hover)) { outline: 3px solid var(--primary); outline-offset: -3px; }
+/* Let clicks on disabled purchase buttons and embedded media reach the section. */
+[data-editor-section] :is(button:disabled, iframe, video) { pointer-events: none; }
 .landing-save-bar { position: sticky; bottom: 12px; z-index: 10; display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: 0 -4px 20px #0001; }
 .preview-expanded .landing-config-form { display: none; }
 .preview-expanded .landing-preview-panel { position: static; }

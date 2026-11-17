@@ -1,3 +1,4 @@
+import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import { useId, useState } from 'react';
 import { ArrowRight, BookOpen, Check, ExternalLink, LoaderCircle, LockKeyhole, Zap } from 'lucide-react';
@@ -11,6 +12,7 @@ import { POST_PURCHASE_CONTENT, postPurchaseContent, videoSource } from '../../s
 
 // Thank-you page shell: same palette, masthead and footer as the classic landing.
 export function PurchaseLanding({ presentation = {}, storeName = '', eyebrow, title, subtitle, busy = false, children }) {
+  const edit = usePreviewSection();
   return <div className="sales-landing classic-landing purchase-landing" style={classicTheme(presentation.accentColor)}>
     <main>
       <header className="classic-masthead purchase-masthead">
@@ -24,7 +26,7 @@ export function PurchaseLanding({ presentation = {}, storeName = '', eyebrow, ti
       </header>
       {children}
     </main>
-    <footer className="sales-footer"><div className="sales-container sales-slim">
+    <footer {...edit('identity')} className="sales-footer"><div className="sales-container sales-slim">
       <p>© {new Date().getFullYear()} {presentation.brandName || storeName}. Todos los derechos reservados.</p>
       {(presentation.termsUrl || presentation.privacyUrl) && <nav aria-label="Información legal">{presentation.termsUrl && <a href={presentation.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}{presentation.privacyUrl && <a href={presentation.privacyUrl} target="_blank" rel="noreferrer">Política de privacidad</a>}</nav>}
     </div></footer>
@@ -52,10 +54,11 @@ export function DeliveryLinks({ deliveries, preview = false }) {
 }
 
 function Video({ video }) {
+  const edit = usePreviewSection();
   const [failed, setFailed] = useState(false);
   const source = videoSource(video.url);
   if (!video.enabled || !source) return null;
-  return <div className="purchase-video">
+  return <div {...edit('postPurchaseVideo')} className="purchase-video">
     {video.title && <h3>{video.title}</h3>}
     {source.kind === 'embed'
       ? <iframe src={source.src} title={video.title || 'Video de la oferta'} allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
@@ -67,6 +70,7 @@ function Video({ video }) {
 
 // The preview and the real paid flow use the same presentation; checkout stays in Storefront.
 export default function PostPurchaseContent({ offer, currency, downsell = false, busy = false, error = '', onAccept, onDecline, canPurchase = false }) {
+  const edit = usePreviewSection();
   const titleId = useId();
   const { postPurchase: copy, postPurchaseBenefits: benefits, postPurchaseVideo: video } = postPurchaseContent(offer.content);
   const defaults = POST_PURCHASE_CONTENT.postPurchase;
@@ -74,7 +78,7 @@ export default function PostPurchaseContent({ offer, currency, downsell = false,
   const description = copy.description || offer.description;
   const hasVideo = video.enabled && Boolean(videoSource(video.url));
   return <>
-    <section className="sales-hero sales-section post-purchase-content" aria-labelledby={titleId}>
+    <section className="sales-hero sales-section post-purchase-content" aria-labelledby={titleId} {...edit(downsell ? 'postPurchaseDownsell' : 'postPurchase')}>
       <div className="sales-container sales-slim">
         <div className="sales-heading">
           {copy.eyebrow && <span className="sales-eyebrow">{copy.eyebrow}</span>}
@@ -104,7 +108,7 @@ export default function PostPurchaseContent({ offer, currency, downsell = false,
         </div>
       </div>
     </section>
-    {benefits.enabled && benefits.items.length > 0 && <section className="sales-section sales-soft" aria-label={benefits.title || 'Beneficios de la oferta'}><div className="sales-container sales-narrow">
+    {benefits.enabled && benefits.items.length > 0 && <section className="sales-section sales-soft" aria-label={benefits.title || 'Beneficios de la oferta'} {...edit('postPurchaseBenefits')}><div className="sales-container sales-narrow">
       <Heading section={benefits} eyebrow="Lo que te llevás" />
       <div className="sales-features">{benefits.items.map((item, index) => {
         const Icon = FEATURE_ICONS[item.icon] || Check;

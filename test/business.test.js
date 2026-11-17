@@ -106,12 +106,14 @@ describe('public landing', () => {
     const { t, admin, storeId } = await campaign();
     const draft = normalizeContent(content);
     draft.socialProof = { ...draft.socialProof, eyebrow: 'Experiencias compartidas', items: [{ name: 'Ana', format: 'chat', quote: 'Ahora tengo un plan.', openingMessage: '¿Cómo te fue?', closingMessage: 'Gracias por contarnos.' }] };
-    draft.promotion = { ...draft.promotion, timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}', remainingSpots: 8 };
+    draft.promotion = { ...draft.promotion, title: 'Título propio de esta campaña', timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}', remainingSpots: 8 };
     draft.activity = { ...draft.activity, viewersText: 'Ahora: {cantidad} lectores', salesText: 'Compras: {cantidad}', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'Ubicación: {ciudad}' };
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     const preview = await admin.query(api.landings.preview, { storeId });
     expect(preview.content.socialProof).toMatchObject(draft.socialProof);
     expect(preview.content.activity).toEqual(draft.activity);
+    expect(preview.content.promotion.title).toBe(draft.promotion.title);
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.promotion.title).toBe('');
     expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.socialProof.items).toEqual([]);
     await admin.mutation(api.landings.publish, { storeId });
     const live = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });
@@ -122,6 +124,7 @@ describe('public landing', () => {
       { socialProof: { ...draft.socialProof, items: [{ name: 'Ana', format: 'chat', quote: '', imageUrl: 'https://example.com/image.png' }] } },
       { socialProof: { ...draft.socialProof, eyebrow: 'x'.repeat(121) } },
       { promotion: { ...draft.promotion, timerLabel: 'x'.repeat(121) } },
+      { promotion: { ...draft.promotion, title: 'x'.repeat(161) } },
       { activity: { ...draft.activity, viewersText: 'x'.repeat(241) } },
     ]) await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: { ...draft, ...patch } })).rejects.toThrow();
   });

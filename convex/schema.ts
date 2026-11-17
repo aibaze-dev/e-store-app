@@ -30,7 +30,7 @@ export const landingContent = v.object({
   faq: v.object({ ...sectionFields, title: v.string(), items: v.array(v.object({ question: v.string(), answer: v.string() })) }),
   guarantee: v.object({ ...sectionFields, title: v.string(), text: v.string(), days: v.optional(v.number()) }),
   style: v.object({ accentColor: v.string() }),
-  promotion: v.optional(v.object({ timerLabel: v.optional(v.string()), spotsText: v.optional(v.string()), enabled: v.boolean(), message: v.string(), timerMode: v.optional(v.union(v.literal('session'), v.literal('date'))), remainingSpots: v.optional(v.number()), endsAt: v.optional(v.number()) })),
+  promotion: v.optional(v.object({ title: v.optional(v.string()), timerLabel: v.optional(v.string()), spotsText: v.optional(v.string()), enabled: v.boolean(), message: v.string(), timerMode: v.optional(v.union(v.literal('session'), v.literal('date'))), remainingSpots: v.optional(v.number()), endsAt: v.optional(v.number()) })),
   steps: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   summary: v.optional(v.object({ ...sectionFields, title: v.string() })),
   closing: v.optional(v.object({ enabled: v.boolean(), title: v.string(), ctaText: v.string(), stickyEnabled: v.boolean(), text: v.optional(v.string()), note: v.optional(v.string()) })),

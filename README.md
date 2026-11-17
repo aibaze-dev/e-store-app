@@ -256,3 +256,5 @@ La página final sigue el orden de un funnel móvil, sin precios: el botón sigu
 **Generar con IA** completa todo esto: comparación, indicador ligado a una pregunta de nivel, recomendaciones de uso, resumen, objetivos y beneficios. También prepara las imágenes de «ahora», «con tu plan» y del producto, que se crean con el mismo flujo de imágenes y se pueden reintentar si fallan. La prueba social y los testimonios no se generan: se cargan solo con datos reales.
 
 Verificación: 158 pruebas pasan (incluida la página final generada por IA y sus imágenes) y el build compila. Se revisó a 375 px y 1440 px con datos de prueba temporales. No se probó contra OpenAI real.
+
+El editor de landing permite personalizar el «Título de la barra superior» en «Barra de oferta y avisos»; vacío conserva el nombre del producto. Se guarda en `promotion.title` como borrador y se aplica al publicar. En la vista previa del editor, un clic en una sección abre su formulario y lo enfoca, incluso con la vista ampliada o en móvil. También se puede navegar por las secciones con Tab y abrirlas con Enter o espacio. La vista previa independiente conserva sus interacciones normales.

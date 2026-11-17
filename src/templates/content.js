@@ -7,7 +7,7 @@ export const EMPTY_CONTENT = {
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
   hero: { eyebrow: '', title: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },
-  promotion: { ...PROMOTION_COPY, enabled: true, message: 'Oferta limitada', timerMode: 'session' },
+  promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Oferta limitada', timerMode: 'session' },
   benefits: { enabled: true, eyebrow: 'Tu kit completo', title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
   painPoints: { closingText: '', enabled: true, eyebrow: 'Si te pasa esto, es para vos', title: '¿Te sentís identificado?', subtitle: '', ctaText: '', items: [] },
   socialProof: { eyebrow: 'Testimonios de lectores', enabled: true, title: 'Lo que dicen quienes lo aplicaron', subtitle: '', ctaText: '', items: [] },

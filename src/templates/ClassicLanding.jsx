@@ -1,3 +1,4 @@
+import { usePreviewSection } from './PreviewEditing.jsx';
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/inter';
 import './classic-landing.css';
@@ -146,6 +147,7 @@ function ComboRow({ item, money, checked, locked, extra, onToggle }) {
 }
 
 export default function ClassicLanding({ view, onCta }) {
+  const edit = usePreviewSection();
   const content = normalizeContent(view.content);
   const { offer, store } = view;
   const upsells = offer.upsells ?? [];
@@ -211,10 +213,10 @@ export default function ClassicLanding({ view, onCta }) {
     : <PhotoSlot {...slot} />;
 
   return <div ref={landingRef} className={`cl-landing ${hasSticky ? 'has-sticky' : ''}`} style={theme}>
-    {hasPromo && <div ref={promoRef} className="cl-promo"><strong>{offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Termina en ${countdown}`}>{countdown}</time></>}</span></div>}
+    {hasPromo && <div ref={promoRef} {...edit('promotion')} className="cl-promo"><strong>{promotion.title || offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Termina en ${countdown}`}>{countdown}</time></>}</span></div>}
     {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
     <main>
-      <header className="cl-masthead"><div className="cl-wrap">
+      <header {...edit('hero')} className="cl-masthead"><div className="cl-wrap">
         <div className="cl-masthead-copy">
           {hero.eyebrow && <span className="cl-tag"><Sparkles aria-hidden="true" />{hero.eyebrow}</span>}
           <h1>{rich(hero.title || offer.main.name)}</h1>
@@ -226,7 +228,7 @@ export default function ClassicLanding({ view, onCta }) {
         </div>
       </div></header>
 
-      <section className="cl-hero" aria-label={offer.main.name}><div className="cl-wrap cl-w-900">
+      <section className="cl-hero" aria-label={offer.main.name} {...edit('cover')}><div className="cl-wrap cl-w-900">
         <div className={`cl-hero-media ${hero.secondaryImageUrl || preview ? 'is-pair' : ''}`}>
           {preview && !hero.imageUrl && !offer.main.coverUrl
             ? <PhotoSlot ratio="1" title="Foto principal" hint="Cuadrada, 1000 × 1000 px. Sin foto se usa la portada del producto." />
@@ -246,37 +248,37 @@ export default function ClassicLanding({ view, onCta }) {
         {content.activity.viewers && <p className="cl-live"><span aria-hidden="true" />{formatLandingText(content.activity.viewersText, { cantidad: shoppers })}</p>}
       </div></section>
 
-      {content.introduction.enabled && (content.introduction.title || content.introduction.text) && <section className="cl-section cl-intro"><div className="cl-wrap cl-w-560">
+      {content.introduction.enabled && (content.introduction.title || content.introduction.text) && <section {...edit('introduction')} className="cl-section cl-intro"><div className="cl-wrap cl-w-560">
         {content.introduction.title && <h2>{rich(content.introduction.title)}</h2>}
         {paragraphs(content.introduction.text).map((line, i) => <p key={i}>{rich(line)}</p>)}
         {content.introduction.badge && <span className="cl-badge">{content.introduction.badge}</span>}
       </div></section>}
 
-      {photoSection(content.transformation) && <section className="cl-section"><div className="cl-wrap cl-w-760">
+      {photoSection(content.transformation) && <section {...edit('transformation')} className="cl-section"><div className="cl-wrap cl-w-760">
         <Head section={content.transformation} />
         {photo(content.transformation, { ratio: '6 / 5', title: 'Foto del antes y después', hint: 'Horizontal, 1200 × 1000 px. La sección se publica cuando subís la foto.' })}
       </div></section>}
 
-      {content.painPoints.enabled && content.painPoints.items.length > 0 && <section className="cl-section is-cream-end"><div className="cl-wrap cl-w-760">
+      {content.painPoints.enabled && content.painPoints.items.length > 0 && <section {...edit('painPoints')} className="cl-section is-cream-end"><div className="cl-wrap cl-w-760">
         <Head section={content.painPoints} tone="is-alert" />
         <ul className="cl-pains">{content.painPoints.items.map((item, index) => <li key={index}><span aria-hidden="true"><X /></span><p>{item.title}{item.description && <small>{item.description}</small>}</p></li>)}</ul>
         {content.painPoints.closingText && <p className="cl-pain-closing">{rich(content.painPoints.closingText)}</p>}
         <div className="cl-action">{cta(content.painPoints.ctaText)}</div>
       </div></section>}
 
-      {content.bonuses.enabled && offer.bonuses.length > 0 && <section className="cl-section cl-dark"><div className="cl-wrap">
+      {content.bonuses.enabled && offer.bonuses.length > 0 && <section {...edit('offer')} className="cl-section cl-dark"><div className="cl-wrap">
         <Head section={content.bonuses} tone="is-gold" icon={Gift} />
         {content.bonuses.chips.some(Boolean) && <ul className="cl-chips">{content.bonuses.chips.filter(Boolean).map((chip, i) => <li key={i}>{chip}</li>)}</ul>}
         <BonusFlow bonuses={offer.bonuses} />
         <div className="cl-action">{cta(content.bonuses.ctaText, 'is-big')}{content.bonuses.note && <p className="cl-trust">{content.bonuses.note}</p>}</div>
       </div></section>}
 
-      {content.steps.enabled && content.steps.items.length > 0 && <section className="cl-section is-cream"><div className="cl-wrap cl-w-760">
+      {content.steps.enabled && content.steps.items.length > 0 && <section {...edit('steps')} className="cl-section is-cream"><div className="cl-wrap cl-w-760">
         <Head section={content.steps} />
         <ol className="cl-steps">{content.steps.items.map((item, index) => <li key={index}><span aria-hidden="true">{index + 1}</span><p><strong>{item.title}</strong>{item.description && <> — {item.description}</>}</p></li>)}</ol>
       </div></section>}
 
-      {content.about.enabled && content.about.text && <section className="cl-section is-cream"><div className={`cl-wrap cl-w-820 cl-about ${content.about.imageUrl || preview ? 'has-image' : ''}`}>
+      {content.about.enabled && content.about.text && <section {...edit('about')} className="cl-section is-cream"><div className={`cl-wrap cl-w-820 cl-about ${content.about.imageUrl || preview ? 'has-image' : ''}`}>
         {content.about.imageUrl ? <Picture className="cl-about-photo" src={content.about.imageUrl} alt={content.about.imageAlt || 'El equipo'} />
           : preview && <PhotoSlot className="cl-about-slot" ratio="8 / 9" title="Foto del equipo" hint="Opcional · vertical, 600 × 680 px" />}
         <div>
@@ -286,12 +288,12 @@ export default function ClassicLanding({ view, onCta }) {
         </div>
       </div></section>}
 
-      {photoSection(content.showcase) && <section className="cl-section"><div className="cl-wrap cl-w-760">
+      {photoSection(content.showcase) && <section {...edit('showcase')} className="cl-section"><div className="cl-wrap cl-w-760">
         <Head section={content.showcase} />
         {photo(content.showcase, { ratio: '1', title: 'Foto con todo lo que viene adentro', hint: 'Cuadrada, 1200 × 1200 px. La sección se publica cuando subís la foto.' })}
       </div></section>}
 
-      {content.benefits.enabled && content.benefits.items.length > 0 && <section className="cl-section is-cream"><div className="cl-wrap cl-w-640">
+      {content.benefits.enabled && content.benefits.items.length > 0 && <section {...edit('benefits')} className="cl-section is-cream"><div className="cl-wrap cl-w-640">
         <Head section={content.benefits} />
         <KitMedia section={content.benefits} preview={preview} />
         <ol className="cl-kit">{content.benefits.items.map((item, index) => <li key={index}><span aria-hidden="true">{index + 1}</span><div><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}</div></li>)}</ol>
@@ -303,7 +305,7 @@ export default function ClassicLanding({ view, onCta }) {
         </div>}
       </div></section>}
 
-      {proof.enabled && (proof.items.length > 0 || proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <section className="cl-section is-cream"><div className="cl-wrap cl-w-1450">
+      {proof.enabled && (proof.items.length > 0 || proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <section {...edit('socialProof')} className="cl-section is-cream"><div className="cl-wrap cl-w-1450">
         <Head section={proof} />
         {proof.items.length > 0 && <div className="cl-testis" tabIndex={0} role="region" aria-label="Testimonios">{proof.items.map((item, index) => <Testimonial key={index} item={item} />)}</div>}
         {(proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <div className="cl-metrics">
@@ -314,7 +316,7 @@ export default function ClassicLanding({ view, onCta }) {
         <div className="cl-action">{cta(proof.ctaText)}</div>
       </div></section>}
 
-      {content.comparison.enabled && content.comparison.items.length > 0 && <section className="cl-section"><div className="cl-wrap cl-w-1000">
+      {content.comparison.enabled && content.comparison.items.length > 0 && <section {...edit('comparison')} className="cl-section"><div className="cl-wrap cl-w-1000">
         <Head section={{ ...content.comparison, eyebrow: '' }} />
         <div className="cl-paths">{content.comparison.items.map((item, index) => <article key={index} className={item === highlighted ? 'is-best' : ''}>
           {item === highlighted && content.comparison.badge && <span className="cl-paths-badge">{content.comparison.badge}</span>}
@@ -324,26 +326,26 @@ export default function ClassicLanding({ view, onCta }) {
         </article>)}</div>
       </div></section>}
 
-      {guarantee && <section className="cl-section is-cream-end"><div className="cl-wrap cl-w-600"><div className="cl-guarantee">
+      {guarantee && <section {...edit('guarantee')} className="cl-section is-cream-end"><div className="cl-wrap cl-w-600"><div className="cl-guarantee">
         <span aria-hidden="true"><ShieldCheck /></span>
         <h2>{rich(content.guarantee.title || guaranteeLabel)}</h2>
         {paragraphs(content.guarantee.text).map((line, i) => <p key={i}>{rich(line)}</p>)}
         {cta(content.guarantee.ctaText)}
       </div></div></section>}
 
-      {content.faq.enabled && content.faq.items.length > 0 && <section className="cl-section"><div className="cl-wrap cl-w-680">
+      {content.faq.enabled && content.faq.items.length > 0 && <section {...edit('faq')} className="cl-section"><div className="cl-wrap cl-w-680">
         <Head section={{ ...content.faq, eyebrow: '' }} />
         <div className="cl-faq">{content.faq.items.map((item, index) => <details key={index}><summary>{item.question}<Plus aria-hidden="true" /></summary>{paragraphs(item.answer).map((line, i) => <p key={i}>{line}</p>)}</details>)}</div>
       </div></section>}
 
-      {closing.enabled && <section className="cl-section cl-closing"><div className="cl-wrap cl-w-560">
+      {closing.enabled && <section {...edit('closing')} className="cl-section cl-closing"><div className="cl-wrap cl-w-560">
         <h2>{rich(closing.title || hero.title || offer.main.name)}</h2>
         {closing.text && <p>{rich(closing.text)}</p>}
         {cta(closing.ctaText, 'is-big')}
         {(closing.note || trustText) && <p className="cl-trust">{closing.note || trustText}</p>}
       </div>{hero.footnote && <p className="cl-closing-footnote">{hero.footnote}</p>}</section>}
 
-      {hasCombo && <section ref={comboRef} className="cl-section cl-combo-section" aria-labelledby="cl-combo-title"><div className="cl-wrap cl-w-520"><div className="cl-combo">
+      {hasCombo && <section ref={comboRef} className="cl-section cl-combo-section" aria-labelledby="cl-combo-title" {...edit('combo')}><div className="cl-wrap cl-w-520"><div className="cl-combo">
         {combo.eyebrow && <span className="cl-pill">{combo.eyebrow}</span>}
         <h2 id="cl-combo-title">{combo.title || 'Tu compra'}</h2>
         <ComboRow item={{ ...offer.main, description: offer.bonuses.length > 0 ? `Incluye ${offer.bonuses.length} ${offer.bonuses.length === 1 ? 'bono gratis' : 'bonos gratis'}` : '' }} money={money} checked locked />
@@ -356,11 +358,11 @@ export default function ClassicLanding({ view, onCta }) {
         {combo.note && <p className="cl-combo-note"><LockKeyhole aria-hidden="true" />{combo.note}</p>}
       </div></div></section>}
     </main>
-    <footer className="cl-footer"><div className="cl-wrap">
+    <footer {...edit('identity')} className="cl-footer"><div className="cl-wrap">
       <p>© {new Date().getFullYear()} {content.footer.brandName || store.name}. Todos los derechos reservados.</p>
       {(content.footer.termsUrl || content.footer.privacyUrl) && <nav aria-label="Información legal">{content.footer.termsUrl && <a href={content.footer.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}{content.footer.privacyUrl && <a href={content.footer.privacyUrl} target="_blank" rel="noreferrer">Política de privacidad</a>}</nav>}
     </div></footer>
-    {hasSticky && <aside ref={stickyRef} className="cl-sticky" aria-label="Comprar"><div>
+    {hasSticky && <aside ref={stickyRef} className="cl-sticky" aria-label="Comprar" {...edit('combo')}><div>
       <strong>{money(order.total)}</strong>
       <button type="button" className="cl-btn is-blue" onClick={pay} disabled={!pay}>{(hasCombo && combo.ctaText) || closing.ctaText || hero.ctaText || 'Comprar ahora'}<ArrowRight aria-hidden="true" /></button>
     </div></aside>}

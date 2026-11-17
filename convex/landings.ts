@@ -140,6 +140,7 @@ export function cleanContent(content: typeof landingContent.type) {
     guarantee: { ...section(content.guarantee), ...copy(content.guarantee), title: cleanText(content.guarantee.title, 'Título de garantía', 120), text: cleanText(content.guarantee.text, 'Garantía', 1200), ...(days !== undefined ? { days } : {}) },
     style: { accentColor: accent },
     promotion: {
+      title: cleanText(content.promotion?.title ?? '', 'Título de la barra superior', 160),
       timerLabel: cleanText(content.promotion?.timerLabel ?? PROMOTION_COPY.timerLabel, 'Texto del contador', 120),
       spotsText: cleanText(content.promotion?.spotsText ?? PROMOTION_COPY.spotsText, 'Texto de cupos', 240),
       enabled: content.promotion?.enabled ?? true,
