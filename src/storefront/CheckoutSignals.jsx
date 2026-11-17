@@ -32,7 +32,7 @@ export function useSimulatedCheckoutSignals(subdomain, { preview = false } = {})
 }
 
 export function CheckoutActivityBar({ shoppers }) {
-  return <p className="flex items-center justify-center gap-2.5 bg-foreground px-5 py-3 text-center text-sm text-background" role="status">
+  return <p className="checkout-activity-bar flex items-center justify-center gap-2.5 bg-foreground px-5 py-3 text-center text-sm text-background" role="status">
     <Users className="size-4 shrink-0" aria-hidden="true" />
     <span><strong>{shoppers} personas</strong> están comprando en este momento</span>
     <span className="size-2 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />

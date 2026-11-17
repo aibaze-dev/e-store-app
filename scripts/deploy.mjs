@@ -10,6 +10,11 @@ if (!message.trim()) {
 }
 
 const cwd = fileURLToPath(new URL('..', import.meta.url));
+const branch = spawnSync('git', ['branch', '--show-current'], { cwd, encoding: 'utf8' });
+if (branch.status !== 0 || branch.stdout.trim() !== 'main') {
+  console.error('Ejecutá el deploy desde main para publicar el mismo código que se envía a origin/main.');
+  process.exit(1);
+}
 const steps = [
   ['git', ['add', '.']],
   ['git', ['commit', '-am', message]],
@@ -18,6 +23,14 @@ const steps = [
 ];
 
 for (const [command, args] of steps) {
+  if (command === 'git' && args[0] === 'commit') {
+    const changes = spawnSync('git', ['diff', '--cached', '--quiet'], { cwd });
+    if (changes.status === 0) {
+      console.log('Sin cambios nuevos: se vuelve a desplegar el commit actual.');
+      continue;
+    }
+    if (changes.status !== 1) process.exit(changes.status ?? 1);
+  }
   if (command === process.execPath) {
     // --run does not pass Node's --env-file settings to the script process.
     try {

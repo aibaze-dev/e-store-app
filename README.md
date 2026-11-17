@@ -29,9 +29,16 @@ Para guardar los cambios, subirlos a `origin main` y publicar en Convex, con las
 npm run deploy -- "mensaje del commit"
 ```
 
-Ejecuta `git add .`, `git commit -am "mensaje del commit"`, `git push origin main` y `node --env-file=.env --run=deploy:convex`, en ese orden. El script carga explícitamente `.env` antes del último paso para que sus variables lleguen al proceso de despliegue. Se detiene si cualquier paso falla, incluido un commit sin cambios. El mensaje es obligatorio.
+Ejecuta `git add .`, `git commit -am "mensaje del commit"`, `git push origin main` y `node --env-file=.env --run=deploy:convex`, en ese orden. El script carga explícitamente `.env` antes del último paso para que sus variables lleguen al proceso de despliegue. Se detiene si cualquier paso falla. Se ejecuta desde `main`; si no hay cambios nuevos, omite el commit y vuelve a publicar el commit actual. El mensaje es obligatorio.
 
 Para publicar sin crear un commit ni hacer push, con las variables ya cargadas en el entorno: `pnpm run deploy:convex`.
+
+Al terminar la subida, `scripts/verify-deploy.mjs` compara por SHA-256 el HTML público y todos los archivos JS/CSS de `dist`, incluidos los chunks diferidos. Consulta el HTML de nuevo al terminar para detectar un deploy simultáneo. Usa `VITE_CONVEX_SITE_URL` (o `SITE_URL`) como destino; un archivo distinto, faltante, timeout o error HTTP devuelve error y no informa éxito. La consola muestra la URL y una huella de la versión verificada.
+
+Para comprobar el sitio sin publicar, crear commits ni hacer push: `pnpm run deploy:verify`. Carga `.env` y compara el sitio con el `dist` local existente; no reconstruye ni modifica producción. Una pestaña abierta conserva el JavaScript que ya cargó: después del deploy hay que recargarla por completo si todavía muestra lo anterior (Cmd+Shift+R en Mac / Ctrl+Shift+R en Windows).
+
+Verificación del 18/11/2026: el sitio `https://capable-gnu-944.convex.site/` devolvió el mismo HTML y los 11 archivos JS/CSS del build local (`bed3eb328912`), incluida la clase `purchase-toast` sin borde. Pasaron 188 pruebas, con casos de HTML/CSS antiguos, chunk faltante y despliegue concurrente. El workflow de GitHub es independiente del comando local: su último run observado falló en el backend y omitió el sitio; eso no impidió la publicación local verificada. No se ejecutó otro deploy durante este diagnóstico.
+
 
 El componente oficial `@convex-dev/static-hosting` construye Vite, despliega Convex y sube `dist`. La app queda en `https://<deployment>.convex.site`. El router registra `/api/auth/*` antes del catch-all del sitio. No agregar `httpPrefix` al componente: duplicaría el prefijo de auth. Las nuevas HTTP actions deben declarar explícitamente su ruta `/api/...`. Las queries/mutations del cliente usan la URL `.convex.cloud`.
 
@@ -296,3 +303,11 @@ Verificación local: 183 pruebas pasan, incluyendo permisos, validación, respal
 Se separaron los selectores de los avisos flotantes (`purchase-toast`) del panel de estado del pago (`purchase-notice`): compartían clase y heredaban el borde punteado y la alineación del otro componente. El aviso usa borde cero, fondo blanco, sombra suave y botón de cierre sin borde propio, con foco visible para teclado. La posición y frecuencia se mantienen.
 
 Verificación: 183 pruebas y build correctos. Aviso real del componente revisado en navegador a 390 px con ambos archivos CSS cargados: borde calculado `0px none`, sin desborde y cierre funcional. Captura local: `/tmp/checkout-notificacion-corregida.png`. Sin despliegue cloud.
+
+### Corrección del contenedor del aviso en el checkout (18/11/2026)
+
+La prueba aislada del aviso no incluía el padre `.checkout-page`. La regla `.checkout-page > [role='status']` aplicaba el fondo `#2c2c2c` de la barra de actividad también a la región flotante; el negro aparecía detrás de las esquinas redondeadas. La barra ahora tiene la clase `checkout-activity-bar` y la regla se limita a esa clase. La región del aviso conserva `role=status` y fondo transparente.
+
+Se reprodujo el fondo negro con el contenedor y CSS completos, y se verificó el cambio a `rgba(0, 0, 0, 0)` preservando la barra oscura. Pasaron 188 pruebas. Se publicó solo frontend con `static-hosting deploy --skip-convex`, deployment `8c0a3f59-a923-4b9e-aa0a-b8fa4abf879c`, y se verificaron el HTML y los 11 JS/CSS por hash (versión `7af0710362bb`). En el checkout público `/l/aprende-claude-en-7-dias/checkout` se confirmó el fondo transparente con el navegador. No se ingresaron datos personales ni se enviaron pagos.
+
+La lectura pública de esa oferta mostró un principal «Aprende IA en 7 dias para mayores de 50» y un único extra «Guia para empresarios», sin portada, descripción ni referencia de precio. La diferencia de contenido del combo respecto de la captura de referencia corresponde a esos datos del catálogo y oferta; no se modificaron los productos.
