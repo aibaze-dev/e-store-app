@@ -130,6 +130,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
   const t = text => personalize(text, context);
   const money = value => formatMoney(value, view?.store.currency || 'USD');
   return blocks.filter(b => b.enabled !== false && matches(b.when, context)).map(b => {
+    if (b.type === 'video' && !b.videoUrl) return null;
     const data = (b.points || []).map(p => ({ label: t(p.label), value: evaluate(p.expression, context) }));
     const value = b.ref ? resolveRef(b.ref, context) : null;
     const guarantee = view?.content?.guarantee;
@@ -150,7 +151,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
       {b.type === 'rating' && <Rating block={b} t={t} />}
       {b.type === 'beforeAfter' && <><BeforeAfter block={b} t={t} />{b.text && <p className="quiz-disclaimer">{t(b.text)}</p>}</>}
       {b.type === 'image' && <Img src={b.imageUrl} alt={t(b.alt)} className="quiz-image" />}
-      {b.type === 'video' && b.videoUrl && <video controls preload="metadata" src={b.videoUrl} aria-label={t(b.title)} />}
+      {b.type === 'video' && b.videoUrl && <video controls playsInline preload="metadata" src={b.videoUrl} aria-label={t(b.title) || 'Video de venta'} />}
       {b.type === 'answers' && <dl>{context.quiz.steps.filter(s => context.answers[s.id] != null && s.type !== 'contact').map(s => <div key={s.id}><dt>{t(s.title)}</dt><dd>{displayRef(`answer:${s.id}`, context)}</dd></div>)}</dl>}
       {['metric', 'scale'].includes(b.type) && <><strong className="quiz-metric">{displayRef(b.ref, context)} {t(b.suffix)}</strong>{b.type === 'scale' && typeof value === 'number' && <meter min={b.min} max={b.max} value={value} aria-label={t(b.title)} />}</>}
       {b.type === 'comparison' && <dl className="quiz-comparison">{data.map((p, i) => <div key={i}><dt>{p.label}</dt><dd>{p.value ?? 'Sin resultado'}</dd></div>)}</dl>}

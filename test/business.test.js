@@ -692,7 +692,24 @@ describe('section-based sales template', () => {
       { benefits: { ...content.benefits, imageUrl: 'javascript:alert(1)' } },
       { socialProof: { title: '', items: [{ name: 'Ana', quote: 'Texto', photoUrl: 'data:image/png;base64,x' }] } },
       { hero: { ...content.hero, headerCtaText: 'x'.repeat(61) } },
+      { hero: { ...content.hero, titleAccent: 'x'.repeat(161) } },
     ]) await expect(save({ ...content, ...patch })).rejects.toThrow();
+  });
+
+  it('keeps the hero accent in draft until publication and allows clearing it', async () => {
+    const { t, admin, storeId } = await campaign();
+    const draft = normalizeContent(content);
+    draft.hero = { ...draft.hero, title: 'Aprendé en 7 días y', titleAccent: 'tené el trabajo hecho' };
+    const save = () => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
+    await save();
+    expect((await admin.query(api.landings.preview, { storeId })).content.hero).toMatchObject(draft.hero);
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.hero.titleAccent).toBeUndefined();
+    await admin.mutation(api.landings.publish, { storeId });
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.hero).toMatchObject(draft.hero);
+    draft.hero.titleAccent = '';
+    await save();
+    await admin.mutation(api.landings.publish, { storeId });
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.hero.titleAccent).toBe('');
   });
 
   it('rejects invalid section content on the server', async () => {
@@ -878,7 +895,7 @@ describe('landing copy assistant', () => {
     const sent = requests[0].body.messages[1].content;
     expect(sent).toContain('Quién está detrás del producto: Somos dos docentes');
     expect(requests[0].body.response_format.json_schema.schema.required).toEqual(expect.arrayContaining(['introduction', 'transformation', 'about', 'showcase', 'bonuses', 'comparison', 'summary']));
-    expect(draft.hero).toMatchObject({ title: 'Tu *primera inversión*', eyebrow: 'En 7 días', headerCtaText: 'Quiero mi guía', noteTitle: '¿Necesito experiencia?' });
+    expect(draft.hero).toMatchObject({ title: 'Tu', titleAccent: 'primera inversión', eyebrow: 'En 7 días', headerCtaText: 'Quiero mi guía', noteTitle: '¿Necesito experiencia?' });
     expect(draft.introduction).toEqual(full.introduction);
     expect(draft.about).toEqual(full.about);
     expect(draft.showcase).toEqual({ eyebrow: 'Qué viene adentro', title: 'Todo lo que recibís' });

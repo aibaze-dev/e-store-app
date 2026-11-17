@@ -1,12 +1,12 @@
 import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
 import { POST_PURCHASE_CONTENT } from '../../shared/post-purchase.js';
-import { CLASSIC_ACCENT, CLASSIC_STORY } from '../../shared/classic-design.js';
+import { CLASSIC_ACCENT, CLASSIC_STORY, splitHeroTitle } from '../../shared/classic-design.js';
 
 // Defaults are shared by the form and public renderer. Existing string lists remain readable.
 export const EMPTY_CONTENT = {
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
-  hero: { eyebrow: '', title: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },
+  hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },
   promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Oferta limitada', timerMode: 'session' },
   benefits: { enabled: true, eyebrow: 'Tu kit completo', title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
   painPoints: { closingText: '', enabled: true, eyebrow: 'Si te pasa esto, es para vos', title: '¿Te sentís identificado?', subtitle: '', ctaText: '', items: [] },
@@ -24,6 +24,7 @@ export const EMPTY_CONTENT = {
 
 export function normalizeContent(content = {}) {
   const normalized = Object.fromEntries(Object.entries(EMPTY_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
+  Object.assign(normalized.hero, splitHeroTitle(content.hero));
   for (const key of ['benefits', 'painPoints', 'steps', 'postPurchaseBenefits']) {
     normalized[key].items = normalized[key].items.map(item => typeof item === 'string' ? { title: item, description: '', icon: 'check' } : { ...item });
   }
@@ -36,6 +37,7 @@ export function normalizeContent(content = {}) {
 // Regeneration replaces AI examples while retaining manually supplied testimonials.
 export function mergeGeneratedContent(content, generated) {
   const merged = { ...content, ...Object.fromEntries(Object.entries(generated).map(([key, patch]) => [key, { ...content[key], ...patch }])) };
+  if (generated.hero?.title !== undefined) Object.assign(merged.hero, splitHeroTitle(generated.hero));
   // Sections that start switched off turn on the first time the assistant writes them;
   // one the seller already filled keeps the visibility they chose.
   for (const key of ['introduction', 'transformation', 'about', 'showcase', 'comparison']) {

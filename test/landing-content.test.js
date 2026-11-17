@@ -5,6 +5,21 @@ import { normalizeContent, mergeGeneratedContent, offerTotals, promotionRemainin
 import { content } from './helpers';
 
 describe('sales template content', () => {
+  it('separates the trailing hero accent without reordering legacy titles', () => {
+    const hero = { title: 'Aprendé en 7 días y *tené el trabajo hecho*' };
+    expect(normalizeContent({ hero }).hero).toMatchObject({ title: 'Aprendé en 7 días y', titleAccent: 'tené el trabajo hecho' });
+    expect(hero.title).toBe('Aprendé en 7 días y *tené el trabajo hecho*');
+    for (const title of ['Tu *asistente* en 7 días', '**Aprendé** y *delegá*', '*Todo resaltado*']) {
+      expect(normalizeContent({ hero: { title } }).hero).toMatchObject({ title, titleAccent: '' });
+    }
+    expect(normalizeContent({ hero: { ...hero, titleAccent: '' } }).hero).toMatchObject({ ...hero, titleAccent: '' });
+  });
+  it('replaces both hero title parts when generating new copy', () => {
+    const current = normalizeContent({ hero: { title: 'Anterior', titleAccent: 'Remate anterior' } });
+    expect(mergeGeneratedContent(current, { hero: { title: 'Nuevo título' } }).hero).toMatchObject({ title: 'Nuevo título', titleAccent: '' });
+    expect(mergeGeneratedContent(current, { hero: { title: 'Nuevo', titleAccent: 'Remate nuevo' } }).hero).toMatchObject({ title: 'Nuevo', titleAccent: 'Remate nuevo' });
+    expect(mergeGeneratedContent(current, { hero: { title: 'Nuevo *remate*' } }).hero).toMatchObject({ title: 'Nuevo', titleAccent: 'remate' });
+  });
   it('upgrades the legacy palette while preserving a personalized brand color', () => {
     expect(classicTheme('#f59e0b')).toEqual(classicTheme());
     expect(classicTheme('invalid')).toEqual(classicTheme());

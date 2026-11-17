@@ -17,8 +17,21 @@ export const LANDING_SECTIONS = {
   closing: ['16', 'Cierre'],
   combo: ['17', 'Armá tu combo y botón fijo'],
   identity: ['18', 'Identidad y dirección'],
-  postPurchase: ['19', 'Post-compra · Presentación'],
-  postPurchaseBenefits: ['20', 'Post-compra · Beneficios'],
-  postPurchaseVideo: ['21', 'Post-compra · Video VSL'],
-  postPurchaseDownsell: ['22', 'Post-compra · Oferta con descuento'],
+  checkoutTimer: ['01', 'Contador del checkout'],
+  postPurchase: ['01', 'Post-compra · Presentación'],
+  postPurchaseBenefits: ['02', 'Post-compra · Beneficios'],
+  postPurchaseVideo: ['03', 'Post-compra · Video VSL'],
+  postPurchaseDownsell: ['04', 'Post-compra · Oferta con descuento'],
 };
+
+export const LANDING_TABS = [
+  { id: 'landing', label: 'Config. landing' },
+  { id: 'post', label: 'Post-compra' },
+  { id: 'checkout', label: 'Checkout' },
+];
+
+export function landingSectionTab(id = '') {
+  if (id.startsWith('postPurchase')) return 'post';
+  if (id.startsWith('checkout')) return 'checkout';
+  return 'landing';
+}

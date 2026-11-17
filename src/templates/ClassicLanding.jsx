@@ -3,7 +3,7 @@ import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/inter';
 import './classic-landing.css';
 import './classic.css';
-import { classicTheme } from '../../shared/classic-design.js';
+import { classicTheme, plainText } from '../../shared/classic-design.js';
 export { readableOn } from '../../shared/classic-design.js';
 import { videoSource } from '../../shared/post-purchase.js';
 import { formatLandingText } from '../../shared/landing-copy.js';
@@ -212,6 +212,8 @@ export default function ClassicLanding({ view, onCta }) {
     ? <Picture className="cl-figure" src={section.imageUrl} alt={section.imageAlt || section.title} />
     : <PhotoSlot {...slot} />;
 
+  const heroHeading = <>{rich(hero.title || offer.main.name)}{hero.titleAccent && <> <em>{plainText(hero.titleAccent)}</em></>}</>;
+
   return <div ref={landingRef} className={`cl-landing ${hasSticky ? 'has-sticky' : ''}`} style={theme}>
     {hasPromo && <div ref={promoRef} {...edit('promotion')} className="cl-promo"><strong>{promotion.title || offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Termina en ${countdown}`}>{countdown}</time></>}</span></div>}
     {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
@@ -219,7 +221,7 @@ export default function ClassicLanding({ view, onCta }) {
       <header {...edit('hero')} className="cl-masthead"><div className="cl-wrap">
         <div className="cl-masthead-copy">
           {hero.eyebrow && <span className="cl-tag"><Sparkles aria-hidden="true" />{hero.eyebrow}</span>}
-          <h1>{rich(hero.title || offer.main.name)}</h1>
+          <h1>{heroHeading}</h1>
           {hero.subtitle && <p>{rich(hero.subtitle)}</p>}
         </div>
         <div className="cl-masthead-offer">
@@ -339,7 +341,7 @@ export default function ClassicLanding({ view, onCta }) {
       </div></section>}
 
       {closing.enabled && <section {...edit('closing')} className="cl-section cl-closing"><div className="cl-wrap cl-w-560">
-        <h2>{rich(closing.title || hero.title || offer.main.name)}</h2>
+        <h2>{closing.title ? rich(closing.title) : heroHeading}</h2>
         {closing.text && <p>{rich(closing.text)}</p>}
         {cta(closing.ctaText, 'is-big')}
         {(closing.note || trustText) && <p className="cl-trust">{closing.note || trustText}</p>}

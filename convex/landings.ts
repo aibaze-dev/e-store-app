@@ -104,6 +104,7 @@ export function cleanContent(content: typeof landingContent.type) {
       trustText: cleanText(content.hero.trustText ?? '', 'Línea de confianza', 160),
       footnote: cleanText(content.hero.footnote ?? '', 'Aclaración de formato', 160),
       title: cleanText(content.hero.title, 'Título', 160),
+      ...(content.hero.titleAccent !== undefined ? { titleAccent: cleanText(content.hero.titleAccent, 'Título principal accent', 160) } : {}),
       subtitle: cleanText(content.hero.subtitle, 'Subtítulo', 400),
       imageUrl: cleanUrl(content.hero.imageUrl, 'Imagen principal'),
       ctaText: cleanText(content.hero.ctaText, 'Texto del botón', 60),

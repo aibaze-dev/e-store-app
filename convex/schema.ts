@@ -16,7 +16,7 @@ export const landingContent = v.object({
   })),
   postPurchaseBenefits: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   postPurchaseVideo: v.optional(v.object({ enabled: v.boolean(), title: v.string(), url: v.string() })),
-  hero: v.object({ title: v.string(), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()), headerCtaText: v.optional(v.string()), ratingText: v.optional(v.string()), trustText: v.optional(v.string()), noteTitle: v.optional(v.string()), footnote: v.optional(v.string()) }),
+  hero: v.object({ title: v.string(), titleAccent: v.optional(v.string()), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()), headerCtaText: v.optional(v.string()), ratingText: v.optional(v.string()), trustText: v.optional(v.string()), noteTitle: v.optional(v.string()), footnote: v.optional(v.string()) }),
   introduction: v.optional(v.object({ ...storyFields, text: v.string(), badge: v.optional(v.string()) })),
   transformation: v.optional(v.object({ ...storyFields, ...storyImage })),
   about: v.optional(v.object({ ...storyFields, ...storyImage, text: v.string(), signature: v.optional(v.string()) })),

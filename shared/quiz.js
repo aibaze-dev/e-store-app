@@ -331,6 +331,7 @@ export function createQuizTemplate(productName = 'tu próximo objetivo') {
 // "your plan is ready" summary, goals, what you get and (when real data exists) social proof.
 export function finalPageBlocks(productName = 'tu guía', ids = { level: 'welcome', minutes: 'minutes', goal: 'goal', wishes: 'wishes' }) {
   return [
+    { id: 'vsl', type: 'video', title: '', videoUrl: '' },
     { id: 'now_after', type: 'nowAfter', now: { label: 'Ahora', icon: '😕', imageUrl: '' }, after: { label: 'Con tu plan', icon: '😄', imageUrl: '' },
       metrics: [{ label: 'Claridad', now: 2, after: 5 }, { label: 'Constancia', now: 1, after: 4 }] },
     ...(ids.level ? [{ id: 'level', type: 'gauge', title: 'Tu punto de partida', stepId: ids.level, leftLabel: 'Inicial', rightLabel: 'Avanzado',

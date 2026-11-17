@@ -30,7 +30,7 @@ export function LandingContentSummary({ landing, storeId }) {
   const content = landing?.draft;
   const count = (items, singular, plural) => `${items?.length || 0} ${items?.length === 1 ? singular : plural}`;
   const sections = [
-    ['hero', 'Presentación', plainText(content?.hero.title) || 'Sin título principal'],
+    ['hero', 'Presentación', plainText([content?.hero.title, content?.hero.titleAccent].filter(Boolean).join(' ')) || 'Sin título principal'],
     ['benefits', 'Beneficios', count(content?.benefits.items, 'beneficio', 'beneficios')],
     ['painPoints', 'Puntos de dolor', count(content?.painPoints?.items, 'punto de dolor', 'puntos de dolor')],
     ['socialProof', 'Testimonios', count(content?.socialProof?.items, 'testimonio', 'testimonios')],

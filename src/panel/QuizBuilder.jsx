@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImageField, UploadContext } from './ImageField.jsx';
+import { ImageField, VideoField, UploadContext } from './ImageField.jsx';
 export { ImageField, UploadContext };
 import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ const TYPE_META = {
 const meta = type => TYPE_META[type] || { label: stepNames[type] || type, icon: LayoutList, tone: 'slate' };
 const ADD_TYPES = ['single', 'multiple', 'info', 'number', 'loading', 'contact'];
 const TONES = [{ value: 'good', label: '🟢 Bien' }, { value: 'warn', label: '🟡 Atención' }, { value: 'bad', label: '🔴 Te pasaste' }, { value: 'info', label: '🔵 Dato' }];
-const RESULT_BLOCKS = ['nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'guarantee', 'faq', 'text', 'image'];
+const RESULT_BLOCKS = ['video', 'nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'guarantee', 'faq', 'text', 'image'];
 const RESULT = '$result';
 
 function IconButton({ label, children, ...props }) {
@@ -317,6 +317,7 @@ function BlockEditor({ block, quiz, onChange }) {
   if (block.type === 'guarantee') return <div className="qe-stack"><QField label="Título (vacío usa el de la tienda)" value={block.title} onChange={title => set({ title })} /><p className="qe-hint">El texto sale de la garantía configurada en la landing de la tienda.</p></div>;
   if (block.type === 'faq') return <div className="qe-stack">{head}<ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar pregunta" empty={() => ({ title: 'Pregunta', text: 'Respuesta' })} fields={[['title', 'Pregunta'], ['text', 'Respuesta', 'long']]} /></div>;
   if (block.type === 'image') return <div className="qe-stack">{head}<ImageField label="Imagen" value={block.imageUrl} onChange={imageUrl => set({ imageUrl })} /></div>;
+  if (block.type === 'video') return <div className="qe-stack">{head}<VideoField label="Archivo del VSL" value={block.videoUrl} onChange={videoUrl => set({ videoUrl })} /><p className="qe-hint">Se muestra al terminar el quiz, antes de ir al checkout. Subí tu video para que aparezca en la página final.</p></div>;
   if (block.type === 'text') return <div className="qe-stack">{head}</div>;
   return <Blocks quiz={quiz} value={[block]} onChange={([next]) => next ? onChange(next) : onChange(null)} />;
 }
@@ -336,6 +337,7 @@ function ResultInspector({ quiz, result, onChange }) {
     </section>
     <section className="qe-section">
       <h3>Secciones</h3>
+      {!blocks.some(b => b.type === 'video') && <Button type="button" variant="outline" onClick={() => { const block = { id: uid(), type: 'video', ...NEW_BLOCKS.video() }; setBlocks([block, ...blocks]); setOpen(block.id); }}>+ Agregar VSL</Button>}
       <Sortable label="Secciones de la página final" items={blocks} getKey={b => b.id} onMove={(from, to) => setBlocks(move(blocks, from, to))} render={(block, i, handle) => <div className={`qe-block-card ${block.enabled === false ? 'is-hidden' : ''}`}>
         <div className="qe-block-head">
           <span className="qe-handle" {...handle} aria-hidden="true"><GripVertical /></span>

@@ -105,6 +105,36 @@ describe('simplified quiz authoring and shared presentation', () => {
 });
 
 describe('funnel quiz: images, live feedback, loading and final page', () => {
+ it('keeps a Storage VSL through draft, publication and completion', async () => {
+  const f = await fixture(), q = tiny();
+  const videoUrl = await f.t.run(async ctx => {
+   const id = await ctx.storage.store(new Blob(['test video'], { type: 'video/mp4' }));
+   return ctx.storage.getUrl(id);
+  });
+  const vsl = { id: 'vsl', type: 'video', title: 'Conocé tu guía', videoUrl };
+  q.results[0].blocks.unshift(vsl);
+  await publish(f, q);
+  const completed = await complete(f, token());
+  expect(completed.quiz.results[0].blocks[0]).toEqual(vsl);
+  const draft = structuredClone(q);
+  draft.results[0].blocks[0].videoUrl = '';
+  await f.admin.mutation(api.quizzes.save, { storeId: f.storeId, subdomain: 'guide', quiz: draft });
+  expect((await f.t.query(api.quizzes.publicConfig, { subdomain: 'guide' })).results[0].blocks[0]).toEqual(vsl);
+  await f.admin.mutation(api.quizzes.publish, { storeId: f.storeId });
+  expect((await f.t.query(api.quizzes.publicConfig, { subdomain: 'guide' })).results[0].blocks[0].videoUrl).toBe('');
+ });
+ it('preserves the uploaded VSL when AI replaces the questions and final page', async () => {
+  const f = await fixture(), q = createFunnelTemplate('Guía');
+  const vsl = q.results[0].blocks.find(b => b.type === 'video');
+  Object.assign(vsl, { title: 'Mirá cómo empezar', videoUrl: 'https://example.convex.cloud/api/storage/1234-5678' });
+  vi.stubEnv('OPENAI_API_KEY', 'test');
+  const output = { title: 'Inicio', description: 'Tu guía', finalPage: {}, steps: [{ type: 'single', title: '¿Qué buscás?', description: '', options: [{ label: 'Aprender', description: '' }, { label: 'Practicar', description: '' }] }], results: [{ id: 'general', title: 'Tu resultado', description: '' }] };
+  output.steps = Array.from({ length: 3 }, () => structuredClone(output.steps[0]));
+  vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(output) } }] })));
+  const proposal = await f.admin.action(api.quiz_wizard.generate, { storeId: f.storeId, quiz: q, audience: 'Lectores', goal: 'Aprender', tone: 'Cercano', length: 3, mode: 'replace' });
+  expect(proposal.results[0].blocks.find(b => b.type === 'video')).toEqual(vsl);
+  expect(validateQuiz(proposal, true)).toEqual([]);
+ });
  it('ships a valid default funnel that completes into the final page', () => {
   const q = createFunnelTemplate('Guía');
   expect(validateQuiz(q, true)).toEqual([]);

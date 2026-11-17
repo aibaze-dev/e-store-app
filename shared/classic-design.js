@@ -42,3 +42,12 @@ export function classicTheme(value) {
     '--classic-banner-mid': standard ? '#ff5c1a' : accent,
   };
 }
+
+// Split only a trailing legacy highlight: other layouts keep their original order.
+// An explicitly empty accent stays empty when the seller clears that field.
+export function splitHeroTitle(hero = {}) {
+  const title = typeof hero?.title === 'string' ? hero.title : '';
+  if (typeof hero?.titleAccent === 'string') return { title, titleAccent: hero.titleAccent };
+  const match = title.match(/^([^*]+?)\s+\*([^*]+)\*\s*$/);
+  return match ? { title: match[1].trimEnd(), titleAccent: match[2] } : { title, titleAccent: '' };
+}

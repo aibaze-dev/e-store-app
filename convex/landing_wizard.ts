@@ -1,3 +1,4 @@
+import { splitHeroTitle } from '../shared/classic-design.js';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { action, internalQuery } from './lib/functions';
@@ -27,7 +28,7 @@ const object = (properties: Record<string, unknown>) => ({ type: 'object', prope
 const list = (properties: Record<string, unknown>) => ({ type: 'array', items: object(properties) });
 const icon = { type: 'string', enum: ICONS };
 const SCHEMA = object({
-  hero: object({ eyebrow: text, title: text, subtitle: text, headerCtaText: text, ctaText: text, trustText: text, noteTitle: text, note: text, footnote: text }),
+  hero: object({ eyebrow: text, title: text, titleAccent: text, subtitle: text, headerCtaText: text, ctaText: text, trustText: text, noteTitle: text, note: text, footnote: text }),
   introduction: object({ title: text, text, badge: text }),
   transformation: object({ eyebrow: text, title: text, subtitle: text }),
   benefits: object({ eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
@@ -55,10 +56,10 @@ Reglas:
 - Escribí en el mismo idioma y variedad regional que las respuestas del vendedor.
 - Usá solo la información recibida, salvo los testimonios ilustrativos solicitados en socialProof. No inventes cifras, estadísticas, credenciales, premios, precios, descuentos, plazos ni resultados garantizados.
 - No prometas resultados médicos, financieros ni legales.
-- Texto plano: sin markdown, sin emojis y sin comillas alrededor de los textos. Única excepción: en hero.title, en los títulos de sección y en closing.title podés envolver UNA frase corta entre asteriscos simples para resaltarla (*así*); en introduction.text y about.text podés usar además **dobles** para negrita, con moderación.
+- Texto plano: sin markdown, sin emojis y sin comillas alrededor de los textos. Única excepción: en los títulos de sección y en closing.title podés envolver UNA frase corta entre asteriscos simples para resaltarla (*así*); en introduction.text y about.text podés usar además **dobles** para negrita, con moderación.
 - Escribí TODAS las secciones del esquema: la landing se arma completa con tu respuesta.
 - eyebrow (etiqueta sobre el título): hasta 40 caracteres, sin punto final.
-- hero: eyebrow breve; headerCtaText y ctaText son botones distintos entre sí. trustText: una línea de hasta 120 caracteres con datos separados por « · » (acceso inmediato, pago único y seguro, y la garantía solo si el vendedor informó los días). noteTitle y note: una duda frecuente antes de comprar (pregunta de hasta 80 caracteres) y su respuesta (hasta 200), usando solo los datos recibidos. footnote: el formato del producto en hasta 80 caracteres (es digital).
+- hero: title y titleAccent son dos partes consecutivas del mismo título: title es el inicio en color base y titleAccent es el remate resaltado. Texto plano en ambos, sin asteriscos; hasta 160 caracteres entre los dos. No repitas el título completo en titleAccent; puede estar vacío si no hace falta resaltar. eyebrow breve; headerCtaText y ctaText son botones distintos entre sí. trustText: una línea de hasta 120 caracteres con datos separados por « · » (acceso inmediato, pago único y seguro, y la garantía solo si el vendedor informó los días). noteTitle y note: una duda frecuente antes de comprar (pregunta de hasta 80 caracteres) y su respuesta (hasta 200), usando solo los datos recibidos. footnote: el formato del producto en hasta 80 caracteres (es digital).
 - introduction: title es una pregunta o frase gancho (hasta 110 caracteres); text son 3 o 4 párrafos cortos separados por un salto de línea que presentan el ebook, para quién es y qué resuelve; badge es una frase de cierre de hasta 60 caracteres.
 - transformation: título de hasta 90 caracteres con el cambio «de … a …» que logra el lector y un subtítulo de una línea. La foto la sube el vendedor: no la describas.
 - showcase: título y subtítulo breves que presentan la imagen con todo lo que recibe el comprador. No enumeres contenidos que no figuren en los datos.
@@ -115,6 +116,7 @@ const copyText = (value: unknown, fallback: string, max: number, token?: string)
 };
 
 export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: Offer['postPurchase'], hasBonuses = true) {
+  const hero = splitHeroTitle(raw?.hero);
   const guarantee = { title: clip(raw?.guarantee?.title, 120), text: clip(raw?.guarantee?.text, 1200) };
   const eyebrow = (value: any) => filled({ eyebrow: clip(value?.eyebrow, 120) });
   // The seller's product is always the highlighted column, whatever the model says.
@@ -124,7 +126,7 @@ export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: 
   ].filter(item => item.title && item.description);
   return {
     hero: {
-      title: clip(raw?.hero?.title, 160), subtitle: clip(raw?.hero?.subtitle, 400), ctaText: clip(raw?.hero?.ctaText, 60),
+      title: clip(hero.title, 160), titleAccent: clip(hero.titleAccent, 160), subtitle: clip(raw?.hero?.subtitle, 400), ctaText: clip(raw?.hero?.ctaText, 60),
       ...filled({ eyebrow: clip(raw?.hero?.eyebrow, 120), headerCtaText: clip(raw?.hero?.headerCtaText, 60), trustText: clip(raw?.hero?.trustText, 160), noteTitle: clip(raw?.hero?.noteTitle, 120), note: clip(raw?.hero?.note, 240), footnote: clip(raw?.hero?.footnote, 160) }),
     },
     ...section('introduction', { title: clip(raw?.introduction?.title, 120), text: clip(raw?.introduction?.text, 2400), badge: clip(raw?.introduction?.badge, 120) }),
