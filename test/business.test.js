@@ -1212,8 +1212,8 @@ describe('sale alert on Discord', () => {
 
     expect(discord.messages).toHaveLength(1);
     const order = await t.run(async ctx => (await ctx.db.query('orders').collect())[0]);
-    for (const item of order.items) expect(discord.messages[0].content).toContain(item.name);
-    expect(discord.messages[0].content).toMatch(/36[.,]00/);
+    expect(discord.messages[0].content).toMatch(/^🔥 NUEVA VENTA 🔥 - .*36[.,]00/);
+    for (const item of order.items) expect(discord.messages[0].content).not.toContain(item.name);
     expect(discord.messages[0].allowed_mentions).toEqual({ parse: [] });
   });
 

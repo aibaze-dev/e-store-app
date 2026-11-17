@@ -4,6 +4,8 @@ import { internalAction, internalMutation, internalQuery, type Id, type Mutation
 import { adminEmails } from './lib/admin_emails';
 import { escapeHtml, resendSettings, safeUrl, sendEmail, type EmailMessage } from './lib/resend';
 import { emailStatus } from './schema';
+import brand from '../src/config/brandData.json';
+import { classicTheme } from '../shared/classic-design.js';
 
 // Transactional emails sent after a verified Stripe event:
 // - paid: the buyer receives their delivery links.
@@ -95,24 +97,49 @@ export function money(amount: number, currency: string) {
   }
 }
 
-const layout = (title: string, body: string) => `<!doctype html><html lang="es"><body style="margin:0;background:#f4f5f7;font-family:Arial,sans-serif;color:#202a3b">
-<div style="max-width:560px;margin:0 auto;padding:32px 20px"><div style="background:#fff;border-radius:12px;padding:28px">
-<h1 style="margin:0 0 16px;font-size:22px">${escapeHtml(title)}</h1>${body}</div></div></body></html>`;
+// Use the existing brand color and the landing's contrast-aware action palette.
+// Inline styles and presentation tables also work when mail clients strip CSS.
+const theme = classicTheme(brand.primaryColor);
+const colors = {
+  accent: theme['--sales-accent'], action: theme['--classic-action'], onAction: theme['--classic-on-action'],
+  canvas: '#f6f1eb', paper: '#ffffff', soft: '#fcf6ef', ink: '#30251f', muted: '#746359', line: '#e9ddd1',
+};
+const layout = (title: string, body: string, label: string, preheader: string) => `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>
+<style>@media only screen and (max-width:600px){.email-shell{padding:16px 8px!important}.email-pad{padding:24px 20px!important}.email-title{font-size:28px!important;line-height:1.2!important}}</style></head>
+<body style="margin:0;padding:0;background-color:${colors.canvas};font-family:Arial,Helvetica,sans-serif;color:${colors.ink};-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeHtml(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${colors.canvas}" style="width:100%;border-collapse:collapse"><tr><td class="email-shell" align="center" style="padding:40px 16px">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${colors.paper}" style="width:100%;max-width:600px;border:1px solid ${colors.line};border-top:8px solid ${colors.accent};border-radius:16px;border-spacing:0;table-layout:fixed">
+<tr><td class="email-pad" bgcolor="${colors.soft}" style="padding:32px;border-bottom:1px solid ${colors.line};border-radius:8px 8px 0 0;overflow-wrap:anywhere;word-wrap:break-word">
+<p style="margin:0 0 16px;font-size:12px;line-height:1.6;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:${colors.action}">${escapeHtml(label)}</p>
+<h1 class="email-title" style="margin:0;font-size:32px;line-height:1.2;letter-spacing:-0.6px;color:${colors.ink}">${escapeHtml(title)}</h1>
+</td></tr><tr><td class="email-pad" style="padding:32px;overflow-wrap:anywhere;word-wrap:break-word">${body}</td></tr></table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table></body></html>`;
 
 function itemsTable(data: Context) {
-  const rows = data.items.map(item => `<tr><td style="padding:6px 0">${escapeHtml(item.name)}</td><td style="padding:6px 0;text-align:right">${item.price > 0 ? escapeHtml(money(item.price, data.currency)) : 'Incluido'}</td></tr>`).join('');
-  return `<table style="width:100%;border-collapse:collapse;font-size:15px">${rows}<tr><td style="padding:10px 0 0;border-top:1px solid #e3e6ea;font-weight:bold">Total</td><td style="padding:10px 0 0;border-top:1px solid #e3e6ea;text-align:right;font-weight:bold">${escapeHtml(money(data.total, data.currency))}</td></tr></table>`;
+  const rows = data.items.map(item => `<tr><th scope="row" style="padding:12px 12px 12px 0;border-bottom:1px solid ${colors.line};font-weight:normal;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-wrap:break-word">${escapeHtml(item.name)}</th><td style="width:104px;padding:12px 0;border-bottom:1px solid ${colors.line};text-align:right;vertical-align:top;color:${item.price > 0 ? colors.ink : colors.muted}">${item.price > 0 ? escapeHtml(money(item.price, data.currency)) : 'Incluido'}</td></tr>`).join('');
+  return `<table aria-label="Detalle de tu compra" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.6">${rows}<tr><th scope="row" style="padding:20px 0 0;text-align:left;font-size:16px">Total</th><td style="padding:20px 0 0;text-align:right;font-weight:bold;font-size:18px;color:${colors.action}">${escapeHtml(money(data.total, data.currency))}</td></tr></table>`;
 }
 
 export function deliveryEmail(data: Context): Omit<EmailMessage, 'from'> {
   const store = data.storeName || 'tu compra';
   const greeting = data.buyer?.name ? `Hola ${data.buyer.name},` : 'Hola,';
   const links = data.deliveries.filter(link => safeUrl(link.url));
-  const html = layout(`¡Gracias por tu compra en ${store}!`, `
-<p style="font-size:15px;line-height:1.6">${escapeHtml(greeting)} tu pago se confirmó. Estos son tus accesos:</p>
-<ul style="padding-left:18px;font-size:15px;line-height:1.8">${links.map(link => `<li><strong>${escapeHtml(link.productName)}</strong> · <a href="${escapeHtml(link.url)}" style="color:#075bd8">${escapeHtml(link.title)}</a></li>`).join('')}</ul>
-<h2 style="font-size:16px;margin:24px 0 8px">Detalle</h2>${itemsTable(data)}
-<p style="font-size:13px;color:#5b6472;line-height:1.6;margin-top:24px">Guardá este email: es la forma más simple de volver a tus links.</p>`);
+  const html = layout('¡Tu compra está lista!', `
+<p style="margin:0 0 8px;font-size:16px;line-height:1.7">${escapeHtml(greeting)}</p>
+<p style="margin:0 0 28px;font-size:16px;line-height:1.7;color:${colors.muted}">Tu pago se confirmó. Gracias por elegir ${escapeHtml(store)}.</p>
+<h2 style="margin:0 0 8px;font-size:20px;line-height:1.4">Tus accesos</h2>
+<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${colors.muted}">Todo lo que compraste, en un solo lugar. Abrí cada contenido desde su botón.</p>
+${links.map(link => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;border-collapse:separate"><tr><td bgcolor="${colors.soft}" style="padding:20px;border:1px solid ${colors.line};border-radius:10px;overflow-wrap:anywhere;word-wrap:break-word">
+<h3 style="margin:0 0 6px;font-size:16px;line-height:1.5;color:${colors.ink}">${escapeHtml(link.productName)}</h3>
+${link.title !== link.productName ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${colors.muted}">${escapeHtml(link.title)}</p>` : ''}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px"><tr><td align="center" bgcolor="${colors.action}" style="border-radius:6px;mso-padding-alt:14px 22px"><a href="${escapeHtml(link.url)}" aria-label="Abrir ${escapeHtml(link.productName)}: ${escapeHtml(link.title)}" style="display:inline-block;padding:14px 22px;border:1px solid ${colors.action};border-radius:6px;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;color:${colors.onAction};mso-padding-alt:0">Abrir acceso &rarr;</a></td></tr></table>
+</td></tr><tr><td height="12" style="height:12px;font-size:0;line-height:0">&nbsp;</td></tr></table>`).join('')}
+<h2 style="font-size:18px;line-height:1.4;margin:24px 0 8px">Detalle de tu compra</h2>${itemsTable(data)}
+<p style="font-size:13px;color:${colors.muted};line-height:1.7;margin:28px 0 0;padding-top:24px;border-top:1px solid ${colors.line}">Guardá este email: es la forma más simple de volver a tus accesos cuando los necesites.</p>`, store, 'Tu pago está confirmado. Encontrá acá los accesos y el detalle de tu compra.');
   const text = [
     `${greeting} tu pago en ${store} se confirmó. Estos son tus accesos:`, '',
     ...links.map(link => `- ${link.productName} · ${link.title}: ${link.url}`), '',
@@ -137,6 +164,6 @@ export function reviewEmail(data: Context): Omit<EmailMessage, 'from'> {
     `Comprador: ${buyer}. Pago: ${data.paymentIntentId || 'sin identificador'}.`,
     'No se entregaron los links. Revisá el pago en Stripe: reembolsalo o entregá la compra a mano.',
   ];
-  const html = layout(`Revisar cobro en ${data.storeName || 'tu tienda'}`, lines.map(line => `<p style="font-size:15px;line-height:1.6">${escapeHtml(line)}</p>`).join(''));
+  const html = layout(`Revisar cobro en ${data.storeName || 'tu tienda'}`, lines.map(line => `<p style="font-size:15px;line-height:1.7;margin:0 0 16px">${escapeHtml(line)}</p>`).join(''), 'Revisión de pago', lines[0]);
   return { to: adminEmails(), subject: `Revisar cobro en ${data.storeName || 'tu tienda'}`, html, text: lines.join('\n') };
 }

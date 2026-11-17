@@ -103,7 +103,7 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 | `RESEND_API_KEY` | Clave de Resend para el email de entrega al comprador y el aviso de cobros a revisar. Sin ella (o sin `EMAIL_FROM`) no se envía nada y la orden lo indica en el panel. |
 | `EMAIL_FROM` | Remitente, por ejemplo `Mi Tienda <ventas@midominio.com>`. El dominio tiene que estar verificado en Resend. |
 | `EMAIL_REPLY_TO` | Opcional. Dirección para las respuestas del comprador. |
-| `DISCORD_SALE_BOT_URL` | Opcional. URL de un webhook de Discord: cada venta confirmada por Stripe publica ahí el nombre de los productos y el total. Es una credencial: solo en Convex. |
+| `DISCORD_SALE_BOT_URL` | Opcional. URL de un webhook de Discord: cada venta confirmada por Stripe publica ahí solo `🔥 NUEVA VENTA 🔥 - <total>`, sin productos ni datos del comprador. Es una credencial: solo en Convex. |
 | `OPENAI_API_KEY` | Clave de la API de OpenAI para el asistente de textos de la landing. Sin ella el asistente avisa que no está habilitado; el resto del panel funciona igual. |
 | `OPENAI_MODEL` | Opcional. Modelo a usar; por defecto `gpt-6.1-sol`. Debe aceptar Structured Outputs (`response_format` con `json_schema`). |
 
@@ -331,3 +331,9 @@ Inicio distingue las compras con fondo y franja por estado: verde pagado, ámbar
 «Cuánta gente vino» incluye barras verdes de compras pagadas, un total del período y una columna diaria. Se cuentan órdenes y transacciones actualmente pagadas por `transactions.paidAt`, en la zona horaria comercial del informe; las post-compra cuentan como pagos separados. Pendientes, rechazadas, vencidas, reembolsadas y en revisión quedan fuera. La lectura interna requiere administración, pagina todas las órdenes de la tienda (incluidas las creadas antes del período pero pagadas dentro de él) y solo devuelve fechas para agregar. No depende de la existencia de visitas ni de IPs reconocibles. No requiere migración; publicar frontend y backend juntos.
 
 Verificación local: 199 pruebas pasan, incluido un informe con más de 100 pagos, aislamiento por tienda, rango por fecha de pago y exclusión de otros estados. Revisión visual con datos de prueba locales en escritorio y móvil de 390/320 px, modos claro/oscuro y compras sin visitas registradas; sin desborde horizontal. Las vistas temporales se retiraron. No se publicaron estos cambios.
+
+## Presentación de los emails de compra (18/11/2026)
+
+`convex/emails.ts` usa el terracota de `src/config/brandData.json` (`primaryColor`, actualmente `#c15f3c`) y la paleta de acciones con contraste de la landing clásica. El correo tiene fondo crema, cabecera con la tienda, una tarjeta y botón por acceso, y detalle de productos con total. El aviso interno de cobro a revisar comparte la presentación sin incluir accesos. Se conservan destinatarios, asunto, texto alternativo, escape de contenido, filtrado de URLs y lógica de envío/reintento.
+
+La estructura usa tablas de presentación y estilos inline, con ajuste de espacios para móvil. Verificación: 201 pruebas existentes y build correctos; HTML generado desde la función real revisado en navegador en escritorio y a 320 px, sin desborde horizontal. No se envió un correo con el nuevo diseño ni se publicó el backend; los correos confirmados durante el QA anterior corresponden al diseño previo. Para aplicar el cambio a futuros envíos se debe desplegar Convex.

@@ -251,7 +251,7 @@ function DownsellOffer({ view, via }) {
         <Button size="lg" className="h-14 w-full text-base" onClick={pay} disabled={busy || !stripeKey}>
           {busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Preparando el pago…' : 'Sí, lo quiero con descuento'}
         </Button>
-        <Button asChild variant="ghost" className="w-full"><Link to="..">{copy.declineText}</Link></Button>
+        <Button asChild variant="ghost" className="w-full"><Link to={origin==='quiz'?'../quiz/resultado':'..'}>{copy.declineText}</Link></Button>
       </div>}
       <p className="flex justify-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="size-3.5" aria-hidden="true" />Pago seguro</p>
     </main>

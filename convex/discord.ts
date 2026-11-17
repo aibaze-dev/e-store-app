@@ -10,14 +10,11 @@ export async function queueSaleAlert(ctx: MutationCtx, transactionId: Id<'transa
   await ctx.scheduler.runAfter(0, internal.discord.notifySale, { transactionId });
 }
 
-type Sale = { storeName: string; currency: string; total: number; items: { name: string; price: number }[] };
+type Sale = { currency: string; total: number };
 
-// Names come from the panel: mentions are disabled so a product name cannot ping the channel.
+// Only the amount: no product, store or buyer text reaches the channel.
 export function saleMessage(sale: Sale) {
-  const names = sale.items.map(item => item.name).filter(Boolean).join(' + ') || sale.storeName || 'Venta';
-  const store = sale.storeName && sale.storeName !== names ? ` · ${sale.storeName}` : '';
-  const content = `💰 Nueva venta: **${names}** — ${money(sale.total, sale.currency)}${store}`;
-  return { content: content.slice(0, 2000), allowed_mentions: { parse: [] as string[] } };
+  return { content: `🔥 NUEVA VENTA 🔥 - ${money(sale.total, sale.currency)}`, allowed_mentions: { parse: [] as string[] } };
 }
 
 // Best effort: a failed alert is logged and never affects the payment or the delivery email.
