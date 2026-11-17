@@ -26,6 +26,7 @@ import DownsellModal from './DownsellModal.jsx';
 import { downsellCopy } from './downsell.js';
 import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } from './CheckoutSignals.jsx';
 import { useViewTracking } from './useViewTracking.js';
+import { useQuizContact } from './useQuizContact.js';
 
 const Page = ({ children }) => <main className="mx-auto max-w-2xl space-y-6 px-5 py-10 sm:px-6">{children}</main>;
 const Unavailable = () => <Page>
@@ -71,6 +72,8 @@ export function Checkout({ view, via }) {
   const origin=location.state?.origin || 'direct';
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { promotion: view.content?.promotion });
+  // The quiz already asked for name and email: the navigation brings them, the server keeps them on reload.
+  const quizContact = useQuizContact(view.subdomain);
   const { offer, store } = view;
   // Extras ticked in the landing's order builder arrive already selected.
   const [selected, setSelected] = useState(() => offer.upsells.filter(upsell => location.state?.selected?.includes(upsell.productId)).map(upsell => upsell.productId));
@@ -108,7 +111,7 @@ export function Checkout({ view, via }) {
     <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
       <section className="min-w-0 space-y-8">
         <h1 ref={headingRef} tabIndex={-1} className="sr-only">Finalizá tu compra</h1>
-        <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={origin==='quiz'?location.state?.buyer:undefined} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
+        <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={location.state?.buyer ?? quizContact ?? undefined} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />
         {trust}
       </section>
 
@@ -180,6 +183,7 @@ function DownsellOffer({ view, via }) {
   const origin=useLocation().state?.origin || 'direct';
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const { timeLeft } = useSimulatedCheckoutSignals(`${view.subdomain}:oferta`);
+  const quizContact = useQuizContact(view.subdomain);
   const start = useAction(api.checkout.start);
   const attemptFor = useAttempt();
   const [clientSecret, setClientSecret] = useState('');
@@ -241,7 +245,7 @@ function DownsellOffer({ view, via }) {
           </dl>
         </div>
       </section>
-      {clientSecret ? <SessionPayment clientSecret={clientSecret} total={downsell.price} currency={store.currency} totalLabel={money(downsell.price)} askContact /> : <div className="space-y-3">
+      {clientSecret ? <SessionPayment clientSecret={clientSecret} total={downsell.price} currency={store.currency} totalLabel={money(downsell.price)} askContact initialBuyer={quizContact ?? undefined} /> : <div className="space-y-3">
         {!stripeKey && <Alert><AlertDescription>Los pagos todavía no están habilitados en este sitio.</AlertDescription></Alert>}
         <ErrorAlert>{error}</ErrorAlert>
         <Button size="lg" className="h-14 w-full text-base" onClick={pay} disabled={busy || !stripeKey}>

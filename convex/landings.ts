@@ -87,6 +87,9 @@ export function cleanContent(content: typeof landingContent.type) {
       downsellTitle: cleanText(post.postPurchase.downsellTitle, 'Título del downsell post-compra', 160),
       downsellText: cleanText(post.postPurchase.downsellText, 'Texto del downsell post-compra', 1200),
       downsellCtaText: cleanText(post.postPurchase.downsellCtaText, 'Botón del downsell post-compra', 60),
+      finalTitle: cleanText(post.postPurchase.finalTitle, 'Título de la última oportunidad', 160),
+      finalText: cleanText(post.postPurchase.finalText, 'Texto de la última oportunidad', 1200),
+      finalCtaText: cleanText(post.postPurchase.finalCtaText, 'Botón de la última oportunidad', 60),
     },
     postPurchaseBenefits: {
       ...section(content.postPurchaseBenefits),

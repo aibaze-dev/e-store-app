@@ -13,6 +13,7 @@ import { InternalTheme, ThemeToggle } from '@/components/InternalTheme.jsx';
 export default function LandingPreviewPage() {
   const { storeId } = useParams();
   const [target, setTarget] = useState('landing');
+  const [postAsModal, setPostAsModal] = useState(true);
   const view = useQuery(api.landings.preview, { storeId });
   if (view === undefined) return <InternalTheme><main className="mx-auto max-w-[1120px] px-5 py-8"><PageSkeleton label="Cargando vista previa" /></main></InternalTheme>;
   if (view === null) return <InternalTheme><main className="mx-auto max-w-[1120px] px-5 py-8"><EmptyState title="Todavía no hay un borrador para mostrar">
@@ -24,12 +25,13 @@ export default function LandingPreviewPage() {
     <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3 text-sm">
       <p><strong className="font-semibold">Vista previa del borrador.</strong> <span className="text-muted-foreground">La compra está deshabilitada acá.</span></p>
       <div className="flex items-center gap-2">
-        <NativeSelect aria-label="Página de la vista previa" value={target} onChange={event => setTarget(event.target.value)}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{view.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra con descuento</option>}{view.postPurchaseOffer && <option value="post-final">Post-compra con último descuento</option>}</NativeSelect>
+        <NativeSelect aria-label="Página de la vista previa" value={target} onChange={event => setTarget(event.target.value)}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{view.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra · una oportunidad más</option>}{view.postPurchaseOffer && <option value="post-final">Post-compra · última oportunidad</option>}</NativeSelect>
+        {target !== 'landing' && <label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-primary" checked={postAsModal} onChange={event => setPostAsModal(event.target.checked)} />Ver como modal</label>}
         <ThemeToggle />
         <Button asChild variant="outline"><Link to={`/panel/tiendas/${storeId}/landing`}>Volver a editar</Link></Button>
       </div>
     </div>
     </InternalTheme>
-    {target === 'landing' ? <Template view={view} /> : <PostPurchasePreview view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} />}
+    {target === 'landing' ? <Template view={view} /> : <PostPurchasePreview view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} modal={postAsModal} />}
   </>;
 }

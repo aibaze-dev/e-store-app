@@ -17,7 +17,7 @@ export function validRange(from, to) {
 
 // Sets span the whole range. Daily uniques must never be added to get range uniques.
 export function createReport(from, to) {
-  const bucket = () => ({ views: 0, landingViews: 0, checkoutViews: 0, unknownIpViews: 0, ips: new Set(), landingIps: new Set(), checkoutIps: new Set() });
+  const bucket = () => ({ views: 0, landingViews: 0, checkoutViews: 0, unknownIpViews: 0, purchases: 0, ips: new Set(), landingIps: new Set(), checkoutIps: new Set() });
   const total = bucket();
   const days = new Map();
   for (let day = from; day <= to; day = shiftDate(day, 1)) days.set(day, bucket());
@@ -39,6 +39,14 @@ export function createReport(from, to) {
       }
       recent.sort((a, b) => b.at - a.at);
       recent.splice(20);
+    },
+    addPurchases(rows) {
+      for (const row of rows) {
+        const day = days.get(row.day);
+        if (!day) continue;
+        day.purchases++;
+        total.purchases++;
+      }
     },
     finish() {
       return { total: serialize(total), days: [...days].map(([day, value]) => ({ day, ...serialize(value) })), recent };

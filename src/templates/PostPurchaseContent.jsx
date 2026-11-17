@@ -77,7 +77,7 @@ export function postPurchaseStage(offer, stage) {
 
 // The thank-you page with the post-purchase modal open on `stage` ('offer', 'downsell' or
 // 'final'), as the buyer sees it. The modal is a static mock: nothing can be paid here.
-export function PostPurchasePreview({ view, stage = 'offer' }) {
+export function PostPurchasePreview({ view, stage = 'offer', modal = true }) {
   const content = normalizeContent(view.content);
   const offer = view.postPurchaseOffer;
   const examples = view.offer ? [view.offer.main, ...(view.offer.bonuses || [])].map(product => ({ productName: product.name, title: 'Link de descarga' })) : [];
@@ -85,9 +85,12 @@ export function PostPurchasePreview({ view, stage = 'offer' }) {
   return <div className="post-offer-preview">
     <PurchaseLanding presentation={{ accentColor: content.style.accentColor, ...content.footer }} storeName={view.store?.name} eyebrow="Compra confirmada" title="¡Gracias por tu compra!" subtitle="Estos son tus links. También te los enviamos por email.">
       {!offer && <PurchaseSection><p className="purchase-notice">Activá la oferta post-compra y elegí un producto en «Oferta post-compra» para ver esta página.</p></PurchaseSection>}
+      {offer && !modal && <PurchaseSection label="Oferta post-compra"><div className="classic-offer-dialog post-offer-preview-dialog is-inline" style={classicTheme(content.style.accentColor)}>
+        <PostPurchaseOfferCard offer={{ ...offer, content: view.content }} currency={view.store.currency} stage={shown} />
+      </div></PurchaseSection>}
       <DeliveryLinks deliveries={examples} preview />
     </PurchaseLanding>
-    {offer && <div className="post-offer-preview-overlay">
+    {offer && modal && <div className="post-offer-preview-overlay">
       <div role="dialog" aria-modal="false" aria-label="Vista previa de la oferta post-compra" className="classic-offer-dialog post-offer-preview-dialog" style={classicTheme(content.style.accentColor)}>
         <span className="post-offer-preview-close" aria-hidden="true"><X /></span>
         <PostPurchaseOfferCard offer={{ ...offer, content: view.content }} currency={view.store.currency} stage={shown} />

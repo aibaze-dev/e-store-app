@@ -7,7 +7,7 @@ const number = value => new Intl.NumberFormat(business.locale).format(value);
 const compact = value => new Intl.NumberFormat(business.locale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 const shortDate = day => `${day.slice(8)}/${day.slice(5, 7)}`;
 const fullDate = day => new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
-const colors = { landing: 'var(--chart-1)', checkout: 'var(--chart-2)', total: 'var(--chart-3)' };
+const colors = { landing: 'var(--chart-1)', checkout: 'var(--chart-2)', total: 'var(--chart-3)', purchases: 'var(--order-paid)' };
 const tick = { fill: 'var(--muted-foreground)', fontSize: 11 };
 const axis = { axisLine: false, tickLine: false, tick, tickMargin: 12 };
 
@@ -55,13 +55,13 @@ export default function AnalyticsCharts({ data }) {
   return <div className="space-y-6">
     <section className="dashboard-card overflow-hidden" aria-label="Evolución diaria">
       <div className="space-y-5 border-b p-5 sm:p-6">
-        <ChartHeading icon={Activity} title="Cuánta gente vino" subtitle="Personas estimadas por día en tu tienda, landing y checkout." />
+        <ChartHeading icon={Activity} title="Cuánta gente vino" subtitle="Personas estimadas y compras pagadas por día." />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Legend items={[...series, { label: 'En la tienda', color: colors.total, dashed: true }]} />
+          <Legend items={[...series, { label: 'En la tienda', color: colors.total, dashed: true }, { label: 'Compras pagadas', color: colors.purchases }]} />
           {first && <p className="flex items-center gap-2 text-xs text-muted-foreground"><CalendarDays className="size-3.5" aria-hidden="true" />{shortDate(first)} — {shortDate(last)} · {data.days.length} {data.days.length === 1 ? 'día' : 'días'}</p>}
         </div>
       </div>
-      <div className="p-3 pt-6 sm:p-6" aria-label="Timeline de personas. Valores disponibles en Ver personas por día.">
+      <div className="p-3 pt-6 sm:p-6" aria-label="Timeline de personas y compras. Valores disponibles en Ver personas y compras por día.">
         <ResponsiveContainer width="100%" height={data.days.length > 31 ? 350 : 310} minWidth={0}>
           <ComposedChart key={`${first}-${last}`} data={days} margin={{ top: 8, right: 12, bottom: 8, left: 0 }} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
@@ -71,11 +71,12 @@ export default function AnalyticsCharts({ data }) {
             <Area type="linear" dataKey="uniques" name={'En la tienda'} stroke={colors.total} strokeDasharray="5 4" strokeWidth={2} fill={colors.total} fillOpacity={0.07} dot={data.days.length === 1 ? { r: 4 } : false} activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }} isAnimationActive={false} />
             <Line type="linear" dataKey="landingUniques" name="Landing" stroke={colors.landing} strokeWidth={2.5} dot={data.days.length < 8 ? { r: 3, strokeWidth: 0 } : false} activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }} isAnimationActive={false} />
             <Line type="linear" dataKey="checkoutUniques" name="Checkout" stroke={colors.checkout} strokeWidth={2.5} strokeDasharray="2 3" dot={data.days.length < 8 ? { r: 3, strokeWidth: 0 } : false} activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }} isAnimationActive={false} />
+            <Bar dataKey="purchases" name="Compras pagadas" fill={colors.purchases} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
             {data.days.length > 31 && <Brush dataKey="day" ariaLabel="Ajustar inicio o fin del timeline con las flechas" height={32} travellerWidth={12} stroke="var(--muted-foreground)" fill="var(--muted)" tickFormatter={shortDate} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="border-t px-5 py-3 text-xs leading-5 text-muted-foreground sm:px-6">{data.days.length > 31 && 'Mové los extremos del selector inferior para acercar el timeline. '}Si alguien pasa por la landing y el checkout, cuenta una sola vez en el total de la tienda.</p>
+      <p className="border-t px-5 py-3 text-xs leading-5 text-muted-foreground sm:px-6">{data.days.length > 31 && 'Mové los extremos del selector inferior para acercar el timeline. '}Las compras se cuentan por fecha de pago confirmado, incluidas las post-compra. No incluyen pendientes, rechazadas, reembolsadas ni cobros en revisión. Las personas se cuentan una vez entre landing y checkout.</p>
     </section>
 
     <div className="grid gap-6 xl:grid-cols-2">

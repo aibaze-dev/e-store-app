@@ -30,6 +30,5 @@ export function errorText(error, fallback = 'No se pudo completar la acción. Vo
 }
 
 export const STATUS_LABELS = { pending: 'Pendiente', paid: 'Pagado', expired: 'Vencido', refunded: 'Reembolsado', failed: 'Rechazado', needs_review: 'Revisar cobro' };
-export const statusVariant = status => (status === 'paid' ? 'secondary' : status === 'needs_review' ? 'destructive' : 'outline');
 export const EMAIL_LABELS = { pending: 'Email de entrega en cola', sent: 'Email de entrega enviado', failed: 'El email de entrega falló', skipped: 'Email de entrega no enviado' };
 export const EMAIL_ERRORS = { not_configured: 'falta configurar Resend', no_recipient: 'sin email del comprador', status_changed: 'la compra cambió de estado' };

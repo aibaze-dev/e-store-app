@@ -85,7 +85,7 @@ Módulos de negocio sobre esta base; el contexto y las decisiones están en [con
 
 Los documentos del catálogo (`products`) se guardan con `type: "e-book"`, asignado por el servidor al crear o editar. El campo es opcional en el esquema para aceptar registros anteriores; estos reciben el valor cuando se editan.
 
-- **Panel** (`/panel`): inicio por tienda con selector en el sidebar, links públicos y oferta asociada. Cada tienda reúne producto principal, bonus y upsells en «Productos y oferta», con desplegables y un guardado común; conserva secciones de post-compra, landing, checkout y cobros; el catálogo se comparte. Solo entran los emails de `ADMIN_EMAILS`.
+- **Panel** (`/panel`): inicio por tienda con selector en el sidebar, links públicos de landing, quiz y checkout con acciones para copiar y abrir, y oferta asociada. El link del quiz se habilita con su propia publicación y la tienda activa. Cada tienda reúne producto principal, bonus y upsells en «Productos y oferta», con desplegables y un guardado común; conserva secciones de post-compra, landing, checkout y cobros; el catálogo se comparte. Solo entran los emails de `ADMIN_EMAILS`.
 - **Landing pública**: `<subdominio>.<dominio base>` y también `/l/<subdominio>` en el dominio base. El subdominio requiere configurar DNS y dominio en el hosting; no asumir soporte wildcard. Eso no está configurado ni verificado. La ruta funciona sin configuración extra.
 - **Checkout**: formulario propio con Stripe Payment Element y Checkout Sessions (`ui_mode: elements`) en el checkout principal, el downsell y la post-compra; ya no se usa Embedded Checkout. El downsell pide los mismos datos personales; la post-compra reutiliza el email del comprador (`customer_email`) y el nombre de la primera compra, y solo pide email si faltara. El servidor calcula los importes desde la tienda y confirma los pagos solo por webhook firmado.
 - **Links**: se muestran en `/gracias?session_id=...` cuando el pago está confirmado y, con Resend configurado, también se envían por email al comprador. La página de gracias y la oferta post-compra usan el mismo diseño de la landing (`PurchaseLanding` en `src/templates/PostPurchaseContent.jsx`): color, encabezado, botones y footer de la presentación publicada, que `storefront.getDelivery` devuelve en `presentation`.
@@ -103,6 +103,7 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 | `RESEND_API_KEY` | Clave de Resend para el email de entrega al comprador y el aviso de cobros a revisar. Sin ella (o sin `EMAIL_FROM`) no se envía nada y la orden lo indica en el panel. |
 | `EMAIL_FROM` | Remitente, por ejemplo `Mi Tienda <ventas@midominio.com>`. El dominio tiene que estar verificado en Resend. |
 | `EMAIL_REPLY_TO` | Opcional. Dirección para las respuestas del comprador. |
+| `DISCORD_SALE_BOT_URL` | Opcional. URL de un webhook de Discord: cada venta confirmada por Stripe publica ahí el nombre de los productos y el total. Es una credencial: solo en Convex. |
 | `OPENAI_API_KEY` | Clave de la API de OpenAI para el asistente de textos de la landing. Sin ella el asistente avisa que no está habilitado; el resto del panel funciona igual. |
 | `OPENAI_MODEL` | Opcional. Modelo a usar; por defecto `gpt-6.1-sol`. Debe aceptar Structured Outputs (`response_format` con `json_schema`). |
 
@@ -188,7 +189,7 @@ Promoción y actividad se habilitan por defecto en nuevas landings: promoción c
 
 ### Landing de la oferta post-compra
 
-El editor de landing incluye cuatro secciones adicionales: **13 Presentación**, **14 Beneficios**, **15 Video VSL** y **16 Oferta con descuento**. Los textos, beneficios y video comparten el flujo Guardar borrador / Guardar y publicar de la landing. El producto, precio, activación y porcentaje de downsell se siguen configurando en Oferta post-compra. Hay enlaces entre ambas pantallas y el selector de vista previa permite ver landing principal, post-compra y post-compra con descuento, en móvil o escritorio, con compras deshabilitadas.
+El editor de landing incluye cuatro secciones adicionales: **13 Presentación**, **14 Beneficios**, **15 Video VSL** y **16 Oferta con descuento**. Los textos, beneficios y video comparten el flujo Guardar borrador / Guardar y publicar de la landing. El producto, precio y activación se siguen configurando en Oferta post-compra; el porcentaje de downsell de la post-compra se configura en Downsell, junto al del producto principal. Hay enlaces entre ambas pantallas y el selector de vista previa permite ver landing principal, post-compra y post-compra con descuento, en móvil o escritorio, con compras deshabilitadas.
 
 La página de agradecimiento muestra esas secciones solo después del pago confirmado y solo si la oferta sigue disponible; ahora dentro del modal descripto en Downsell, con el mismo VSL y textos. La presentación usa nombre/descripción del producto si sus textos están vacíos. El video sustituye la portada cuando se activa el switch VSL y hay un archivo subido. Se cargan archivos MP4/WebM/OGV a Convex Storage. Al quitar el archivo se apaga el switch; el servidor rechaza VSL activo sin video. Los enlaces de videos anteriores conservan compatibilidad de lectura, pero el editor solo permite reemplazarlos subiendo un archivo.
 
@@ -321,3 +322,12 @@ Se ajustaron las tarjetas actuales a filas compactas con tipografía de 14 px, c
 La pastilla roja «−X% OFF» aparece junto al nombre tanto del principal como de los extras cuando tienen un precio de referencia mayor al de venta. **Productos → Editar → Presentación en la compra → Precio normal (tachado)** configura ese valor centralmente; se reutiliza en landing y checkout y el porcentaje se calcula automáticamente. `productDiscount` comparte el cálculo y evita mostrar «100% OFF» en artículos que todavía se cobran. Sin referencia no se inventa un descuento.
 
 Verificación local: 189 pruebas pasan. Se revisó con los dos productos reales de la landing indicada, en escritorio y a 550/390/320 px, sin desbordes, con precios alineados, etiqueta OFF, selección por teclado y total de US$19 a US$28 al agregar el extra.
+
+
+## Estados de compras y ventas en analíticas (18/11/2026)
+
+Inicio distingue las compras con fondo y franja por estado: verde pagado, ámbar pendiente, rojo rechazado, naranja en revisión, violeta reembolsado y gris vencido. `OrderStatusBadge` comparte colores, íconos y etiquetas entre Inicio y Cobros y entregas, con paletas para modo claro y oscuro.
+
+«Cuánta gente vino» incluye barras verdes de compras pagadas, un total del período y una columna diaria. Se cuentan órdenes y transacciones actualmente pagadas por `transactions.paidAt`, en la zona horaria comercial del informe; las post-compra cuentan como pagos separados. Pendientes, rechazadas, vencidas, reembolsadas y en revisión quedan fuera. La lectura interna requiere administración, pagina todas las órdenes de la tienda (incluidas las creadas antes del período pero pagadas dentro de él) y solo devuelve fechas para agregar. No depende de la existencia de visitas ni de IPs reconocibles. No requiere migración; publicar frontend y backend juntos.
+
+Verificación local: 199 pruebas pasan, incluido un informe con más de 100 pagos, aislamiento por tienda, rango por fecha de pago y exclusión de otros estados. Revisión visual con datos de prueba locales en escritorio y móvil de 390/320 px, modos claro/oscuro y compras sin visitas registradas; sin desborde horizontal. Las vistas temporales se retiraron. No se publicaron estos cambios.

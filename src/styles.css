@@ -81,6 +81,17 @@
 .dashboard-share-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 13px; background: var(--background); }
 .dashboard-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: var(--accent); color: var(--primary); }
 .dashboard-icon svg { width: 21px; height: 21px; }
+.order-status { --order-color: var(--muted-foreground); }
+.order-status[data-order-status='paid'] { --order-color: var(--order-paid); }
+.order-status[data-order-status='pending'] { --order-color: var(--order-pending); }
+.order-status[data-order-status='failed'] { --order-color: var(--order-failed); }
+.order-status[data-order-status='needs_review'] { --order-color: var(--order-review); }
+.order-status[data-order-status='refunded'] { --order-color: var(--order-refunded); }
+.order-status[data-order-status='expired'] { --order-color: var(--order-expired); }
+.order-status-badge { color: var(--order-color); background: color-mix(in srgb, var(--order-color) 14%, var(--card)); border-color: color-mix(in srgb, var(--order-color) 36%, var(--card)); font-weight: 650; gap: 6px; }
+.dashboard-order { padding: 14px 12px; border: 1px solid color-mix(in srgb, var(--order-color) 24%, var(--card)); border-left: 3px solid var(--order-color); border-radius: 12px; background: color-mix(in srgb, var(--order-color) 6%, var(--card)); }
+.order-amount { color: var(--order-color); }
+.order-summary { border-left: 3px solid var(--order-color); background: color-mix(in srgb, var(--order-color) 6%, var(--card)); }
 .workspace-theme :is(a, button):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 @media (min-width: 1280px) { .dashboard-columns { grid-template-columns: minmax(0, 1fr) 300px; } }
 @media (min-width: 1536px) { .dashboard-product { display: flex; } .dashboard-welcome { padding: 36px; } }

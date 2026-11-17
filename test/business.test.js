@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
 import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
-import { backend, signedIn, mockStripe, mockResend, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
+import { backend, signedIn, mockStripe, mockResend, mockDiscord, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
 
 const ADMIN = 'owner@example.com';
 beforeEach(() => {
@@ -1190,5 +1190,48 @@ describe('product presentation shared by the purchase cards', () => {
     await admin.mutation(api.products.update, data);
     await admin.mutation(api.products.update, { ...data, shortDescription: '', featured: false, referencePrice: null });
     expect(await admin.query(api.products.get, { id: ids.main })).toMatchObject({ shortDescription: '', featured: false, referencePrice: null });
+  });
+});
+
+describe('sale alert on Discord', () => {
+  const HOOK = 'https://discord.com/api/webhooks/1/test-only';
+  afterEach(() => { vi.useRealTimers(); });
+  const settle = t => t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  it('posts the product names and the total once per paid sale', async () => {
+    vi.stubEnv('DISCORD_SALE_BOT_URL', HOOK);
+    const { t, ids } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const discord = mockDiscord(HOOK);
+    await start(t, [ids.upsellA]);
+    const event = paidSession('cs_test_1', 3600);
+    await sendWebhook(t, event);
+    await sendWebhook(t, event);
+    await settle(t);
+
+    expect(discord.messages).toHaveLength(1);
+    const order = await t.run(async ctx => (await ctx.db.query('orders').collect())[0]);
+    for (const item of order.items) expect(discord.messages[0].content).toContain(item.name);
+    expect(discord.messages[0].content).toMatch(/36[.,]00/);
+    expect(discord.messages[0].allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it('stays silent for held charges, failed alerts do not break the payment, and it is optional', async () => {
+    vi.stubEnv('DISCORD_SALE_BOT_URL', HOOK);
+    const { t } = await campaign();
+    mockStripe();
+    vi.useFakeTimers();
+    const discord = mockDiscord(HOOK, 500);
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 100));
+    await settle(t);
+    expect(discord.messages).toHaveLength(0);
+
+    await start(t, [], 'attempt-discord-2');
+    await sendWebhook(t, paidSession('cs_test_2', 2700));
+    await settle(t);
+    expect(discord.messages).toHaveLength(1);
+    expect(await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_2' })).toMatchObject({ status: 'paid' });
   });
 });

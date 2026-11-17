@@ -6,8 +6,6 @@ import { POST_PURCHASE_CONTENT, postPurchaseContent, videoSource } from '../../s
 import { usePreviewSection } from './PreviewEditing.jsx';
 import { Video, postPurchaseStage } from './PostPurchaseContent.jsx';
 
-export const FINAL_TITLE = 'Última oportunidad';
-
 const PlainTitle = props => <h2 data-slot="dialog-title" className="text-2xl font-semibold tracking-tight" {...props} />;
 const PlainDescription = ({ className = '', ...props }) => <p data-slot="dialog-description" className={`leading-7 text-muted-foreground ${className}`} {...props} />;
 
@@ -19,13 +17,15 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, busy = f
   const defaults = POST_PURCHASE_CONTENT.postPurchase;
   const { price, percent } = postPurchaseStage(offer, stage);
   const discounted = stage !== 'offer';
-  const title = stage === 'final' ? FINAL_TITLE : discounted ? copy.downsellTitle || copy.title || offer.name : copy.title || offer.name;
-  const subtitle = discounted ? copy.downsellText : copy.subtitle || copy.description || offer.description;
+  const final = stage === 'final';
+  const title = final ? copy.finalTitle || defaults.finalTitle : discounted ? copy.downsellTitle || copy.title || offer.name : copy.title || offer.name;
+  const subtitle = final ? copy.finalText : discounted ? copy.downsellText : copy.subtitle || copy.description || offer.description;
+  const ctaText = final ? copy.finalCtaText || defaults.finalCtaText : discounted ? copy.downsellCtaText || defaults.downsellCtaText : copy.ctaText || defaults.ctaText;
   const hasVideo = video.enabled && Boolean(videoSource(video.url));
   const showBenefits = !payment && benefits.enabled && benefits.items.length > 0;
 
   return <>
-    <div {...edit(discounted ? 'postPurchaseDownsell' : 'postPurchase')} className="space-y-2 pr-8">
+    <div {...edit(final ? 'postPurchaseFinal' : discounted ? 'postPurchaseDownsell' : 'postPurchase')} className="space-y-2 pr-8">
       {copy.eyebrow && !discounted && <p className="text-xs font-bold tracking-widest text-primary uppercase">{copy.eyebrow}</p>}
       {discounted && <p className="text-xs font-bold tracking-widest text-primary uppercase">Ahorrás {percent}%</p>}
       <Title>{title}</Title>
@@ -49,7 +49,7 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, busy = f
       <ErrorAlert>{error}</ErrorAlert>
       <Button type="button" size="lg" className="h-auto min-h-12 w-full py-3 text-base whitespace-normal" onClick={onAccept} disabled={busy || !canPurchase}>
         {busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-        {busy ? 'Preparando el pago…' : discounted ? copy.downsellCtaText || defaults.downsellCtaText : copy.ctaText || defaults.ctaText}
+        {busy ? 'Preparando el pago…' : ctaText}
         {!busy && <ArrowRight aria-hidden="true" />}
       </Button>
       <Button type="button" variant="ghost" className="h-auto min-h-11 w-full whitespace-normal" onClick={onDecline} disabled={busy || !onDecline}>{copy.declineText || defaults.declineText}</Button>

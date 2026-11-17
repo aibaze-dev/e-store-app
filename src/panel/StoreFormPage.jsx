@@ -230,7 +230,7 @@ export default function StoreFormPage({ section }) {
         {form.postEnabled && <div className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">
           <Field label="Producto">{props => productSelect(props, form.postProductId, postProductId => set({ postProductId }))}</Field>
           <Field label="Precio">{props => priceInput(props, form.postPrice, postPrice => set({ postPrice }))}</Field>
-          <Field label="Downsell: descuento % (opcional)" className="sm:col-span-2" hint={`Si el comprador responde «No, gracias», se le ofrece el mismo producto con este descuento. Si también lo rechaza y vuelve a la página, se le ofrece una última vez con 10 puntos más de descuento (o 10% si este campo queda vacío). ${discountHint(form.postPrice, form.postDownPercent)}`}>{props => percentInput(props, form.postDownPercent, postDownPercent => set({ postDownPercent }))}</Field>
+          {storeId && section && <p className="text-sm leading-6 text-muted-foreground sm:col-span-2">El descuento que se ofrece si el comprador responde «No, gracias» {form.postDownPercent ? `(hoy ${form.postDownPercent}%) ` : ''}se configura en <Link to={`/panel/tiendas/${storeId}/downsell`} className="underline">Downsell</Link>.</p>}
         </div>}
       </CardContent>
     </Card>}
@@ -250,6 +250,18 @@ export default function StoreFormPage({ section }) {
           })}
           <div className="sm:col-span-2"><VideoField label="Video VSL de la oferta (opcional)" hint="Se muestra en la página de la oferta con descuento. Vacío: sin video." value={form.downVideoUrl} onChange={downVideoUrl => set({ downVideoUrl })} disabled={busy} /></div>
         </div>}
+      </CardContent>
+    </Card>}
+
+    {show('downsell') && <Card>
+      <CardHeader><CardTitle>Downsell de la oferta post-compra</CardTitle><CardDescription>Si el comprador responde «No, gracias» a la oferta post-compra, se le ofrece el mismo producto con este descuento. Si también lo rechaza y vuelve a la página, se le ofrece una última vez con 10 puntos más de descuento (o 10% si no hay descuento configurado).</CardDescription></CardHeader>
+      <CardContent className="space-y-5">
+        {form.postEnabled
+          ? <>
+            <Field label="Descuento % (opcional)" hint={`Entero entre 1 y 90, sobre el precio de la oferta post-compra${toMinor(form.postPrice, form.currency) > 0 ? ` (${formatMoney(toMinor(form.postPrice, form.currency), form.currency)})` : ''}. Vacío: sin downsell. ${discountHint(form.postPrice, form.postDownPercent)}`}>{props => percentInput(props, form.postDownPercent, postDownPercent => set({ postDownPercent }))}</Field>
+            {storeId && <p className="text-sm leading-6 text-muted-foreground">El título, texto y botón de esta oferta con descuento se editan en <Link to={`/panel/tiendas/${storeId}/landing#postPurchaseDownsell`} target="_blank" rel="noreferrer" className="underline">la sección de post-compra del editor de landing</Link>.</p>}
+          </>
+          : <p className="text-sm leading-6 text-muted-foreground">Esta tienda no tiene una oferta post-compra activa. {storeId ? <>Activala en <Link to={`/panel/tiendas/${storeId}/post-compra`} className="underline">Oferta post-compra</Link> para configurar su downsell.</> : 'Activala para configurar su downsell.'}</p>}
       </CardContent>
     </Card>}
 

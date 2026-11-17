@@ -80,6 +80,8 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   const [activeTab, setActiveTab] = useState(() => landingSectionTab(hash.slice(1)));
   const [previewTarget, setPreviewTarget] = useState(hash.startsWith('#postPurchase') ? 'post' : 'landing');
   const [showPreview, setShowPreview] = useState(false);
+  // Post-purchase preview: the modal as the buyer sees it, or its content laid out as a page.
+  const [postAsModal, setPostAsModal] = useState(true);
   const [saved, setSaved] = useState(() => JSON.stringify(form));
   const errorRef = useRef(null);
   const content = form.content;
@@ -177,6 +179,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   function openSection(id) {
     selectTab(landingSectionTab(id));
     if (id === 'postPurchaseDownsell') setPreviewTarget('post-downsell');
+    if (id === 'postPurchaseFinal') setPreviewTarget('post-final');
     requestAnimationFrame(() => {
       const element = document.getElementById(id);
       if (!element) return;
@@ -382,12 +385,19 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('postPurchaseVideo', 'title', 'Título del video (opcional)', { maxLength: 120 })}
           <p className="text-xs leading-6 text-muted-foreground">La IA conserva el archivo subido y el switch. Con el VSL apagado se muestra la portada del producto.</p>
         </Section>
-        <Section id="postPurchaseDownsell" attention={checks.postPurchaseDownsell} description="El cierre que aparece si rechazan la oferta inicial">
-          <p className="text-xs leading-6 text-muted-foreground">Este bloque aparece solo si configurás un descuento en Oferta post-compra. El importe y el porcentaje se calculan automáticamente.</p>
+        <Section id="postPurchaseDownsell" attention={checks.postPurchaseDownsell} description="Segundo paso del modal: si dicen que no, el mismo producto más barato">
+          <p className="text-xs leading-6 text-muted-foreground">Este paso aparece solo si configurás un descuento en Oferta post-compra. El importe y el porcentaje se calculan automáticamente.</p>
           {field('postPurchase', 'downsellTitle', 'Título de la oferta con descuento', { maxLength: 160 })}
           {field('postPurchase', 'downsellText', 'Texto de la oferta con descuento', { multiline: true, maxLength: 1200 })}
           {field('postPurchase', 'downsellCtaText', 'Botón para aceptar el descuento', { maxLength: 60 })}
           <Button type="button" variant="outline" disabled={!preview?.postPurchaseOffer?.downsellPrice} onClick={() => { setPreviewTarget('post-downsell'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver oferta con descuento</Button>
+        </Section>
+        <Section id="postPurchaseFinal" attention={checks.postPurchaseFinal} description="Último paso: el precio más bajo, cuando el comprador vuelve a la página">
+          <p className="text-xs leading-6 text-muted-foreground">Se muestra si el comprador rechazó las ofertas anteriores y vuelve a la pestaña o mueve el mouse fuera de la página. El descuento es 10 puntos más que el de la oferta con descuento (10% si no hay) y se calcula automáticamente.</p>
+          {field('postPurchase', 'finalTitle', 'Título de la última oportunidad', { maxLength: 160 })}
+          {field('postPurchase', 'finalText', 'Texto de la última oportunidad', { multiline: true, maxLength: 1200 })}
+          {field('postPurchase', 'finalCtaText', 'Botón para aceptar el precio final', { maxLength: 60 })}
+          <Button type="button" variant="outline" disabled={!preview?.postPurchaseOffer} onClick={() => { setPreviewTarget('post-final'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver última oportunidad</Button>
         </Section>
     </>,
     checkout: <Section id="checkoutTimer" description="El texto que acompaña al contador durante el pago" defaultOpen>
@@ -420,7 +430,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         <div className="landing-save-bar"><div className="flex flex-wrap gap-3"><Button type="submit" name="action" value="save" variant="outline" disabled={Boolean(busy)}>{busy === 'save' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar borrador</Button><Button type="submit" name="action" value="publish" disabled={Boolean(busy)}>{busy === 'publish' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar y publicar</Button></div><p className="text-xs leading-5 text-muted-foreground" role="status">{uploading ? 'Subiendo archivo… Esperá para guardar.' : notice || (dirty ? 'Cambios sin guardar' : 'Tu borrador está al día')}</p></div>
         </form>
         {tab.id === activeTab && tab.id !== 'checkout' && (
-      <aside className="landing-preview-panel"><div className="landing-preview-toolbar"><div><strong>Vista previa</strong><span>Hacé clic en una sección para editarla</span></div><div className="flex gap-1"><Button type="button" variant={mode === 'desktop' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de escritorio" aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}><Monitor aria-hidden="true" /></Button><Button type="button" variant={mode === 'mobile' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de celular" aria-pressed={mode === 'mobile'} onClick={() => setMode('mobile')}><Smartphone aria-hidden="true" /></Button></div></div><div className="border-b p-3"><Field label="Página de la vista previa">{ids => <NativeSelect {...ids} value={previewTarget} onChange={event => { const target = event.target.value; setPreviewTarget(target); setActiveTab(target === 'landing' ? 'landing' : 'post'); }}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{preview?.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra con descuento</option>}{preview?.postPurchaseOffer && <option value="post-final">Post-compra con último descuento</option>}</NativeSelect>}</Field></div>{preview ? <LandingFrame view={preview} mode={mode} target={previewTarget} onSelectSection={openSection} /> : <p className="p-6 text-sm">Elegí un producto principal para ver la landing.</p>}</aside>
+      <aside className="landing-preview-panel"><div className="landing-preview-toolbar"><div><strong>Vista previa</strong><span>Hacé clic en una sección para editarla</span></div><div className="flex gap-1"><Button type="button" variant={mode === 'desktop' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de escritorio" aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}><Monitor aria-hidden="true" /></Button><Button type="button" variant={mode === 'mobile' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de celular" aria-pressed={mode === 'mobile'} onClick={() => setMode('mobile')}><Smartphone aria-hidden="true" /></Button></div></div><div className="border-b p-3"><Field label="Página de la vista previa">{ids => <NativeSelect {...ids} value={previewTarget} onChange={event => { const target = event.target.value; setPreviewTarget(target); setActiveTab(target === 'landing' ? 'landing' : 'post'); }}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{preview?.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra · una oportunidad más</option>}{preview?.postPurchaseOffer && <option value="post-final">Post-compra · última oportunidad</option>}</NativeSelect>}</Field>{previewTarget !== 'landing' && <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar la oferta como modal" checked={postAsModal} onCheckedChange={setPostAsModal} />Ver como modal</label>}</div>{preview ? <LandingFrame view={preview} mode={mode} target={previewTarget} postAsModal={postAsModal} onSelectSection={openSection} /> : <p className="p-6 text-sm">Elegí un producto principal para ver la landing.</p>}</aside>
         )}
       </div>
     </Tabs.Content>)}

@@ -21,7 +21,8 @@ export const LANDING_SECTIONS = {
   postPurchase: ['01', 'Post-compra · Presentación'],
   postPurchaseBenefits: ['02', 'Post-compra · Beneficios'],
   postPurchaseVideo: ['03', 'Post-compra · Video VSL'],
-  postPurchaseDownsell: ['04', 'Post-compra · Oferta con descuento'],
+  postPurchaseDownsell: ['04', 'Post-compra · Una oportunidad más'],
+  postPurchaseFinal: ['05', 'Post-compra · Última oportunidad'],
 };
 
 export const LANDING_TABS = [

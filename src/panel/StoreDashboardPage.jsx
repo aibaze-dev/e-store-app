@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from 'convex/react';
-import { ArrowRight, BookOpen, Check, CircleCheck, CircleDashed, Copy, ExternalLink, Gift, Globe, Link2, ShoppingCart, Sparkles, Tag } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, CircleCheck, CircleDashed, Copy, ExternalLink, Gift, Globe, Link2, ListChecks, ShoppingCart, Sparkles, Tag } from 'lucide-react';
 import { api } from '@/lib/api.js';
 import { landingUrls } from '@/lib/site.js';
 import { storePath } from '@/lib/panel-routes.js';
-import { formatDate, formatMoney, STATUS_LABELS, statusVariant } from '@/lib/format.js';
+import { formatDate, formatMoney } from '@/lib/format.js';
 import { Button } from '@/components/ui/button';
+import OrderStatusBadge from '@/components/OrderStatusBadge.jsx';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import StoreOfferSummary, { LandingContentSummary } from './StoreOfferSummary.jsx';
@@ -41,11 +42,14 @@ export function ShareLink({ label, url, icon: Icon, enabled }) {
   </div>;
 }
 
-export function StoreDashboardView({ store, summary, landing, orders, products }) {
+export function StoreDashboardView({ store, summary, landing, quiz, orders, products }) {
   const basePath = storePath(store._id);
   const publicUrl = landing?.subdomain ? landingUrls(landing.subdomain).path : '';
   const published = Boolean(landing?.published);
   const available = published && store.status === 'active';
+  const quizBaseUrl = quiz?.subdomain ? landingUrls(quiz.subdomain).path : publicUrl;
+  const quizUrl = quizBaseUrl ? `${quizBaseUrl}/quiz` : '';
+  const quizAvailable = Boolean(quiz?.publicationId) && store.status === 'active';
   const pendingChanges = published && JSON.stringify(landing.draft) !== JSON.stringify(landing.published);
   const checks = [
     { label: 'Oferta principal configurada', done: Boolean(store.offer.mainProductId), to: `${basePath}/productos` },
@@ -71,7 +75,7 @@ export function StoreDashboardView({ store, summary, landing, orders, products }
             <div className="max-w-xl space-y-4">
               <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-primary uppercase"><Sparkles className="size-4" aria-hidden="true" />Una campaña. Todo conectado.</span>
               <h2 className="text-2xl leading-tight font-semibold tracking-tight sm:text-3xl">{available ? 'Tu landing ya está publicada.' : 'Dale forma a tu próxima venta.'}</h2>
-              <p className="max-w-lg text-sm leading-7 text-muted-foreground">{available ? 'Compartí tu landing o llevá a tus compradores directamente al checkout. Administrá todo desde esta tienda.' : 'Configurá tu oferta, publicá la landing y activá la tienda para empezar a compartirla.'}</p>
+              <p className="max-w-lg text-sm leading-7 text-muted-foreground">{available ? 'Compartí tu landing, tu quiz o llevá a tus compradores directamente al checkout. Administrá todo desde esta tienda.' : 'Configurá tu oferta, publicá la landing y activá la tienda para empezar a compartirla.'}</p>
               <Button asChild variant="outline"><Link to={`${basePath}/landing`}>{published ? 'Editar landing' : 'Preparar landing'}<ArrowRight aria-hidden="true" /></Link></Button>
             </div>
             <div className="dashboard-product" aria-hidden="true"><BookOpen strokeWidth={1.2} /><span>Tu ebook</span></div>
@@ -79,8 +83,10 @@ export function StoreDashboardView({ store, summary, landing, orders, products }
           <div className="space-y-4 p-5 sm:p-7">
             <h2 id="share-heading" className="flex items-center gap-2 text-sm font-semibold"><Link2 className="size-4 text-primary" aria-hidden="true" />Tus links para compartir</h2>
             <ShareLink key={`landing-${publicUrl}`} label="Landing de la tienda" url={publicUrl} icon={Globe} enabled={available} />
+            <ShareLink key={`quiz-${quizUrl}`} label="Quiz" url={quizUrl} icon={ListChecks} enabled={quizAvailable} />
             <ShareLink key={`checkout-${publicUrl}`} label="Checkout" url={publicUrl ? `${publicUrl}/checkout` : ''} icon={ShoppingCart} enabled={available} />
-            {!available && <p className="text-xs leading-6 text-muted-foreground">Los links se habilitan cuando la tienda está activa y la landing está publicada. <Link to={`${basePath}/${published ? 'configuracion' : 'landing'}`} className="font-medium underline underline-offset-4">Completar configuración</Link></p>}
+            {!available && <p className="text-xs leading-6 text-muted-foreground">Los links de landing y checkout se habilitan cuando la tienda está activa y la landing está publicada. <Link to={`${basePath}/${published ? 'configuracion' : 'landing'}`} className="font-medium underline underline-offset-4">Completar configuración</Link></p>}
+            {!quizAvailable && <p className="text-xs leading-6 text-muted-foreground">El link del quiz se habilita cuando está publicado y la tienda está activa. <Link to={`${basePath}/${store.status === 'active' ? 'quiz' : 'configuracion'}`} className="font-medium underline underline-offset-4">{store.status === 'active' ? 'Configurar quiz' : 'Activar tienda'}</Link></p>}
             {pendingChanges && <p className="text-xs leading-6 text-muted-foreground">Tenés cambios guardados sin publicar. Los links muestran la última versión publicada.</p>}
           </div>
         </section>
@@ -110,9 +116,9 @@ export function StoreDashboardView({ store, summary, landing, orders, products }
             <span className="dashboard-icon"><ShoppingCart aria-hidden="true" /></span>
             <p className="text-sm font-medium">Todavía no hay compras</p>
             <p className="max-w-52 text-xs leading-6 text-muted-foreground">Las compras de esta tienda aparecerán acá.</p>
-          </div> : <ul className="divide-y">{orders.slice(0, 5).map(order => <li key={order._id} className="space-y-2 py-4">
+          </div> : <ul className="mt-4 space-y-3">{orders.slice(0, 5).map(order => <li key={order._id} className="order-status dashboard-order space-y-3" data-order-status={order.status}>
             <div className="flex items-start justify-between gap-3"><p className="min-w-0 truncate text-sm font-medium">{order.buyer?.name || order.buyer?.email || 'Compra iniciada'}</p><span className="shrink-0 text-sm font-semibold">{formatMoney(order.total, order.currency)}</span></div>
-            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span><Badge variant={statusVariant(order.status)}>{STATUS_LABELS[order.status]}</Badge></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span><OrderStatusBadge status={order.status} /></div>
           </li>)}</ul>}
         </section>
 
@@ -134,9 +140,10 @@ export default function StoreDashboardPage() {
   const { store: summary } = useStoreWorkspace();
   const store = useQuery(api.stores.get, { id: storeId });
   const landing = useQuery(api.landings.getForStore, { storeId });
+  const quiz = useQuery(api.landings.getForStore, { storeId, type: 'quiz' });
   const products = useQuery(api.products.list, {});
   const orders = useQuery(api.orders.list, { storeId });
-  if (store === undefined || landing === undefined || products === undefined) return <PageSkeleton label="Cargando inicio de la tienda" />;
+  if (store === undefined || landing === undefined || quiz === undefined || products === undefined) return <PageSkeleton label="Cargando inicio de la tienda" />;
   if (!store) return <EmptyState title="Esta tienda ya no está disponible"><Link to="/panel/tiendas">Ver tiendas</Link></EmptyState>;
-  return <StoreDashboardView key={storeId} store={store} summary={summary} landing={landing} orders={orders} products={products} />;
+  return <StoreDashboardView key={storeId} store={store} summary={summary} landing={landing} quiz={quiz} orders={orders} products={products} />;
 }

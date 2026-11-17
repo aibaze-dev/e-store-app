@@ -13,6 +13,8 @@ export const landingContent = v.object({
   postPurchase: v.optional(v.object({
     eyebrow: v.string(), title: v.string(), subtitle: v.string(), description: v.string(),
     ctaText: v.string(), declineText: v.string(), downsellTitle: v.string(), downsellText: v.string(), downsellCtaText: v.string(),
+    // Last discount step of the post-purchase modal. Older documents do not have them.
+    finalTitle: v.optional(v.string()), finalText: v.optional(v.string()), finalCtaText: v.optional(v.string()),
   })),
   postPurchaseBenefits: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   postPurchaseVideo: v.optional(v.object({ enabled: v.boolean(), title: v.string(), url: v.string() })),

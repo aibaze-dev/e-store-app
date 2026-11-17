@@ -136,7 +136,21 @@
 }
 
 /* Internal surfaces only: readable controls and brand accents on dark cards. */
+.internal-theme {
+  --order-paid: #15803d;
+  --order-pending: #92400e;
+  --order-failed: #b91c1c;
+  --order-review: #c2410c;
+  --order-refunded: #6d28d9;
+  --order-expired: #536174;
+}
 .internal-theme.dark {
+  --order-paid: #4ade80;
+  --order-pending: #fbbf24;
+  --order-failed: #fca5a5;
+  --order-review: #fdba74;
+  --order-refunded: #c4b5fd;
+  --order-expired: #a5b3c8;
   --primary: #e58a67;
   --ring: var(--primary);
   --input: #84978b;

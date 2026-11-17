@@ -19,11 +19,26 @@ const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b',
 // Only email and name: card, wallets and anything else are Stripe's own Payment Element.
 export function PersonalDetails({ buyer, setBuyer, disabled, formId }) {
   const field = (key, label, autocomplete, type, placeholder, hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={placeholder} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
-  return <fieldset disabled={disabled} className="checkout-personal space-y-6">
+  return <fieldset disabled={disabled} className="checkout-personal space-y-3">
     <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />Datos personales</legend>
-    {field('email', 'Email *', 'email', 'email', 'tu@email.com', 'Te enviamos ahí el acceso a tu compra.')}
-    {field('name', 'Nombre *', 'name', 'text', 'Tu nombre')}
+    <div className="grid gap-5 sm:grid-cols-2">
+      {field('email', 'Email *', 'email', 'email', 'tu@email.com')}
+      {field('name', 'Nombre *', 'name', 'text', 'Tu nombre')}
+    </div>
+    <p className="text-sm text-muted-foreground">Te enviamos el acceso a tu compra a este email.</p>
   </fieldset>;
+}
+
+// Contact known before the form (from the quiz) fills only the fields still empty, also
+// when it arrives after the form was shown. What the buyer already typed is kept.
+function useBuyer(initialBuyer) {
+  const [buyer, setBuyer] = useState({ email: '', name: '' });
+  const email = typeof initialBuyer?.email === 'string' ? initialBuyer.email : '';
+  const name = typeof initialBuyer?.name === 'string' ? initialBuyer.name : '';
+  useEffect(() => {
+    if (email || name) setBuyer(current => ({ email: current.email || email, name: current.name || name }));
+  }, [email, name]);
+  return [buyer, setBuyer];
 }
 
 // No Link sign-up box and billing address only when the card really needs it.
@@ -63,7 +78,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
 export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer }) {
   const start = useAction(api.checkout.start);
   // A quiz may hand over the name and email the visitor already typed; they stay editable.
-  const [buyer, setBuyer] = useState(() => ({ email: typeof initialBuyer?.email === 'string' ? initialBuyer.email : '', name: typeof initialBuyer?.name === 'string' ? initialBuyer.name : '' }));
+  const [buyer, setBuyer] = useBuyer(initialBuyer);
   const [paying, setPaying] = useState(false);
   const [session, setSession] = useState(null);
   const [error, setError] = useState('');
@@ -104,8 +119,8 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
 
 // Payment Element for a session that was already created (downsell and post-purchase offers).
 // `askContact` shows the personal details form; without it the session already knows the buyer.
-export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, onInitiate = () => {}, onPayingChange = () => {} }) {
-  const [buyer, setBuyer] = useState({ email: '', name: '' });
+export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, initialBuyer, onInitiate = () => {}, onPayingChange = () => {} }) {
+  const [buyer, setBuyer] = useBuyer(initialBuyer);
   const [paying, setPayingState] = useState(false);
   const setPaying = value => { setPayingState(value); onPayingChange(value); };
   if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });

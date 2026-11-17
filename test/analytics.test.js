@@ -133,6 +133,37 @@ describe('private reports', () => {
   });
 });
 
+describe('paid purchases in visit reports', () => {
+  it('paginates confirmed payments, uses payment date, isolates stores and excludes unpaid/refunded orders', async () => {
+    const { t, admin, storeId, store } = await campaign();
+    const otherStoreId = await admin.mutation(api.stores.create, store);
+    const paidAt = Date.parse('2026-01-02T12:00:00Z');
+    await t.run(async ctx => {
+      const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).first();
+      const insert = async (status, at = paidAt, owner = storeId, extra = {}) => {
+        const orderId = await ctx.db.insert('orders', { storeId: owner, landingId: landing._id, attemptId: crypto.randomUUID(), status, currency: 'USD', total: 1900, items: [], ...extra });
+        await ctx.db.insert('transactions', { orderId, status, amount: 1900, currency: 'USD', paidAt: at, deliveries: [] });
+        return orderId;
+      };
+      const parentOrderId = await insert('paid');
+      for (let i = 0; i < 104; i++) await insert('paid');
+      await insert('paid', paidAt, storeId, { parentOrderId });
+      for (const status of ['pending', 'failed', 'expired', 'refunded', 'needs_review']) await insert(status);
+      await insert('paid', Date.parse('2025-12-31T12:00:00Z'));
+      await insert('paid', Date.parse('2026-01-04T12:00:00Z'));
+      await insert('paid', Date.now() + 60_000);
+      await insert('paid', paidAt, otherStoreId);
+      const noDate = await ctx.db.insert('orders', { storeId, landingId: landing._id, attemptId: 'no-payment-date', status: 'paid', currency: 'USD', total: 1900, items: [] });
+      await ctx.db.insert('transactions', { orderId: noDate, status: 'paid', amount: 1900, currency: 'USD', deliveries: [] });
+    });
+    await new Promise(resolve => setTimeout(resolve, 5));
+    const report = await admin.action(api.analytics.report, { storeId, from: '2026-01-01', to: '2026-01-03' });
+    expect(report.total).toMatchObject({ views: 0, purchases: 106 });
+    expect(report.days.map(day => day.purchases)).toEqual([0, 106, 0]);
+    expect((await import('../convex/analytics')).readPurchases.isInternal).toBe(true);
+  });
+});
+
 describe('IP identity and daily timeline', () => {
   it('reads IP only from native request metadata', async () => {
     const { requestIp: nativeRequestIp } = await vi.importActual('../convex/lib/analytics_ip');
@@ -160,7 +191,7 @@ describe('IP identity and daily timeline', () => {
       { _id: 'd', _creationTime: 4, day: '2026-11-03', page: 'checkout', ipHash: 'other' },
       { _id: 'e', _creationTime: 5, day: '2026-11-03', page: 'checkout' },
     ]);
-    expect(report.finish().total).toEqual({ views: 5, landingViews: 2, checkoutViews: 3, unknownIpViews: 1, uniques: 2, landingUniques: 1, checkoutUniques: 2 });
+    expect(report.finish().total).toEqual({ views: 5, landingViews: 2, checkoutViews: 3, unknownIpViews: 1, purchases: 0, uniques: 2, landingUniques: 1, checkoutUniques: 2 });
     expect(report.finish().days.map(day => day.uniques)).toEqual([1, 0, 2]);
   });
 

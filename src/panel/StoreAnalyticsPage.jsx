@@ -26,27 +26,29 @@ export function AnalyticsResults({ data }) {
     { label: 'Personas en tu tienda', value: count(total.uniques, total.views), note: 'Total del período, sin repetir entre páginas ni días' },
     { label: 'Vieron la landing', value: count(total.landingUniques, total.landingViews), note: 'Personas que llegaron a tu oferta' },
     { label: 'Llegaron al checkout', value: count(total.checkoutUniques, total.checkoutViews), note: 'Personas que abrieron el checkout' },
+    { label: 'Compras pagadas', value: total.purchases === undefined ? '—' : number(total.purchases), note: 'Pagos confirmados, incluidas las ofertas post-compra', purchases: true },
   ];
   return <div className="space-y-6">
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Personas estimadas en el período seleccionado</p>
-      <div className="grid gap-4 md:grid-cols-3">{cards.map(card => <section key={card.label} className="dashboard-card space-y-3 p-5">
+      <p className="text-sm text-muted-foreground">Visitas y compras en el período seleccionado</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(card => <section key={card.label} className={`dashboard-card space-y-3 p-5 ${card.purchases ? 'order-status order-summary' : ''}`} data-order-status={card.purchases ? 'paid' : undefined}>
         <h2 className="text-sm font-medium text-muted-foreground">{card.label}</h2>
-        <p className="text-3xl font-semibold tabular-nums">{card.value}</p>
+        <p className={`text-3xl font-semibold tabular-nums ${card.purchases ? 'order-amount' : ''}`}>{card.value}</p>
         <p className="text-xs leading-5 text-muted-foreground">{card.note}</p>
       </section>)}</div>
     </div>
     {total.unknownIpViews > 0 && total.uniques > 0 && <p className="rounded-xl border bg-card p-4 text-sm leading-6">Hay actividad que no pudimos incluir en la estimación de personas.</p>}
-    {total.views === 0 ? <EmptyState title="Todavía no llegaron personas en este período">
-      <p>El historial empieza cuando se activa esta medición. Compartí el link público de la tienda o probá otro rango de fechas.</p>
+    {total.views === 0 ? <EmptyState title="No hay visitas registradas en este período">
+      <p>El historial de visitas empieza cuando se activa esta medición. Las compras se muestran aunque no haya visitas registradas.</p>
     </EmptyState> : total.uniques === 0 ? <EmptyState title="Todavía no podemos estimar cuántas personas llegaron">
       <p>Hay actividad registrada, pero falta información para distinguir a los visitantes.</p>
-    </EmptyState> : <>
+    </EmptyState> : null}
+    {(total.views > 0 || total.purchases > 0) && <>
       <AnalyticsCharts data={data} />
-      <section className="dashboard-card p-5 sm:p-6" aria-label="Detalle diario de personas">
-        <details><summary className="cursor-pointer text-sm font-medium">Ver personas por día</summary>
-          <div className="mt-4 max-h-96 overflow-auto"><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>En la tienda</TableHead><TableHead>En la landing</TableHead><TableHead>En el checkout</TableHead></TableRow></TableHeader>
-            <TableBody>{data.days.map(day => <TableRow key={day.day}><TableCell className="whitespace-nowrap">{day.day}</TableCell><TableCell>{count(day.uniques, day.views)}</TableCell><TableCell>{count(day.landingUniques, day.landingViews)}</TableCell><TableCell>{count(day.checkoutUniques, day.checkoutViews)}</TableCell></TableRow>)}</TableBody>
+      <section className="dashboard-card p-5 sm:p-6" aria-label="Detalle diario de personas y compras">
+        <details><summary className="cursor-pointer text-sm font-medium">Ver personas y compras por día</summary>
+          <div className="mt-4 max-h-96 overflow-auto"><Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>En la tienda</TableHead><TableHead>En la landing</TableHead><TableHead>En el checkout</TableHead><TableHead>Compras pagadas</TableHead></TableRow></TableHeader>
+            <TableBody>{data.days.map(day => <TableRow key={day.day}><TableCell className="whitespace-nowrap">{day.day}</TableCell><TableCell>{count(day.uniques, day.views)}</TableCell><TableCell>{count(day.landingUniques, day.landingViews)}</TableCell><TableCell>{count(day.checkoutUniques, day.checkoutViews)}</TableCell><TableCell className="font-semibold text-[var(--order-paid)]">{day.purchases === undefined ? '—' : number(day.purchases)}</TableCell></TableRow>)}</TableBody>
           </Table></div>
         </details>
       </section>
@@ -83,7 +85,7 @@ export default function StoreAnalyticsPage() {
   }, [store?._id, isAuthenticated, report, range.from, range.to, refresh]);
   if (!store) return <EmptyState title="Seleccioná una tienda para ver sus analíticas" />;
   return <div className="space-y-6">
-    <div className="space-y-2"><p className="flex items-center gap-2 text-xs font-semibold tracking-wider text-primary uppercase"><BarChart3 className="size-4" aria-hidden="true" />{store.name}</p><h1 className="text-3xl font-semibold tracking-tight">Analíticas</h1><p className="text-sm leading-7 text-muted-foreground">Cuánta gente vino y hasta dónde llegó. Fechas en {business.timeZone}.</p></div>
+    <div className="space-y-2"><p className="flex items-center gap-2 text-xs font-semibold tracking-wider text-primary uppercase"><BarChart3 className="size-4" aria-hidden="true" />{store.name}</p><h1 className="text-3xl font-semibold tracking-tight">Analíticas</h1><p className="text-sm leading-7 text-muted-foreground">Cuánta gente vino, hasta dónde llegó y cuántas compras se pagaron. Fechas en {business.timeZone}.</p></div>
     <form className="dashboard-card space-y-4 p-5" onSubmit={event => { event.preventDefault(); if (valid) { setRange(draft); setRefresh(value => value + 1); } }}>
       <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Field label="Período">{props => <NativeSelect {...props} value={preset} onChange={event => {
@@ -96,6 +98,6 @@ export default function StoreAnalyticsPage() {
       </div>
       {!valid && <p role="alert" className="text-sm text-destructive">Elegí fechas válidas, en orden, con un máximo de 366 días.</p>}
     </form>
-    {state.loading ? <PageSkeleton label="Calculando cuántas personas llegaron" /> : state.error ? <div className="space-y-4"><ErrorAlert>{state.error}</ErrorAlert><Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Volver a intentar</Button></div> : state.data && <AnalyticsResults data={state.data} />}
+    {state.loading ? <PageSkeleton label="Calculando visitas y compras" /> : state.error ? <div className="space-y-4"><ErrorAlert>{state.error}</ErrorAlert><Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Volver a intentar</Button></div> : state.data && <AnalyticsResults data={state.data} />}
   </div>;
 }

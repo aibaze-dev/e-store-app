@@ -41,6 +41,25 @@ export const readPage = internalQuery({
   },
 });
 
+// Scan each store's orders in bounded pages: a payment may settle long after
+// the order was created. Only payment dates leave this private query.
+export const readPurchases = internalQuery({
+  args: { storeId: v.id('stores'), from: v.string(), to: v.string(), before: v.number(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { storeId, from, to, before, paginationOpts }) => {
+    await requireAdmin(ctx);
+    if (!await ctx.db.get(storeId)) throw new ConvexError('La tienda ya no está disponible.');
+    const result = await ctx.db.query('orders').withIndex('by_store', q => q.eq('storeId', storeId).lt('_creationTime', before)).paginate(paginationOpts);
+    const dates = await Promise.all(result.page.map(async order => {
+      if (order.status !== 'paid') return null;
+      const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
+      if (transaction?.status !== 'paid' || transaction.paidAt === undefined || transaction.paidAt >= before) return null;
+      const day = dateKey(transaction.paidAt, business.timeZone);
+      return day >= from && day <= to ? { day } : null;
+    }));
+    return { ...result, page: dates.filter((row): row is { day: string } => row !== null) };
+  },
+});
+
 export const report = action({
   args: { storeId: v.id('stores'), from: v.string(), to: v.string() },
   handler: async (ctx, args) => {
@@ -52,6 +71,13 @@ export const report = action({
     for (;;) {
       const result = await ctx.runQuery(makeFunctionReference<'query'>('analytics:readPage'), { ...args, before, paginationOpts: { cursor, numItems: 1000 } });
       report.add(result.page);
+      if (result.isDone) break;
+      cursor = result.continueCursor;
+    }
+    cursor = null;
+    for (;;) {
+      const result = await ctx.runQuery(makeFunctionReference<'query'>('analytics:readPurchases'), { ...args, before, paginationOpts: { cursor, numItems: 100 } });
+      report.addPurchases(result.page);
       if (result.isDone) break;
       cursor = result.continueCursor;
     }

@@ -12,6 +12,17 @@ describe('post-purchase presentation', () => {
     expect(saved.postPurchaseBenefits.enabled).toBe(false);
   });
 
+  it('uses persuasive defaults for the discount steps and upgrades the old default texts', () => {
+    const fresh = postPurchaseContent().postPurchase;
+    expect(fresh.downsellTitle).not.toBe('Una oportunidad más');
+    expect(fresh.finalTitle).toMatch(/Última oportunidad/);
+    expect(fresh.finalCtaText).toBeTruthy();
+    const old = postPurchaseContent({ postPurchase: { downsellTitle: 'Una oportunidad más', downsellText: 'Sumá este producto con un descuento especial.', downsellCtaText: 'Sí, lo quiero con descuento' } }).postPurchase;
+    expect(old).toMatchObject({ downsellTitle: fresh.downsellTitle, downsellText: fresh.downsellText, downsellCtaText: fresh.downsellCtaText, finalTitle: fresh.finalTitle });
+    const custom = postPurchaseContent({ postPurchase: { downsellTitle: 'Mi título', finalTitle: 'Mi cierre', finalText: '' } }).postPurchase;
+    expect(custom).toMatchObject({ downsellTitle: 'Mi título', finalTitle: 'Mi cierre', finalText: '' });
+  });
+
   it('normalizes video URLs without embedding arbitrary pages', () => {
     expect(videoSource('https://youtu.be/dQw4w9WgXcQ?t=10')).toEqual({ kind: 'embed', src: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ' });
     expect(videoSource('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual(videoSource('https://youtu.be/dQw4w9WgXcQ'));

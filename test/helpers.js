@@ -66,6 +66,18 @@ export function mockResend(responses = []) {
   return { emails };
 }
 
+// Replaces only the Discord webhook on top of whatever fetch is installed.
+export function mockDiscord(url, status = 204) {
+  const previousFetch = globalThis.fetch;
+  const messages = [];
+  vi.stubGlobal('fetch', async (target, init) => {
+    if (String(target) !== url) return previousFetch(target, init);
+    messages.push(JSON.parse(init.body));
+    return new Response(null, { status });
+  });
+  return { messages };
+}
+
 let eventCounter = 0;
 export function stripeEvent(type, object, id = `evt_${++eventCounter}`) {
   return { id, type, data: { object } };

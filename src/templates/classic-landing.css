@@ -309,3 +309,4 @@
 .post-offer-preview-close { position: absolute; top: 12px; right: 12px; display: grid; width: 44px; height: 44px; place-items: center; color: var(--muted-foreground); }
 .post-offer-preview-close svg { width: 20px; height: 20px; }
 @media (min-width: 640px) { .post-offer-preview-dialog { padding: 32px; } }
+.post-offer-preview-dialog.is-inline { position: relative; top: auto; max-width: 40rem; margin: 0 auto; }

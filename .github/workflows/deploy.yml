@@ -1,8 +1,10 @@
 name: Convex backend and site
 run-name: 'Aibaze ${{ inputs.requestId || github.sha }}'
+# DESACTIVADO: el sitio se publica solo con `pnpm deploy` desde la máquina local, que tiene
+# VITE_STRIPE_PUBLISHABLE_KEY. Para reactivarlo, descomentá `push` y quitá `if: false` del job deploy.
 on:
-  push:
-    branches: ["main"]
+  # push:
+  #   branches: ["main"]
   workflow_dispatch:
     inputs:
       sha:
@@ -20,6 +22,7 @@ concurrency:
 jobs:
   deploy:
     name: Convex backend
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

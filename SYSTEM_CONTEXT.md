@@ -132,7 +132,6 @@ Las operaciones de landing que no especifican `type` siguen resolviendo la clás
 - `convex/lib/quiz_records.ts`: guardado/publicación del quiz.
 - `convex/lib/landing_records.ts`: selección por tipo y compatibilidad de presentación.
 - `convex/landings.ts`: operaciones de landing y migración.
-- `convex/purchase_presentation.ts`: presentación compartida de checkout y post-compra.
 - `src/panel/QuizEditor.jsx`, `QuizWizard.jsx`: editor simple y asistente.
 - `src/storefront/Quiz.jsx`: reproductor público, resultados y prueba local.
 - `src/storefront/quiz-session.js`: acceso al token de pestaña.

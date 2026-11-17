@@ -96,6 +96,17 @@ export const remove = mutation({args:{sessionId:v.id('quizSessions')},handler:as
  for(const order of await ctx.db.query('orders').withIndex('by_quiz',q=>q.eq('quizSessionId',sessionId)).collect())await ctx.db.patch(order._id,{quizSessionId:undefined});
  await ctx.db.delete(sessionId);
 }});
+// Name and email the visitor typed in this store's quiz, to prefill its checkout. Only the
+// holder of the session token sees them; anything else returns null instead of failing.
+export const checkoutContact = query({args:{subdomain:v.string(),token:v.string()},handler:async(ctx,{subdomain,token})=>{
+ const store=await publicStore(ctx,subdomain);if(!store || store.status!=='active')return null;
+ const hash=await tokenHash(token);
+ const session=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
+ if(!session || session.storeId!==store._id)return null;
+ const name=typeof session.contact?.name==='string'?session.contact.name.trim().slice(0,100):'';
+ const email=typeof session.contact?.email==='string'?session.contact.email.trim().slice(0,254):'';
+ return name||email?{name,email}:null;
+}});
 export const checkoutArrival = mutation({args:{token:v.string()},handler:async(ctx,{token})=>{
  const session=await authorizedSession(ctx,token);if(!session.completedAt)fail('Quiz incompleto.');
  if(!session.checkoutAt)await ctx.db.patch(session._id,{checkoutAt:Date.now()});

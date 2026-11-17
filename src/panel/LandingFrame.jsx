@@ -7,7 +7,7 @@ import { POST_PURCHASE_PREVIEW_STAGES } from '../../shared/post-purchase.js';
 
 // A separate viewport makes the preview use the exact public mobile/desktop styles.
 const DOCUMENT = '<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="preview-root"></div></body></html>';
-export default function LandingFrame({ view, mode, target = 'landing', onSelectSection }) {
+export default function LandingFrame({ view, mode, target = 'landing', postAsModal = true, onSelectSection }) {
   const [root, setRoot] = useState(null);
   const viewportRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -34,6 +34,6 @@ export default function LandingFrame({ view, mode, target = 'landing', onSelectS
     <div className="landing-preview-canvas" style={{ width: frameWidth * scale }}>
       <iframe title="Vista previa de tu landing" srcDoc={DOCUMENT} onLoad={ready} style={{ width: frameWidth, height: size.height ? size.height / scale : '100%', transform: `scale(${scale})`, transformOrigin: 'top left' }} />
     </div>
-    {root && createPortal(<PreviewEditing onSelectSection={onSelectSection}>{target === 'landing' ? <ClassicLanding view={view} /> : <PostPurchasePreview view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} />}</PreviewEditing>, root)}
+    {root && createPortal(<PreviewEditing onSelectSection={onSelectSection}>{target === 'landing' ? <ClassicLanding view={view} /> : <PostPurchasePreview view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} modal={postAsModal} />}</PreviewEditing>, root)}
   </div>;
 }

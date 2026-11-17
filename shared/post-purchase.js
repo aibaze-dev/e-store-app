@@ -2,9 +2,14 @@ export const POST_PURCHASE_CONTENT = {
   postPurchase: {
     eyebrow: 'Oferta especial para vos', title: '', subtitle: '', description: '',
     ctaText: 'Sí, lo quiero', declineText: 'No, gracias',
-    downsellTitle: 'Una oportunidad más',
-    downsellText: 'Sumá este producto con un descuento especial.',
-    downsellCtaText: 'Sí, lo quiero con descuento',
+    // Second step: same product, lower price. The discount badge and prices are shown apart.
+    downsellTitle: 'Esperá: no te vayas sin esto (ahora más barato)',
+    downsellText: 'Sabemos que el precio puede frenar. Por eso, solo porque acabás de comprar, te dejamos exactamente el mismo producto con descuento: el mismo contenido completo y el mismo acceso inmediato, por menos. Este precio no se vuelve a mostrar.',
+    downsellCtaText: 'Sí, lo quiero a este precio',
+    // Last step: the lowest price of the whole offer. After a "No" the modal never comes back.
+    finalTitle: 'Última oportunidad: el precio más bajo que vas a ver',
+    finalText: 'Lo bajamos una vez más y es definitivo: no hay una oferta mejor para este producto. Sumalo ahora a tu compra con acceso inmediato. Si cerrás esta ventana, no vuelve a aparecer.',
+    finalCtaText: 'Sí, lo quiero al precio final',
   },
   postPurchaseBenefits: { enabled: true, title: 'Qué incluye esta oferta', subtitle: '', items: [] },
   postPurchaseVideo: { enabled: false, title: 'Conocé esta oferta', url: '' },
@@ -20,8 +25,22 @@ export function finalPostPurchasePercent(postPurchase = {}) {
 // Pages of the post-purchase preview and the modal step each one shows.
 export const POST_PURCHASE_PREVIEW_STAGES = { post: 'offer', 'post-downsell': 'downsell', 'post-final': 'final' };
 
+// Texts saved while these were the defaults follow the current defaults instead.
+const LEGACY_DEFAULTS = {
+  downsellTitle: 'Una oportunidad más',
+  downsellText: 'Sumá este producto con un descuento especial.',
+  downsellCtaText: 'Sí, lo quiero con descuento',
+};
+
 export function postPurchaseContent(content = {}) {
-  return Object.fromEntries(Object.entries(POST_PURCHASE_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
+  const merged = Object.fromEntries(Object.entries(POST_PURCHASE_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
+  for (const [field, legacy] of Object.entries(LEGACY_DEFAULTS)) {
+    if (merged.postPurchase[field] === legacy) merged.postPurchase[field] = POST_PURCHASE_CONTENT.postPurchase[field];
+  }
+  for (const field of ['finalTitle', 'finalText', 'finalCtaText']) {
+    if (typeof merged.postPurchase[field] !== 'string') merged.postPurchase[field] = POST_PURCHASE_CONTENT.postPurchase[field];
+  }
+  return merged;
 }
 
 // Never embed arbitrary HTML/iframes. Accept known video players or direct video files.

@@ -6,6 +6,7 @@ import { action, internalMutation, type Doc, type Id, type MutationCtx } from '.
 import { buildDownsellOrder, buildInitialOrder, buildPostPurchaseOrder } from './lib/pricing';
 import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
 import { queueEmail } from './emails';
+import { queueSaleAlert } from './discord';
 import { fail } from './lib/validation';
 
 const via = v.union(v.literal('subdomain'), v.literal('path'));
@@ -274,6 +275,7 @@ async function applyPayment(ctx: MutationCtx, transaction: Doc<'transactions'>, 
   await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' } });
   // Links go to the buyer only when paid; a held charge alerts the admins instead.
   if (status !== 'refunded') await queueEmail(ctx, transaction._id);
+  if (status === 'paid') await queueSaleAlert(ctx, transaction._id);
   return status === 'needs_review' ? 'rejected' : 'processed';
 }
 

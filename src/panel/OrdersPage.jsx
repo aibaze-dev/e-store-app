@@ -1,7 +1,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/lib/api.js';
-import { EMAIL_ERRORS, EMAIL_LABELS, formatDate, formatMoney, STATUS_LABELS, statusVariant } from '@/lib/format.js';
-import { Badge } from '@/components/ui/badge';
+import { EMAIL_ERRORS, EMAIL_LABELS, formatDate, formatMoney } from '@/lib/format.js';
+import OrderStatusBadge from '@/components/OrderStatusBadge.jsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
@@ -40,7 +40,7 @@ export default function OrdersPage() {
             </details>}
           </TableCell>
           <TableCell className="font-medium whitespace-nowrap">{formatMoney(order.total, order.currency)}</TableCell>
-          <TableCell className="min-w-32"><Badge variant={statusVariant(order.status)}>{STATUS_LABELS[order.status]}</Badge>
+          <TableCell className="min-w-32"><OrderStatusBadge status={order.status} />
             {order.status === 'needs_review' && order.charged && <p className="mt-2 text-xs leading-5 text-muted-foreground">Stripe cobró {formatMoney(order.charged.amount, order.charged.currency)}{REVIEW_REASONS[order.reviewReason] ?? ''}. Revisá el pago {order.stripePaymentIntentId} en Stripe: reembolsalo o entregá a mano.</p>}</TableCell>
         </TableRow>)}</TableBody>
       </Table>
