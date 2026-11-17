@@ -1,7 +1,7 @@
 import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import { useState } from 'react';
-import { BookOpen, ExternalLink, X } from 'lucide-react';
+import { BookOpen, ExternalLink, LoaderCircle, X } from 'lucide-react';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
 import { classicTheme } from '../../shared/classic-design.js';
 import { Heading } from './ClassicLanding.jsx';
