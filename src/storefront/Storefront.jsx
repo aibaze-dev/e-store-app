@@ -8,9 +8,8 @@ import PostPurchaseModal from './PostPurchaseModal.jsx';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAction, useQuery } from 'convex/react';
-import { ArrowRight, BookOpen, Check, CreditCard, Gift, LoaderCircle, LockKeyhole, Plus, ShieldCheck, Zap } from 'lucide-react';
+import { Check, Gift, LoaderCircle, LockKeyhole, Plus, ShieldCheck, Zap } from 'lucide-react';
 import { api } from '@/lib/api.js';
-import { errorText } from '@/lib/format.js';
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { trackPixel, trackPixelOnce } from '@/lib/pixel.js';
 import { templateFor } from '@/templates/index.js';
@@ -182,7 +181,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
       {content.footer.privacyUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.privacyUrl} target="_blank" rel="noreferrer">{copy.privacy}</a>}
       {content.footer.termsUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.termsUrl} target="_blank" rel="noreferrer">{copy.terms}</a>}
     </nav>}
-    {copy.showExit && (preview ? previewState === 'exit' && <ExitIntentPreview view={view} /> : exitIntent)}
+    {preview ? previewState === 'exit' && <ExitIntentPreview view={view} /> : copy.showExit && exitIntent}
     {!preview && view.downsell && popupOptions(view.content).backCheckout && <DownsellModal view={view} step="checkout" onAccept={() => navigate('../oferta', {state:{origin}})} />}
   </div>;
 }
@@ -281,7 +280,8 @@ function ThankYou({ via, subdomain }) {
   const [params] = useSearchParams();
   const sessionId = params.get('session_id') || '';
   const delivery = useQuery(api.storefront.getDelivery, sessionId ? { sessionId } : 'skip');
-  const context = useQuery(api.storefront.getCheckout, { subdomain });
+  // The store's look is only needed while the purchase loads or cannot be found.
+  const context = useQuery(api.storefront.getCheckout, delivery?.presentation ? 'skip' : { subdomain });
   useEffect(() => {
     if (delivery?.status === 'paid') trackPixelOnce(`purchase-${sessionId}`, delivery.metaPixelId, 'Purchase', { value: delivery.total / 100, currency: delivery.currency });
   }, [delivery, sessionId]);

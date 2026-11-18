@@ -878,6 +878,11 @@ describe('post-purchase landing content', () => {
     }
     await expect(t.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, popupOptions: { postEnabled: false } } })).rejects.toThrow();
     expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.popupOptions).toEqual({});
+    // Titles and actions are required and the error names the screen; descriptions may be empty.
+    await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, landingExit: { exitTitle: ' ' } } })).rejects.toThrow('Salida de la landing · Título del popup');
+    await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, checkout: { exitTitle: '' } } })).rejects.toThrow('Salida del checkout · Título del popup');
+    await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, postLabels: { open: '' } } })).rejects.toThrow('Post-compra');
+    await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, postLabels: { linksSubtitle: '', paymentNote: '' }, backPopup: { modalSubtitle: '' }, landingExit: { exitEmoji: '' } } });
   });
 
   it('rejects invalid video settings and overlong copy without publishing changes', async () => {

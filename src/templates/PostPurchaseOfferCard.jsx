@@ -57,8 +57,8 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, preview 
         {!busy && <ArrowRight aria-hidden="true" />}
       </Button>
       <Button type="button" variant="ghost" className="h-auto min-h-11 w-full whitespace-normal" onClick={onDecline} disabled={busy || !onDecline}>{copy.declineText || defaults.declineText}</Button>
-      <p hidden={!options.showTrust} className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Zap className="size-3.5" aria-hidden="true" />{labels.access}</span><span className="inline-flex items-center gap-1"><LockKeyhole className="size-3.5" aria-hidden="true" />{labels.secure}</span></p>
-      <p hidden={!options.showPaymentNote} className="text-center text-xs text-muted-foreground">{labels.paymentNote}</p>
+      {options.showTrust && <p className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Zap className="size-3.5" aria-hidden="true" />{labels.access}</span><span className="inline-flex items-center gap-1"><LockKeyhole className="size-3.5" aria-hidden="true" />{labels.secure}</span></p>}
+      {options.showPaymentNote && <p className="text-center text-xs text-muted-foreground">{labels.paymentNote}</p>}
     </div>}
   </>;
 }

@@ -1,10 +1,12 @@
+import { initialFunnel, afterDecline, claimReopen, nextStage } from '@/storefront/postPurchaseFunnel.js';
 import { postLabels } from '../../shared/purchase-copy.js';
 import { checkoutConfig } from '../../shared/checkout-copy.js';
 import { CheckoutPaymentPreview } from '@/storefront/CheckoutPayment.jsx';
 import { Link } from 'react-router-dom';
+import { PageSkeleton } from '@/components/Field.jsx';
 import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, ExternalLink, LoaderCircle, X } from 'lucide-react';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
 import { classicTheme } from '../../shared/classic-design.js';
@@ -88,7 +90,7 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
     const titles = { loading: 'loadingTitle', missing: 'missingTitle', pending: 'pendingTitle', needs_review: 'reviewTitle', refunded: 'refundedTitle', failed: 'failedTitle', expired: 'failedTitle' };
     const messages = { loading: 'loadingTitle', missing: 'missingText', pending: 'pendingText', needs_review: 'reviewText', refunded: 'refundedText', failed: 'failedText', expired: 'expiredText' };
     return <PurchaseLanding preview={preview} presentation={presentation} storeName={storeName} title={copy[titles[status] ?? 'failedTitle']} busy={status === 'loading' || status === 'pending'}>
-      <PurchaseSection><div className="purchase-notice"><p role="status">{copy[messages[status] ?? 'expiredText']}</p>
+      <PurchaseSection><div className="purchase-notice">{status === 'loading' ? <PageSkeleton label={copy.loadingTitle} /> : <p role="status">{copy[messages[status] ?? 'expiredText']}</p>}
         {['failed', 'expired'].includes(status) && <Link onClick={event => { if (preview) event.preventDefault(); }} className="purchase-open purchase-notice-action" to="..">{copy.back}<ArrowRight aria-hidden="true" /></Link>}
       </div></PurchaseSection>
     </PurchaseLanding>;
@@ -100,34 +102,55 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
 }
 
 // No payment session or tracking is started by these preview actions.
-export function PostPurchasePreview({ view, stage = 'offer', modal = true, state = 'offer' }) {
+export function PostPurchasePreview({ view, stage = 'offer', modal = true, state = 'offer', onStageChange }) {
   const content = normalizeContent(view.content);
   const labels = postLabels(content);
   const offer = view.postPurchaseOffer;
   const [dismissed, setDismissed] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  useEffect(() => { setDismissed(false); setAccepted(false); }, [stage, state, modal]);
+  const initialPreviewFunnel = () => ({ ...initialFunnel(), declined: stage === 'final' ? ['offer', 'downsell'] : stage === 'downsell' ? ['offer'] : [] });
+  const [funnel, setFunnel] = useState(initialPreviewFunnel);
+  const [shown, setShown] = useState(stage);
+  const [reopened, setReopened] = useState(stage === 'final');
+  const internalStage = useRef(null);
+  useEffect(() => { if (internalStage.current === stage) { internalStage.current = null; return; } setDismissed(false); setAccepted(false); setShown(stage); setFunnel(initialPreviewFunnel()); setReopened(stage === 'final'); }, [stage, state, modal]);
+  const configuredOffer = { ...offer, content: view.content };
+  function showStage(next) { setShown(next); if (onStageChange) { internalStage.current = next; onStageChange(next); } }
+  function decline() {
+    const result = afterDecline(configuredOffer, funnel, shown, reopened);
+    setFunnel(result.funnel); setAccepted(false);
+    if (result.stage) showStage(result.stage);
+    else setDismissed(true);
+  }
+  function dismiss() {
+    setFunnel(current => ({ ...current, declined: current.declined.includes(shown) ? current.declined : [...current.declined, shown] }));
+    setDismissed(true); setAccepted(false);
+  }
+  function reopen(trigger) {
+    const next = claimReopen(configuredOffer, funnel, trigger);
+    if (!next) return;
+    setFunnel(next); setReopened(true); setDismissed(false); setAccepted(false); showStage(nextStage(configuredOffer, next));
+  }
   const examples = view.offer ? [view.offer.main, ...(view.offer.bonuses || [])].map(product => ({ productName: product.name, title: '' })) : [];
-  const unavailableStage = stage === 'downsell' && !offer?.downsellPrice;
-  const shown = stage;
+  const unavailableStage = shown === 'downsell' && !offer?.downsellPrice;
   const resultStates = ['paid', 'saved', 'empty', 'loading', 'missing', 'pending', 'needs_review', 'failed', 'expired', 'refunded'];
   const showOffer = !resultStates.includes(state);
   const paymentCopy = checkoutConfig(view);
   const card = offer && !unavailableStage && <PostPurchaseOfferCard offer={{ ...offer, content: view.content }} currency={view.store.currency} stage={shown}
     preview previewState={state} busy={state === 'preparing'} error={state === 'error' ? labels.startError : ''} canPurchase
-    onAccept={() => setAccepted(true)} onDecline={() => setDismissed(true)}
+    onAccept={() => setAccepted(true)} onDecline={decline}
     payment={accepted || ['payment', 'processing', 'payment-error', 'payment-loading'].includes(state) ? <CheckoutPaymentPreview askContact={false} copy={paymentCopy} state={state === 'processing' ? state : state === 'payment-error' ? 'error' : state === 'payment-loading' ? 'loading' : 'ready'} totalLabel={money(postPurchaseStage(offer, shown).price, view.store.currency)} /> : null} />;
   return <div className="post-offer-preview">
     <PurchaseResult presentation={{ accentColor: content.style.accentColor, ...content.footer, postLabels: content.postLabels }} storeName={view.store?.name}
       status={resultStates.includes(state) && !['saved', 'empty'].includes(state) ? state : 'paid'} emailed={state !== 'saved'} deliveries={state === 'empty' ? [] : examples} preview>
       {unavailableStage && offer && showOffer && <PurchaseSection><p className="purchase-notice">No hay un descuento de post-compra configurado para esta tienda. Configuralo en Downsell para previsualizar esta variante con su precio real.</p></PurchaseSection>}
       {!offer && showOffer && <PurchaseSection><p className="purchase-notice">Activá la oferta post-compra y elegí un producto en «Oferta post-compra» para previsualizar este modal.</p></PurchaseSection>}
-      {offer && !modal && showOffer && <PurchaseSection label={labels.offerDescription}><div className="classic-offer-dialog post-offer-preview-dialog is-inline" style={classicTheme(content.style.accentColor)}>{card}</div></PurchaseSection>}
-      {dismissed && showOffer && <PurchaseSection><button type="button" className="purchase-open" onClick={() => { setDismissed(false); setAccepted(false); }}>Volver a abrir la vista previa</button></PurchaseSection>}
+      {offer && !modal && showOffer && !dismissed && <PurchaseSection label={labels.offerDescription}><div className="classic-offer-dialog post-offer-preview-dialog is-inline" style={classicTheme(content.style.accentColor)}>{card}</div></PurchaseSection>}
+      {dismissed && showOffer && <PurchaseSection><div className="space-y-4 rounded-xl border p-5 text-sm leading-6"><p>El modal se cerró. Probá los disparadores de reapertura o volvé a elegir una variante desde el mapa.</p><div className="flex flex-wrap gap-3">{['visibility', 'mouse'].map(trigger => <button key={trigger} type="button" className="rounded-lg border p-3 disabled:opacity-40" disabled={!claimReopen(configuredOffer, funnel, trigger)} onClick={() => reopen(trigger)}>{trigger === 'visibility' ? 'Simular regreso a la pestaña' : 'Simular salida con el mouse'}</button>)}</div></div></PurchaseSection>}
     </PurchaseResult>
     {offer && !unavailableStage && modal && showOffer && !dismissed && <div className="post-offer-preview-overlay">
       <div role="dialog" aria-modal="false" aria-label={labels.offerDescription} className="classic-offer-dialog post-offer-preview-dialog" style={classicTheme(content.style.accentColor)}>
-        <button type="button" className="post-offer-preview-close" aria-label={labels.close} onClick={() => setDismissed(true)}><X /></button>
+        <button type="button" className="post-offer-preview-close" disabled={state === 'processing' || state === 'preparing'} aria-label={labels.close} onClick={dismiss}><X /></button>
         {card}
       </div>
     </div>}

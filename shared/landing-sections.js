@@ -18,12 +18,12 @@ export const LANDING_SECTIONS = {
   combo: ['17', 'Armá tu combo y botón fijo'],
   identity: ['18', 'Identidad y dirección'],
   checkoutTimer: ['01', 'Contador del checkout'],
-  postPurchase: ['01', 'Post-compra · Presentación'],
-  postPurchaseBenefits: ['02', 'Post-compra · Beneficios'],
-  postPurchaseVideo: ['03', 'Post-compra · Video VSL'],
-  postPurchaseDownsell: ['04', 'Post-compra · Una oportunidad más'],
-  postPurchaseFinal: ['05', 'Post-compra · Última oportunidad'],
-  postPurchaseCopy: ['06', 'Textos y estados de post-compra'],
+  postPurchase: ['02', 'Post-compra · Presentación'],
+  postPurchaseBenefits: ['03', 'Post-compra · Beneficios'],
+  postPurchaseVideo: ['04', 'Post-compra · Video VSL'],
+  postPurchaseDownsell: ['05', 'Post-compra · Una oportunidad más'],
+  postPurchaseFinal: ['06', 'Post-compra · Última oportunidad'],
+  postPurchaseCopy: ['01', 'Textos y estados de post-compra'],
   popupLanding: ['01', 'Salida de la landing'], popupCheckout: ['02', 'Salida del checkout'], popupBack: ['03', 'Oferta al volver atrás'], popupPost: ['04', 'Popups después del pago'],
 };
 

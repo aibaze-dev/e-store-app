@@ -1,4 +1,4 @@
-import { CHECKOUT_FIELDS, CHECKOUT_DEFAULTS } from './checkout-copy.js';
+import { CHECKOUT_FIELDS, CHECKOUT_DEFAULTS, CHECKOUT_OPTIONAL_FIELDS } from './checkout-copy.js';
 import { formatLandingText } from './landing-copy.js';
 export const POST_LABEL_FIELDS = {
   "paidEyebrow": {
@@ -259,7 +259,12 @@ export const POST_OPTION_DEFAULTS = Object.fromEntries(Object.keys(POST_OPTION_F
 export const POPUP_OPTION_DEFAULTS = Object.fromEntries(Object.keys(POPUP_OPTION_FIELDS).map(key => [key, true]));
 export const LANDING_EXIT_FIELDS = Object.fromEntries(Object.entries(CHECKOUT_FIELDS).filter(([, field]) => field.group === 'exit'));
 export const DOWNSELL_DEFAULTS = Object.fromEntries(Object.entries(BACK_POPUP_FIELDS).filter(([key]) => ['modalTitle', 'modalSubtitle', 'acceptText', 'declineText', 'pageTitle', 'pageSubtitle'].includes(key)).map(([key, field]) => [key, field.value]));
-export const postLabels = (content = {}) => ({ ...POST_LABEL_DEFAULTS, ...content.postLabels });
+// Descriptive texts may be left empty; titles, actions and accessible names fall back to their default.
+export const POST_OPTIONAL_FIELDS = ['linksEyebrow', 'linksSubtitle', 'emailedText', 'savedText', 'paymentNote', 'rights'];
+export const BACK_POPUP_OPTIONAL_FIELDS = ['modalSubtitle', 'pageSubtitle'];
+export const LANDING_EXIT_OPTIONAL_FIELDS = CHECKOUT_OPTIONAL_FIELDS.filter(key => key in LANDING_EXIT_FIELDS);
+export const filledTexts = (values = {}, optional = []) => Object.fromEntries(Object.entries(values ?? {}).filter(([key, value]) => typeof value === 'string' && (optional.includes(key) || value.trim())));
+export const postLabels = (content = {}) => ({ ...POST_LABEL_DEFAULTS, ...filledTexts(content?.postLabels, POST_OPTIONAL_FIELDS) });
 export const postOptions = (content = {}) => ({ ...POST_OPTION_DEFAULTS, ...content.postOptions });
 export const popupOptions = (content = {}) => ({ ...POPUP_OPTION_DEFAULTS, ...content.popupOptions });
 export const purchaseText = (copy, key, values = {}) => formatLandingText(copy[key], values);
@@ -267,12 +272,12 @@ export const landingExitConfig = (view = {}) => ({
   ...Object.fromEntries(Object.keys(LANDING_EXIT_FIELDS).map(key => [key, CHECKOUT_DEFAULTS[key]])),
   exitIntro: 'Antes de irte, mirá lo que te llevás hoy con «{producto}».',
   exitButton: view.content?.hero?.ctaText || 'Comprar ahora',
-  ...view.content?.landingExit,
+  ...filledTexts(view.content?.landingExit, LANDING_EXIT_OPTIONAL_FIELDS),
 });
 export function backPopupConfig(view = {}) {
   return { ...Object.fromEntries(Object.entries(BACK_POPUP_FIELDS).map(([key, field]) => [key, field.value])),
     ...Object.fromEntries(Object.keys(DOWNSELL_DEFAULTS).filter(key => view.downsell?.[key]?.trim()).map(key => [key, view.downsell[key]])),
-    ...view.content?.backPopup,
+    ...filledTexts(view.content?.backPopup, BACK_POPUP_OPTIONAL_FIELDS),
   };
 }
 export const PURCHASE_PREVIEW_STATES = { offer: 'Oferta', preparing: 'Preparando pago', error: 'Error al iniciar pago', payment: 'Formulario de pago', processing: 'Procesando pago', 'payment-error': 'Error al confirmar el pago', 'payment-loading': 'Cargando medios de pago', videoError: 'Error del video', paid: 'Compra confirmada con email', saved: 'Compra confirmada sin email', empty: 'Sin links cargados', loading: 'Buscando compra', missing: 'Compra no encontrada', pending: 'Pago pendiente', needs_review: 'Pago en revisión', failed: 'Pago rechazado', expired: 'Pago vencido', refunded: 'Compra reembolsada' };

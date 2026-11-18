@@ -47,6 +47,11 @@ describe('editable popups and their preview map', () => {
     const disabled = popupJourney({ ...view(), downsell: null, postPurchaseOffer: null, content: { popupOptions: { landingExit: false }, checkout: { showExit: false } } });
     expect(disabled).toHaveLength(7);
     expect(disabled.every(item => !item.enabled)).toBe(true);
+    const noTriggers = popupJourney({ ...view(), content: { popupOptions: { postOnLoad: false, postOnReturn: false, postOnExit: false } } });
+    expect(noTriggers.filter(item => item.group === 'Después del pago').every(item => !item.enabled)).toBe(true);
+    const onlyOnLoad = popupJourney({ ...view(), content: { popupOptions: { postOnReturn: false, postOnExit: false } } });
+    expect(onlyOnLoad.find(item => item.target === 'post-downsell').enabled).toBe(true);
+    expect(onlyOnLoad.find(item => item.target === 'post-final').enabled).toBe(false);
   });
   it('honors disabled steps and triggers while keeping the existing funnel limits', () => {
     const configured = { ...offer, content: { popupOptions: { postDownsell: false, postOnReturn: false } } };
@@ -63,11 +68,14 @@ describe('editable popups and their preview map', () => {
   it('preserves legacy CTA and downsell text, explicit blanks, and edits during generation', () => {
     expect(landingExitConfig({ content: { hero: { ctaText: 'Mi CTA' } } }).exitButton).toBe('Mi CTA');
     expect(backPopupConfig({ downsell: { modalTitle: 'Oferta anterior' } }).modalTitle).toBe('Oferta anterior');
-    const content = normalizeContent({ landingExit: { exitTitle: 'Nuevo aviso', exitIntro: 'Llevate {producto}' }, postLabels: { paidTitle: 'Listo', linksSubtitle: '' }, backPopup: { modalTitle: '' }, popupOptions: { postOnExit: false } });
+    const content = normalizeContent({ landingExit: { exitTitle: 'Nuevo aviso', exitIntro: 'Llevate {producto}' }, postLabels: { paidTitle: 'Listo', linksSubtitle: '' }, backPopup: { modalTitle: '', modalSubtitle: '' }, popupOptions: { postOnExit: false } });
     const regenerated = mergeGeneratedContent(content, { hero: { title: 'Título nuevo' } });
     for (const key of ['postLabels', 'landingExit', 'backPopup', 'popupOptions']) expect(regenerated[key]).toEqual(content[key]);
     expect(postLabels(content).linksSubtitle).toBe('');
-    expect(backPopupConfig({ content }).modalTitle).toBe('');
+    // Optional descriptions may stay empty; titles and actions never render blank.
+    expect(backPopupConfig({ content }).modalSubtitle).toBe('');
+    expect(backPopupConfig({ content }).modalTitle).toBe('¡Esperá! Tenemos un regalo para vos 🎁');
+    expect(postLabels({ postLabels: { open: '  ', close: '' } })).toMatchObject({ open: 'Abrir', close: 'Cerrar' });
     expect(exitIntentCopy({ ...view(), content }, 'landing', String)).toMatchObject({ title: 'Nuevo aviso', intro: 'Llevate Guía' });
   });
 });

@@ -1,4 +1,4 @@
-import { POST_LABEL_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS } from '../shared/purchase-copy.js';
+import { POST_LABEL_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, POST_OPTIONAL_FIELDS, BACK_POPUP_OPTIONAL_FIELDS, LANDING_EXIT_OPTIONAL_FIELDS } from '../shared/purchase-copy.js';
 import { CHECKOUT_FIELDS, CHECKOUT_OPTIONAL_FIELDS } from '../shared/checkout-copy.js';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { forStore, setAddress } from './lib/landing_records';
@@ -72,11 +72,12 @@ export function cleanContent(content: typeof landingContent.type) {
   const kitVideo = cleanUrl(content.benefits.videoUrl ?? '', 'Video del kit');
   if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: subí un archivo MP4, WebM u OGV.');
   const combo = { ...CLASSIC_STORY.combo, ...content.combo };
-  const cleanLabels = (key: 'postLabels' | 'landingExit' | 'backPopup', fields: Record<string, { label: string }>) => Object.fromEntries(Object.entries(fields).filter(([name]) => content[key]?.[name] !== undefined).map(([name, field]) => [name, cleanText(content[key][name], field.label, 1200)]));
+  // Errors name the screen: the landing and checkout exit popups share their field labels.
+  const cleanLabels = (key: 'postLabels' | 'landingExit' | 'backPopup', fields: Record<string, { label: string }>, screen: string, optional: string[]) => Object.fromEntries(Object.entries(fields).filter(([name]) => content[key]?.[name] !== undefined).map(([name, field]) => [name, cleanText(content[key][name], `${screen} · ${field.label}`, 1200, !optional.includes(name))]));
   return {
-    postLabels: cleanLabels('postLabels', POST_LABEL_FIELDS), postOptions: content.postOptions ?? {},
-    landingExit: cleanLabels('landingExit', LANDING_EXIT_FIELDS), backPopup: cleanLabels('backPopup', BACK_POPUP_FIELDS), popupOptions: content.popupOptions ?? {},
-    checkout: { ...content.checkout, ...Object.fromEntries(Object.entries(CHECKOUT_FIELDS).filter(([key]) => content.checkout?.[key] !== undefined).map(([key, field]) => [key, cleanText(content.checkout[key], field.label, 600, !CHECKOUT_OPTIONAL_FIELDS.includes(key))])) },
+    postLabels: cleanLabels('postLabels', POST_LABEL_FIELDS, 'Post-compra', POST_OPTIONAL_FIELDS), postOptions: content.postOptions ?? {},
+    landingExit: cleanLabels('landingExit', LANDING_EXIT_FIELDS, 'Salida de la landing', LANDING_EXIT_OPTIONAL_FIELDS), backPopup: cleanLabels('backPopup', BACK_POPUP_FIELDS, 'Volver atrás', BACK_POPUP_OPTIONAL_FIELDS), popupOptions: content.popupOptions ?? {},
+    checkout: { ...content.checkout, ...Object.fromEntries(Object.entries(CHECKOUT_FIELDS).filter(([key]) => content.checkout?.[key] !== undefined).map(([key, field]) => [key, cleanText(content.checkout[key], `${field.group === 'exit' ? 'Salida del checkout' : 'Checkout'} · ${field.label}`, 600, !CHECKOUT_OPTIONAL_FIELDS.includes(key))])) },
     labels: Object.fromEntries(Object.entries(LANDING_LABEL_FIELDS).map(([key, field]) => [key, cleanText(content.labels?.[key] ?? field.value, field.label, 240)])),
     introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400), badge: cleanText(content.introduction?.badge ?? '', 'Frase destacada', 120) },
     transformation: { ...storyHeading('transformation'), ...storyImage('transformation') },

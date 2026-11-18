@@ -460,3 +460,35 @@
 .popup-journey-card:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
 .post-offer-preview-dialog, .post-offer-dialog, .purchase-landing { overflow-wrap: anywhere; }
 @media (max-width: 400px) { .landing-settings-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Editable purchase copy: checkout, popups and post-purchase. */
+.copy-fields { display: grid; gap: 22px; }
+.copy-field { display: grid; gap: 10px; }
+.copy-field-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 24px; }
+.copy-field-tag { border-radius: 999px; background: var(--muted); padding: 2px 8px; color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
+.copy-field-reset { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; min-height: 32px; padding-inline: 6px; border-radius: 6px; color: var(--muted-foreground); font-size: 12px; cursor: pointer; }
+.copy-field-reset:hover { color: var(--foreground); background: var(--muted); }
+.copy-field-reset:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.copy-field-reset svg { width: 14px; height: 14px; }
+.copy-field-vars { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; }
+.copy-field-vars code { border: 1px solid var(--border); border-radius: 6px; background: var(--muted); padding: 1px 6px; color: var(--foreground); font-size: 11px; }
+.copy-group { border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.copy-group > summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.copy-group > summary::-webkit-details-marker { display: none; }
+.copy-group > summary > span { flex: 1; min-width: 0; }
+.copy-group > summary strong { display: block; font-size: 14px; font-weight: 600; }
+.copy-group > summary small { display: block; color: var(--muted-foreground); font-size: 12px; }
+.copy-group > summary > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--muted-foreground); transition: transform .15s; }
+.copy-group[open] > summary > svg { transform: rotate(180deg); }
+.copy-group > summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 12px; }
+.copy-group-body { border-top: 1px solid var(--border); padding: 20px 16px; }
+.option-list { display: grid; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.option-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding: 10px 16px; }
+.option-row + .option-row { border-top: 1px solid var(--border); }
+.option-row > label { display: grid; gap: 2px; min-width: 0; font-size: 14px; cursor: pointer; }
+.option-row > label small { color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+.landing-preview-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.popup-journey-status { display: inline-flex; width: fit-content; align-items: center; gap: 6px; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; background: var(--muted); color: var(--muted-foreground); }
+.popup-journey-status.is-on { background: var(--accent); color: var(--primary); }
+.popup-journey-status::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+@media (prefers-reduced-motion: reduce) { .copy-group > summary > svg { transition: none; } }
