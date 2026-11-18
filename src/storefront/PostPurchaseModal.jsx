@@ -1,7 +1,8 @@
+import { postLabels, popupOptions } from '../../shared/purchase-copy.js';
+import { checkoutConfig } from '../../shared/checkout-copy.js';
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'convex/react';
 import { api } from '@/lib/api.js';
-import { errorText } from '@/lib/format.js';
 import { storefrontMoney as money } from '@/lib/storefront-money.js';
 import { classicTheme } from '../../shared/classic-design.js';
 import { postPurchaseStage } from '@/templates/PostPurchaseContent.jsx';
@@ -14,10 +15,12 @@ import { afterDecline, claimReopen, funnelStore, initialFunnel, nextStage } from
 // The post-purchase offer of the thank-you page, in a modal that opens on load.
 // Payment happens inside the same modal; the amounts are charged by the server.
 export default function PostPurchaseModal({ offer, currency, sessionId, via, accentColor }) {
+  const labels = postLabels(offer.content);
+  const options = popupOptions(offer.content);
   const start = useAction(api.checkout.startPostPurchase);
   const [funnel, setFunnelState] = useState(() => funnelStore.read(sessionId) ?? initialFunnel());
   const [stage, setStage] = useState(() => nextStage(offer, funnel));
-  const [open, setOpen] = useState(() => funnel.declined.length === 0);
+  const [open, setOpen] = useState(() => options.postEnabled && options.postOnLoad && funnel.declined.length === 0);
   const [reopened, setReopened] = useState(false);
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -85,20 +88,20 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
         ...(attempt.failed ? { retry: true } : {}),
       });
       setPayment({ stage, clientSecret: result.clientSecret });
-    } catch (failure) { attempt.failed = true; setError(errorText(failure, 'No se pudo iniciar el pago. Volvé a intentar.')); }
+    } catch (failure) { attempt.failed = true; setError(labels.startError); }
     finally { setBusy(false); }
   }
 
-  if (!stage) return null;
+  if (!stage || !options.postEnabled) return null;
   const { price } = postPurchaseStage(offer, stage);
   // While Stripe confirms the payment the modal cannot be dismissed.
   const guard = event => { if (paying || busy) event.preventDefault(); };
 
   return <Dialog open={open} onOpenChange={next => { if (next) setOpen(true); else if (!paying && !busy) dismiss(); }}>
-    <DialogContent className="classic-offer-dialog post-offer-dialog max-w-lg" style={classicTheme(accentColor)} onInteractOutside={guard} onEscapeKeyDown={guard}>
+    <DialogContent closeLabel={labels.close} className="classic-offer-dialog post-offer-dialog max-w-lg" style={classicTheme(accentColor)} onInteractOutside={guard} onEscapeKeyDown={guard}>
       <PostPurchaseOfferCard offer={offer} currency={currency} stage={stage} busy={busy} error={error} canPurchase={Boolean(stripeKey)}
         onAccept={accept} onDecline={decline} Title={DialogTitle} Description={DialogDescription}
-        payment={payment?.stage === stage ? <SessionPayment key={payment.clientSecret} clientSecret={payment.clientSecret} total={price} currency={currency} totalLabel={money(price, currency)} onPayingChange={setPaying} /> : null} />
+        payment={payment?.stage === stage ? <SessionPayment copy={checkoutConfig({ content: offer.content })} key={payment.clientSecret} clientSecret={payment.clientSecret} total={price} currency={currency} totalLabel={money(price, currency)} onPayingChange={setPaying} /> : null} />
     </DialogContent>
   </Dialog>;
 }

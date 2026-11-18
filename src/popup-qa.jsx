@@ -1,0 +1,11 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { LandingConfigurator } from './panel/LandingEditPage.jsx';
+import { normalizeContent } from './templates/content.js';
+import './theme.css'; import './styles.css';
+const products = [{_id:'main',name:'Guía práctica de herramientas digitales',description:'Aprendé paso a paso.',coverUrl:''},{_id:'post',name:'Curso avanzado con ejercicios',description:'Aplicá lo aprendido.',coverUrl:''},{_id:'bonus',name:'Plantillas de trabajo',coverUrl:''}];
+const store={_id:'qa',name:'Tienda de prueba',currency:'USD',offer:{mainProductId:'main',price:2700,compareAtPrice:4900,bonuses:[{productId:'bonus',referenceValue:1000}],upsells:[]},postPurchase:{enabled:true,productId:'post',price:4700,downsellPercent:20},checkout:{notifications:false,upsellTitle:'Extras'},downsell:{enabled:true,percent:15}};
+const draft=normalizeContent({hero:{title:'Aprendé con tu guía'},guarantee:{text:'7 días de garantía.',days:7},postPurchase:{title:'Continuá con el curso avanzado',subtitle:'Un paso más para aplicar lo aprendido.'},postPurchaseBenefits:{items:[{title:'Ejercicios',description:'Aplicaciones prácticas',icon:'check'}]}});
+createRoot(document.getElementById('root')).render(<ConvexProvider client={new ConvexReactClient('https://preview.invalid')}><BrowserRouter><div style={{padding:24,maxWidth:1600,margin:'auto'}}><LandingConfigurator landing={{subdomain:'qa',draft}} store={store} products={products} hash="#popups" onSave={async()=>{}} /></div></BrowserRouter></ConvexProvider>);

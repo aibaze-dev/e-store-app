@@ -1,10 +1,10 @@
+import { CHECKOUT_DEFAULTS, checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'convex/react';
 import { CheckoutElementsProvider, PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { loadStripe } from '@stripe/stripe-js/pure';
 import { CreditCard, LoaderCircle, UserRound } from 'lucide-react';
 import { api } from '@/lib/api.js';
-import { errorText } from '@/lib/format.js';
 import { trackPixel } from '@/lib/pixel.js';
 import { Field, ErrorAlert } from '@/components/Field.jsx';
 import { Button } from '@/components/ui/button';
@@ -13,19 +13,23 @@ import { confirmCheckout } from './confirmCheckout.js';
 
 export const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 // Stripe.js is only loaded when a payment form is actually shown.
-let stripe;
+const stripeInstances = new Map();
+const stripeFor = locale => {
+  if (!stripeInstances.has(locale)) stripeInstances.set(locale, loadStripe(stripeKey, { locale }));
+  return stripeInstances.get(locale);
+};
 const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b', borderRadius: '10px', fontFamily: 'Arial, sans-serif', fontSizeBase: '16px' } };
 
 // Only email and name: card, wallets and anything else are Stripe's own Payment Element.
-export function PersonalDetails({ buyer, setBuyer, disabled, formId }) {
+export function PersonalDetails({ buyer, setBuyer, disabled, formId, copy = CHECKOUT_DEFAULTS }) {
   const field = (key, label, autocomplete, type, placeholder, hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={placeholder} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
   return <fieldset disabled={disabled} className="checkout-personal space-y-3">
-    <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />Datos personales</legend>
+    <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />{copy.personalTitle}</legend>
     <div className="grid gap-5 sm:grid-cols-2">
-      {field('email', 'Email *', 'email', 'email', 'tu@email.com')}
-      {field('name', 'Nombre *', 'name', 'text', 'Tu nombre')}
+      {field('email', copy.emailLabel, 'email', 'email', copy.emailPlaceholder)}
+      {field('name', copy.nameLabel, 'name', 'text', copy.namePlaceholder)}
     </div>
-    <p className="text-sm text-muted-foreground">Te enviamos el acceso a tu compra a este email.</p>
+    <p className="text-sm text-muted-foreground">{copy.emailHint}</p>
   </fieldset>;
 }
 
@@ -44,7 +48,7 @@ function useBuyer(initialBuyer) {
 // No Link sign-up box and billing address only when the card really needs it.
 const PAYMENT_ELEMENT_OPTIONS = { layout: 'tabs', wallets: { link: 'never' }, fields: { billingDetails: { address: 'if_required' } } };
 
-function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onInitiate, payRef }) {
+function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onInitiate, payRef, copy = CHECKOUT_DEFAULTS }) {
   const state = useCheckoutElements();
   // Without buyer details (post-purchase) the email comes from the session; asked only if missing.
   const [email, setEmail] = useState('');
@@ -59,23 +63,24 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
     if (submitting.current || state.type !== 'success' || !ready) return;
     submitting.current = true; setBusy(true); onPayingChange(true); setError('');
     try {
-      const result = await confirmCheckout(state.checkout, buyer, { total, currency }, onInitiate, email);
+      const result = await confirmCheckout(state.checkout, buyer, { total, currency }, onInitiate, email, copy);
       if (result.type === 'error') setError(result.error.message);
-    } catch { setError('No pudimos confirmar el pago. Revisá tus datos y volvé a intentar.'); }
+    } catch { setError(copy.confirmError); }
     finally { submitting.current = false; setBusy(false); onPayingChange(false); }
   }
   return <form id="checkout-payment" onSubmit={submit} className="space-y-6" aria-busy={busy}>
-    <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
-    <ErrorAlert>{state.type === 'error' ? 'No pudimos cargar el pago seguro. Recargá la página para reintentar.' : error}</ErrorAlert>
-    {askEmail && <Field label="Email *" hint="Te enviamos ahí el acceso a tu compra.">{ids => <Input {...ids} type="email" name="email" autoComplete="email" required maxLength={254} placeholder="tu@email.com" value={email} disabled={busy} onChange={event => setEmail(event.target.value)} />}</Field>}
+    <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>
+    <ErrorAlert>{state.type === 'error' ? copy.loadError : error}</ErrorAlert>
+    {askEmail && <Field label={copy.emailLabel} hint={copy.emailHint}>{ids => <Input {...ids} type="email" name="email" autoComplete="email" required maxLength={254} placeholder={copy.emailPlaceholder} value={email} disabled={busy} onChange={event => setEmail(event.target.value)} />}</Field>}
     {state.type === 'success' && <PaymentElement options={PAYMENT_ELEMENT_OPTIONS} onReady={() => setReady(true)} onLoadError={() => setLoadError(true)} />}
-    {loadError && <ErrorAlert>No se pudo cargar el medio de pago. Recargá la página para reintentar.</ErrorAlert>}
-    {!ready && state.type !== 'error' && !loadError && <p role="status" className="text-sm text-muted-foreground">Cargando medios de pago…</p>}
-    <Button ref={payRef} className="checkout-pay h-16 w-full text-lg" type="submit" disabled={busy || state.type !== 'success' || !ready || loadError}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? 'Procesando…' : `Pagar ${totalLabel}`}</Button>
+    {loadError && <ErrorAlert>{copy.methodError}</ErrorAlert>}
+    {!ready && state.type !== 'error' && !loadError && <p role="status" className="text-sm text-muted-foreground">{copy.loading}</p>}
+    <Button ref={payRef} className="checkout-pay h-16 w-full text-lg" type="submit" disabled={busy || state.type !== 'success' || !ready || loadError}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? copy.processing : checkoutText(copy, 'pay', { importe: totalLabel })}</Button>
   </form>;
 }
 
 export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer }) {
+  const copy = checkoutConfig(view);
   const start = useAction(api.checkout.start);
   // A quiz may hand over the name and email the visitor already typed; they stay editable.
   const [buyer, setBuyer] = useBuyer(initialBuyer);
@@ -96,38 +101,60 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
       // Reuse the pending request/session for this selection, including retries and Strict Mode.
       // After a failure the retry asks for a fresh Stripe key: Stripe replays cached errors.
       attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...(quizToken?{quizToken}:{}), ...(attempt.failed ? { retry: true } : {}) }).catch(failure => { attempt.promise = null; attempt.failed = true; throw failure; });
-      attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, failure => { if (!ignore) setError(errorText(failure, 'No pudimos cargar el pago. Volvé a intentar.')); });
+      attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, () => { if (!ignore) setError(copy.sessionError); });
     }, 250);
     return () => { ignore = true; clearTimeout(timer); };
-  }, [key, selection, view.subdomain, via, start, retry, origin, quizToken]);
+  }, [key, selection, view.subdomain, via, start, retry, origin, quizToken, copy.sessionError]);
   const ready = session?.key === key;
   const setProcessing = value => { setPaying(value); onPayingChange(value); };
-  if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });
+  const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-9">
-    <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" />
-    {ready ? <CheckoutElementsProvider key={session.clientSecret} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
-      <PaymentForm total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
+    <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />
+    {ready ? <CheckoutElementsProvider key={`${session.clientSecret}:${copy.paymentLocale}`} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
+      <PaymentForm copy={copy} total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
     </CheckoutElementsProvider> : <div className="space-y-6">
-      <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />Método de pago</h2>
+      <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>
       <ErrorAlert>{error}</ErrorAlert>
-      <p className="text-sm text-muted-foreground" role="status">{!stripeKey ? 'Los pagos todavía no están habilitados en este sitio.' : !error ? 'Cargando medios de pago seguros…' : ''}</p>
-      {error && <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Reintentar</Button>}
-      <Button className="checkout-pay h-16 w-full text-lg" disabled>Pagar {totalLabel}</Button>
+      <p className="text-sm text-muted-foreground" role="status">{!stripeKey ? copy.unavailable : !error ? copy.loadingSecure : ''}</p>
+      {error && <Button variant="outline" onClick={() => setRetry(value => value + 1)}>{copy.retry}</Button>}
+      <Button className="checkout-pay h-16 w-full text-lg" disabled>{checkoutText(copy, 'pay', { importe: totalLabel })}</Button>
     </div>}
   </div>;
 }
 
 // Payment Element for a session that was already created (downsell and post-purchase offers).
 // `askContact` shows the personal details form; without it the session already knows the buyer.
-export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, initialBuyer, onInitiate = () => {}, onPayingChange = () => {} }) {
+export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, initialBuyer, onInitiate = () => {}, onPayingChange = () => {}, copy = CHECKOUT_DEFAULTS }) {
   const [buyer, setBuyer] = useBuyer(initialBuyer);
   const [paying, setPayingState] = useState(false);
   const setPaying = value => { setPayingState(value); onPayingChange(value); };
-  if (stripeKey) stripe ||= loadStripe(stripeKey, { locale: 'es' });
+  const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-8 rounded-xl border bg-card p-5 sm:p-6">
-    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" />}
+    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />}
     <CheckoutElementsProvider key={clientSecret} stripe={stripe} options={{ clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
-      <PaymentForm total={total} currency={currency} buyer={askContact ? buyer : null} totalLabel={totalLabel} onPayingChange={setPaying} onInitiate={onInitiate} />
+      <PaymentForm copy={copy} total={total} currency={currency} buyer={askContact ? buyer : null} totalLabel={totalLabel} onPayingChange={setPaying} onInitiate={onInitiate} />
     </CheckoutElementsProvider>
+  </div>;
+}
+
+// The preview mounts no Stripe provider, creates no orders and sends no analytics.
+export function CheckoutPaymentPreview({ copy, totalLabel, state = 'ready', askContact = true }) {
+  const [buyer, setBuyer] = useState({ email: '', name: '' });
+  const paymentLabels = { es: ['Tarjeta', 'Número de tarjeta', 'Vencimiento', 'Código de seguridad'], en: ['Card', 'Card number', 'Expiry', 'Security code'], pt: ['Cartão', 'Número do cartão', 'Validade', 'Código de segurança'] }[copy.paymentLocale] ?? ['Tarjeta', 'Número de tarjeta', 'Vencimiento', 'Código de seguridad'];
+  const messages = { loading: copy.loading, loadingSecure: copy.loadingSecure, unavailable: copy.unavailable, error: copy.confirmError, loadError: copy.loadError, methodError: copy.methodError, sessionError: copy.sessionError, changedError: copy.changedError, emailError: copy.emailError, nameError: copy.nameError };
+  return <div className="space-y-9">
+    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} copy={copy} disabled={state === 'processing'} />}
+    <section className="space-y-6">
+      <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>
+      {messages[state] && (['loading', 'loadingSecure', 'unavailable'].includes(state) ? <p role="status" className="text-sm text-muted-foreground">{messages[state]}</p> : <ErrorAlert>{messages[state]}</ErrorAlert>)}
+      {state === 'sessionError' && <Button type="button" variant="outline">{copy.retry}</Button>}
+      <div className="space-y-4 rounded-xl border p-4">
+        <p className="flex items-center gap-2 text-sm font-medium"><CreditCard aria-hidden="true" />{paymentLabels[0]}</p>
+        <Field label={paymentLabels[1]}>{ids => <Input {...ids} disabled placeholder="1234 1234 1234 1234" />}</Field>
+        <div className="grid grid-cols-2 gap-3">{paymentLabels.slice(2).map((label, index) => <Field key={label} label={label}>{ids => <Input {...ids} disabled placeholder={index === 0 ? 'MM / AA' : 'CVC'} />}</Field>)}</div>
+        <p className="text-xs leading-5 text-muted-foreground">Vista ilustrativa. Stripe muestra los campos y medios disponibles para cada comprador.</p>
+      </div>
+      <Button className="checkout-pay h-auto min-h-16 w-full whitespace-normal text-lg" type="button" disabled>{state === 'processing' ? copy.processing : checkoutText(copy, 'pay', { importe: totalLabel })}</Button>
+    </section>
   </div>;
 }

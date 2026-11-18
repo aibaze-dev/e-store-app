@@ -1,53 +1,27 @@
+import { landingExitConfig } from '../../shared/purchase-copy.js';
+import { checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
 // Exit-intent popup of the public landing and its checkout: copy and trigger rule.
 // Every sentence comes from the offer the visitor is looking at;
 // nothing here states a price, discount, guarantee or deadline the store did not set.
 
-const TEXT = {
-  emoji: '👋',
-  title: 'Pará un segundo',
-  intro: {
-    landing: name => `Antes de irte, mirá lo que te llevás hoy con «${name}».`,
-    checkout: name => `Estás a un paso de tener «${name}». Antes de irte, mirá lo que incluye tu compra.`,
-  },
-  bullets: {
-    access: 'Accedés al ebook apenas se confirma el pago',
-    oneBonus: name => `Sumás gratis el bono «${name}»`,
-    bonuses: count => `Sumás ${count} bonos gratis`,
-    savings: (amount, percent) => `Ahorrás ${amount} (${percent}% OFF) sobre el valor de referencia`,
-    singlePayment: 'Es un único pago',
-    securePayment: 'Pagás de forma segura',
-  },
-  // On the landing the button repeats the landing's own purchase button.
-  button: { landingFallback: 'Comprar ahora', checkout: 'Volver a mi compra' },
-  closing: {
-    guaranteeDays: days => `Comprás con garantía de ${days} días.`,
-    guarantee: 'Tu compra tiene garantía: las condiciones están en la página.',
-    plain: 'El pago es seguro y el acceso es inmediato.',
-  },
-};
-
-// `step` is 'landing' or 'checkout'. `money` formats an amount in the store currency.
 export function exitIntentCopy(view, step, money) {
   const { offer, content } = view;
   const bonusValue = offer.bonuses.reduce((total, bonus) => total + (bonus.referenceValue || 0), 0);
   const reference = Math.max(offer.main.price, offer.main.compareAtPrice || 0) + bonusValue;
   const savings = reference - offer.main.price;
   const guarantee = content.guarantee?.enabled !== false && Boolean(content.guarantee?.text);
-  const bullets = [
-    TEXT.bullets.access,
-    offer.bonuses.length === 1 && TEXT.bullets.oneBonus(offer.bonuses[0].name),
-    offer.bonuses.length > 1 && TEXT.bullets.bonuses(offer.bonuses.length),
-    savings > 0 && TEXT.bullets.savings(money(savings), Math.round(savings / reference * 100)),
-    TEXT.bullets.singlePayment,
-    TEXT.bullets.securePayment,
-  ].filter(Boolean).slice(0, 4);
+  const copy = step === 'checkout' ? checkoutConfig(view) : landingExitConfig(view);
+  const t = (key, values) => checkoutText(copy, key, values);
   return {
-    emoji: TEXT.emoji,
-    title: TEXT.title,
-    intro: TEXT.intro[step](offer.main.name),
-    bullets,
-    button: step === 'checkout' ? TEXT.button.checkout : content.hero?.ctaText || TEXT.button.landingFallback,
-    closing: !guarantee ? TEXT.closing.plain : content.guarantee.days ? TEXT.closing.guaranteeDays(content.guarantee.days) : TEXT.closing.guarantee,
+    emoji: copy.exitEmoji, title: copy.exitTitle, intro: t('exitIntro', { producto: offer.main.name }),
+    bullets: [copy.exitAccess,
+      offer.bonuses.length === 1 && t('exitOneBonus', { bono: offer.bonuses[0].name }),
+      offer.bonuses.length > 1 && t('exitBonuses', { cantidad: offer.bonuses.length }),
+      savings > 0 && t('exitSavings', { importe: money(savings), porcentaje: Math.round(savings / reference * 100) }),
+      copy.exitSinglePayment, copy.exitSecure,
+    ].filter(Boolean).slice(0, 4),
+    button: copy.exitButton,
+    closing: !guarantee ? copy.exitClosing : content.guarantee.days ? t('exitGuaranteeDays', { dias: content.guarantee.days }) : copy.exitGuarantee,
   };
 }
 

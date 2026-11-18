@@ -1,3 +1,4 @@
+import { CHECKOUT_DEFAULTS, checkoutText } from '../../shared/checkout-copy.js';
 import { PROMOTION_COPY } from '../../shared/landing-copy.js';
 import { useEffect, useState } from 'react';
 import { Clock, Users } from 'lucide-react';
@@ -31,10 +32,10 @@ export function useSimulatedCheckoutSignals(subdomain, { preview = false } = {})
   return { shoppers: preview ? 5 : shoppers, timeLeft: preview ? '14:37' : deadline === null ? null : checkoutTimeLeft(deadline, now) };
 }
 
-export function CheckoutActivityBar({ shoppers }) {
+export function CheckoutActivityBar({ shoppers, copy = CHECKOUT_DEFAULTS }) {
   return <p className="checkout-activity-bar flex items-center justify-center gap-2.5 bg-foreground px-5 py-3 text-center text-sm text-background" role="status">
     <Users className="size-4 shrink-0" aria-hidden="true" />
-    <span><strong>{shoppers} personas</strong> están comprando en este momento</span>
+    <span>{checkoutText(copy, 'activityText', { cantidad: shoppers })}</span>
     <span className="size-2 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
   </p>;
 }

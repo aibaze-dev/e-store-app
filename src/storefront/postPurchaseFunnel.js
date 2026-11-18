@@ -1,3 +1,4 @@
+import { popupOptions } from '../../shared/purchase-copy.js';
 // Steps of the post-purchase modal on the thank-you page. Pure, so the rules can be tested.
 //
 // First opening: offer → (declined) downsell, when the store set one → (declined) closed.
@@ -10,7 +11,9 @@ export const REOPEN_LIMITS = { visibility: 1, mouse: 2 };
 export const initialFunnel = () => ({ declined: [], reopens: { visibility: 0, mouse: 0 } });
 
 export function stagesFor(offer) {
-  return ['offer', ...(offer.downsellPrice ? ['downsell'] : []), 'final'];
+  const options = popupOptions(offer.content);
+  if (!options.postEnabled) return [];
+  return ['offer', ...(options.postDownsell && offer.downsellPrice ? ['downsell'] : []), ...(options.postFinal ? ['final'] : [])];
 }
 
 // The next step that was not declined yet, or null when every step was declined.
@@ -28,6 +31,8 @@ export function afterDecline(offer, funnel, stage, reopened) {
 
 // Whether a trigger may open the modal again, and the funnel with the use counted.
 export function claimReopen(offer, funnel, trigger) {
+  const options = popupOptions(offer.content);
+  if ((trigger === 'visibility' && !options.postOnReturn) || (trigger === 'mouse' && !options.postOnExit)) return null;
   if (!nextStage(offer, funnel) || funnel.reopens[trigger] >= REOPEN_LIMITS[trigger]) return null;
   return { ...funnel, reopens: { ...funnel.reopens, [trigger]: funnel.reopens[trigger] + 1 } };
 }

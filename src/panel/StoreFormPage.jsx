@@ -244,10 +244,7 @@ export default function StoreFormPage({ section }) {
         </label>
         {form.downEnabled && <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Descuento %" className="sm:col-span-2" hint={`Entero entre 1 y 90, sobre el precio del producto principal. ${discountHint(form.price, form.downPercent)}`}>{props => percentInput(props, form.downPercent, downPercent => set({ downPercent }))}</Field>
-          {DOWNSELL_TEXTS.map(({ key, label, max, long, hint }) => {
-            const Control = long ? Textarea : Input;
-            return <Field key={key} label={label} hint={hint} className={long ? 'sm:col-span-2' : ''}>{props => <Control {...props} value={form.downTexts[key]} onChange={event => set({ downTexts: { ...form.downTexts, [key]: event.target.value } })} maxLength={max} disabled={busy} />}</Field>;
-          })}
+          {storeId && <p className="text-sm leading-6 sm:col-span-2">Los textos del popup y de su página se editan y previsualizan en <Link className="underline" to={`/panel/tiendas/${storeId}/landing#popupBack`}>Landing → Popups</Link>.</p>}
           <div className="sm:col-span-2"><VideoField label="Video VSL de la oferta (opcional)" hint="Se muestra en la página de la oferta con descuento. Vacío: sin video." value={form.downVideoUrl} onChange={downVideoUrl => set({ downVideoUrl })} disabled={busy} /></div>
         </div>}
       </CardContent>

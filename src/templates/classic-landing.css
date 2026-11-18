@@ -310,3 +310,8 @@
 .post-offer-preview-close svg { width: 20px; height: 20px; }
 @media (min-width: 640px) { .post-offer-preview-dialog { padding: 32px; } }
 .post-offer-preview-dialog.is-inline { position: relative; top: auto; max-width: 40rem; margin: 0 auto; }
+
+/* The preview keeps long modal copy inside the same scrollable viewport as a live dialog. */
+.post-offer-preview { min-height: 100vh; }
+.post-offer-preview-dialog { max-height: calc(100dvh - 48px); overflow-y: auto; }
+.post-offer-preview-dialog.is-inline { max-height: none; overflow: visible; }

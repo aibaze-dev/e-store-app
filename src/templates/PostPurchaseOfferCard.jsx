@@ -1,3 +1,4 @@
+import { postLabels, postOptions, purchaseText } from '../../shared/purchase-copy.js';
 import { ArrowRight, Check, LoaderCircle, LockKeyhole, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/Field.jsx';
@@ -11,9 +12,11 @@ const PlainDescription = ({ className = '', ...props }) => <p data-slot="dialog-
 
 // Content of the post-purchase modal: the thank-you page shows it inside a dialog and the
 // panel preview inside a mock of that dialog. `payment` replaces the buttons once accepted.
-export default function PostPurchaseOfferCard({ offer, currency, stage, busy = false, error = '', canPurchase = false, onAccept, onDecline, payment = null, Title = PlainTitle, Description = PlainDescription }) {
+export default function PostPurchaseOfferCard({ offer, currency, stage, preview = false, previewState = 'offer', busy = false, error = '', canPurchase = false, onAccept, onDecline, payment = null, Title = PlainTitle, Description = PlainDescription }) {
   const edit = usePreviewSection();
   const { postPurchase: copy, postPurchaseVideo: video, postPurchaseBenefits: benefits } = postPurchaseContent(offer.content);
+  const labels = postLabels(offer.content);
+  const options = postOptions(offer.content);
   const defaults = POST_PURCHASE_CONTENT.postPurchase;
   const { price, percent } = postPurchaseStage(offer, stage);
   const discounted = stage !== 'offer';
@@ -27,13 +30,14 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, busy = f
   return <>
     <div {...edit(final ? 'postPurchaseFinal' : discounted ? 'postPurchaseDownsell' : 'postPurchase')} className="space-y-2 pr-8">
       {copy.eyebrow && !discounted && <p className="text-xs font-bold tracking-widest text-primary uppercase">{copy.eyebrow}</p>}
-      {discounted && <p className="text-xs font-bold tracking-widest text-primary uppercase">Ahorrás {percent}%</p>}
+      {discounted && options.showDiscount && <p className="text-xs font-bold tracking-widest text-primary uppercase">{purchaseText(labels, 'discount', { porcentaje: percent })}</p>}
       <Title>{title}</Title>
-      {subtitle ? <Description>{subtitle}</Description> : <Description className="sr-only">Oferta especial para sumar a tu compra</Description>}
+      {subtitle ? <Description>{subtitle}</Description> : <Description className="sr-only">{labels.offerDescription}</Description>}
     </div>
-    {hasVideo && !payment && <Video key={video.url} video={video} />}
+    {preview && previewState === 'videoError' && !hasVideo && <p className="text-sm text-muted-foreground">Activá un video en Post-compra para revisar su mensaje de error.</p>}
+    {hasVideo && !payment && <Video key={video.url} video={video} labels={labels} preview={preview} forceError={previewState === 'videoError'} />}
     <div className="flex gap-4">
-      {offer.coverUrl && <img src={offer.coverUrl} alt="" className="h-24 w-18 shrink-0 rounded-lg object-cover" />}
+      {options.showCover && offer.coverUrl && <img src={offer.coverUrl} alt="" className="h-24 w-18 shrink-0 rounded-lg object-cover" />}
       <div className="min-w-0 space-y-1">
         <p className="leading-snug font-semibold">{offer.name}</p>
         <p className="flex flex-wrap items-baseline gap-x-2">
@@ -42,19 +46,19 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, busy = f
         </p>
       </div>
     </div>
-    {showBenefits && <ul {...edit('postPurchaseBenefits')} className="grid gap-2 text-sm" aria-label={benefits.title || 'Qué incluye esta oferta'}>
+    {showBenefits && <ul {...edit('postPurchaseBenefits')} className="grid gap-2 text-sm" aria-label={benefits.title || labels.benefitsTitle}>
       {benefits.items.map((item, index) => <li key={index} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" /><span><strong className="font-semibold">{item.title}</strong>{item.description && <span className="text-muted-foreground"> — {item.description}</span>}</span></li>)}
     </ul>}
     {payment || <div className="grid gap-2">
       <ErrorAlert>{error}</ErrorAlert>
       <Button type="button" size="lg" className="h-auto min-h-12 w-full py-3 text-base whitespace-normal" onClick={onAccept} disabled={busy || !canPurchase}>
         {busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-        {busy ? 'Preparando el pago…' : ctaText}
+        {busy ? labels.preparing : ctaText}
         {!busy && <ArrowRight aria-hidden="true" />}
       </Button>
       <Button type="button" variant="ghost" className="h-auto min-h-11 w-full whitespace-normal" onClick={onDecline} disabled={busy || !onDecline}>{copy.declineText || defaults.declineText}</Button>
-      <p className="flex justify-center gap-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Zap className="size-3.5" aria-hidden="true" />Acceso inmediato</span><span className="inline-flex items-center gap-1"><LockKeyhole className="size-3.5" aria-hidden="true" />Pago seguro</span></p>
-      <p className="text-center text-xs text-muted-foreground">Se paga aparte. Tu compra anterior no cambia.</p>
+      <p hidden={!options.showTrust} className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1"><Zap className="size-3.5" aria-hidden="true" />{labels.access}</span><span className="inline-flex items-center gap-1"><LockKeyhole className="size-3.5" aria-hidden="true" />{labels.secure}</span></p>
+      <p hidden={!options.showPaymentNote} className="text-center text-xs text-muted-foreground">{labels.paymentNote}</p>
     </div>}
   </>;
 }

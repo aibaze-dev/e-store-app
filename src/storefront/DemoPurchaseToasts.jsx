@@ -1,3 +1,4 @@
+import { checkoutText } from '../../shared/checkout-copy.js';
 import { ACTIVITY_COPY, formatLandingText } from '../../shared/landing-copy.js';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
@@ -15,9 +16,10 @@ const pickAnother = (values, previous) => {
 
 // One purchase notice for the landing and the checkout. `placement` only moves it:
 // 'top' sits under the offer bar, 'bottom' in the lower corner. The name is the only bold part.
-export default function DemoPurchaseToasts({ copy = ACTIVITY_COPY, placement = 'top' }) {
-  const [purchase, setPurchase] = useState(null);
+export default function DemoPurchaseToasts({ copy = ACTIVITY_COPY, placement = 'top', checkoutCopy, preview = false }) {
+  const [purchase, setPurchase] = useState(preview ? { name: 'Lucía', place: 'Córdoba, Argentina', minutes: 5 } : null);
   useEffect(() => {
+    if (preview) return;
     let timer;
     let previous;
     const schedule = (first = false) => {
@@ -37,14 +39,14 @@ export default function DemoPurchaseToasts({ copy = ACTIVITY_COPY, placement = '
     schedule(true);
     document.addEventListener('visibilitychange', onVisibility);
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
-  }, []);
+  }, [preview]);
 
   const [before, after = ''] = (copy.purchaseText ?? ACTIVITY_COPY.purchaseText).split('{nombre}');
   return <div className={`purchase-toast-region ${placement === 'bottom' ? 'is-bottom' : ''}`} role="status" aria-live="polite" aria-atomic="true">
     {purchase && <div className="purchase-toast">
       <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(copy.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, { ciudad: purchase.place })}</p>
-      <small>hace {purchase.minutes} min · <span aria-hidden="true">★★★★★</span> · Aviso de ejemplo</small>
-      <button type="button" aria-label="Cerrar aviso de compra" onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
+      <small>{checkoutCopy ? checkoutText(checkoutCopy, 'noticeAge', { minutos: purchase.minutes }) : `hace ${purchase.minutes} min`} · <span aria-hidden="true">★★★★★</span> · {checkoutCopy?.noticeExample ?? 'Aviso de ejemplo'}</small>
+      <button type="button" aria-label={checkoutCopy?.noticeClose ?? 'Cerrar aviso de compra'} onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
     </div>}
   </div>;
 }

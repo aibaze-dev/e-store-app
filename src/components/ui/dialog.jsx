@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 const Dialog = DialogPrimitive.Root
 const DialogClose = DialogPrimitive.Close
 
-function DialogContent({ className, children, ...props }) {
+function DialogContent({ className, children, closeLabel = "Cerrar", ...props }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -25,7 +25,7 @@ function DialogContent({ className, children, ...props }) {
         {children}
         <DialogPrimitive.Close
           className="absolute top-3 right-3 grid size-11 place-items-center rounded-md text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          aria-label="Cerrar"
+          aria-label={closeLabel}
         >
           <X className="size-5" aria-hidden="true" />
         </DialogPrimitive.Close>

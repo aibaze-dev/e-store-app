@@ -13,7 +13,7 @@ export async function buildPostPurchaseView(ctx: QueryCtx, store: Doc<'stores'>,
   if (!product) return null;
   return {
     name: product.name, description: product.description, coverUrl: product.coverUrl, price: config.price,
-    content: postPurchaseContent(content),
+    content: { ...postPurchaseContent(content), postLabels: content?.postLabels ?? {}, postOptions: content?.postOptions ?? {}, popupOptions: content?.popupOptions ?? {}, checkout: content?.checkout ?? {} },
     ...(config.downsellPercent ? { downsellPercent: config.downsellPercent, downsellPrice: discounted(config.price, config.downsellPercent) } : {}),
     finalPercent: finalPostPurchasePercent(config), finalPrice: discounted(config.price, finalPostPurchasePercent(config)),
   };

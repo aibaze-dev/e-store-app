@@ -1,14 +1,8 @@
 // Downsell of the public landing: default texts, shown prices and the "back" trigger.
 // The charged amount always comes from the server; nothing here decides a price.
 
-export const DOWNSELL_DEFAULTS = {
-  modalTitle: '¡Esperá! Tenemos un regalo para vos 🎁',
-  modalSubtitle: 'Antes de irte, mirá esta oferta exclusiva con un descuento que solo está disponible ahora.',
-  acceptText: 'Ver oferta',
-  declineText: 'No, gracias',
-  pageTitle: 'Acabás de desbloquear una oferta secreta 🔓',
-  pageSubtitle: 'Sabemos que el precio puede ser una traba. Por eso queremos hacerte llegar esto al alcance, con un descuento especial que solo aparece una vez.',
-};
+import { DOWNSELL_DEFAULTS } from '../../shared/purchase-copy.js';
+export { DOWNSELL_DEFAULTS };
 
 // Texts the store left empty fall back to the defaults.
 export function downsellCopy(downsell) {

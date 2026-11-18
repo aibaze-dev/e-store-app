@@ -4,6 +4,8 @@ import { CLASSIC_ACCENT, CLASSIC_STORY, splitHeroTitle } from '../../shared/clas
 
 // Defaults are shared by the form and public renderer. Existing string lists remain readable.
 export const EMPTY_CONTENT = {
+  checkout: {},
+  postLabels: {}, postOptions: {}, landingExit: {}, backPopup: {}, popupOptions: {},
   labels: { ...LANDING_LABEL_DEFAULTS },
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,

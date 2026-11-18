@@ -1,6 +1,11 @@
-import { ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../../shared/landing-copy.js';
+import { POST_LABEL_FIELDS, POST_LABEL_GROUPS, POST_OPTION_FIELDS, POPUP_OPTION_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, postLabels, postOptions, popupOptions, landingExitConfig, backPopupConfig, PURCHASE_PREVIEW_STATES, POPUP_PREVIEW_TARGETS } from '../../shared/purchase-copy.js';
+import { CHECKOUT_FIELDS } from '../../shared/checkout-copy.js';
+import { CopyFields, OptionFields } from './PurchaseCopyFields.jsx';
+import PopupJourney from './PopupJourney.jsx';
+import { LANDING_LABEL_FIELDS } from '../../shared/landing-copy.js';
 import { Tabs } from 'radix-ui';
-import CheckoutSettings from './CheckoutSettings.jsx';
+import CheckoutContentFields from './CheckoutContentFields.jsx';
+import { checkoutConfig } from '../../shared/checkout-copy.js';
 import { LANDING_SECTIONS as SECTIONS, LANDING_TABS, landingSectionTab } from '../../shared/landing-sections.js';
 import { classicAccent } from '../../shared/classic-design.js';
 import { discountedPrice } from '@/storefront/downsell.js';
@@ -71,14 +76,16 @@ export default function LandingEditPage() {
 }
 
 export function LandingConfigurator({ landing, store, products, hash = '', uploading = false, onSave }) {
-  const [form, setForm] = useState(() => ({ subdomain: landing?.subdomain ?? '', content: normalizeContent(landing?.draft) }));
+  const [form, setForm] = useState(() => ({ subdomain: landing?.subdomain ?? '', content: normalizeContent({ ...landing?.draft, checkout: checkoutConfig({ content: landing?.draft, checkout: store.checkout }) }) }));
   const [saving, setBusy] = useState('');
   const busy = saving || (uploading ? 'upload' : '');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState('mobile');
   const [activeTab, setActiveTab] = useState(() => landingSectionTab(hash.slice(1)));
-  const [previewTarget, setPreviewTarget] = useState(hash.startsWith('#postPurchase') ? 'post' : 'landing');
+  const [previewTarget, setPreviewTarget] = useState(hash.startsWith('#popup') ? 'popup-exit-landing' : hash.startsWith('#checkout') ? 'checkout' : hash.startsWith('#postPurchase') ? 'post' : 'landing');
+  const [postState, setPostState] = useState('offer');
+  const [checkoutState, setCheckoutState] = useState('ready');
   const [showPreview, setShowPreview] = useState(false);
   // Post-purchase preview: the modal as the buyer sees it, or its content laid out as a page.
   const [postAsModal, setPostAsModal] = useState(true);
@@ -147,22 +154,25 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
 
   const mainProduct = products.find(product => product._id === store.offer.mainProductId);
   const postProduct = products.find(product => product._id === store.postPurchase.productId);
+  const referencePrice = (product, fallback) => product.referencePrice === undefined ? fallback : product.referencePrice?.currency.toUpperCase() === store.currency.toUpperCase() ? product.referencePrice.value : undefined;
   const preview = mainProduct ? {
     postPurchaseOffer: store.postPurchase.enabled && postProduct ? {
       ...postProduct, price: store.postPurchase.price,
       ...(store.postPurchase.downsellPercent ? { downsellPercent: store.postPurchase.downsellPercent, downsellPrice: discountedPrice(store.postPurchase.price, store.postPurchase.downsellPercent) } : {}),
       finalPercent: finalPostPurchasePercent(store.postPurchase), finalPrice: discountedPrice(store.postPurchase.price, finalPostPurchasePercent(store.postPurchase)),
     } : null,
+    subdomain: form.subdomain, checkout: store.checkout,
+    downsell: store.downsell?.enabled ? { ...store.downsell, price: discountedPrice(store.offer.price, store.downsell.percent) } : null,
     content, store: { name: store.name, currency: store.currency },
     offer: {
-      main: { ...mainProduct, price: store.offer.price, compareAtPrice: store.offer.compareAtPrice },
+      main: { ...mainProduct, price: store.offer.price, compareAtPrice: referencePrice(mainProduct, store.offer.compareAtPrice) },
       bonuses: store.offer.bonuses.flatMap(bonus => {
         const product = products.find(item => item._id === bonus.productId);
         return product ? [{ ...product, productId: bonus.productId, referenceValue: bonus.referenceValue }] : [];
       }),
       upsells: [...store.offer.upsells].sort((a, b) => a.displayOrder - b.displayOrder).flatMap(upsell => {
         const product = products.find(item => item._id === upsell.productId);
-        const reference = store.checkout?.upsellReferences?.find(item => item.productId === upsell.productId)?.value ?? 0;
+        const reference = product ? referencePrice(product, store.checkout?.upsellReferences?.find(item => item.productId === upsell.productId)?.value ?? 0) : 0;
         return product ? [{ ...product, productId: upsell.productId, price: upsell.price, ...(reference > upsell.price ? { compareAtPrice: reference } : {}) }] : [];
       }),
     },
@@ -175,10 +185,13 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   function selectTab(tab) {
     setActiveTab(tab);
     setShowPreview(false);
-    if (tab !== 'checkout') setPreviewTarget(tab === 'post' ? 'post' : 'landing');
+    setPreviewTarget(tab === 'popups' ? 'popup-exit-landing' : tab === 'checkout' ? 'checkout' : tab === 'post' ? 'post' : 'landing');
   }
   function openSection(id) {
     selectTab(landingSectionTab(id));
+    if (id === 'popupCheckout') setPreviewTarget('popup-exit-checkout');
+    if (id === 'popupBack') setPreviewTarget('popup-back-landing');
+    if (id === 'popupPost') setPreviewTarget('post');
     if (id === 'postPurchaseDownsell') setPreviewTarget('post-downsell');
     if (id === 'postPurchaseFinal') setPreviewTarget('post-final');
     requestAnimationFrame(() => {
@@ -374,6 +387,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         </Section>
     </>,
     post: <>
+      <Section id="postPurchaseCopy" description="Gracias, accesos, estados del pago y textos secundarios" defaultOpen>
+        <OptionFields fields={POST_OPTION_FIELDS} value={postOptions(content)} onChange={patch => change('postOptions', patch)} disabled={Boolean(busy)} />
+        <p className="text-sm leading-6 text-muted-foreground">Los textos del formulario de pago y el idioma de Stripe se comparten con la pestaña Checkout. En Popups podés ver cuándo aparece cada oferta.</p>
+        {Object.entries(POST_LABEL_GROUPS).map(([group, title]) => <details className="rounded-xl border p-4" key={group}><summary className="cursor-pointer text-sm font-semibold">{title}</summary><div className="mt-4 space-y-5"><CopyFields fields={Object.fromEntries(Object.entries(POST_LABEL_FIELDS).filter(([, field]) => field.group === group))} value={postLabels(content)} onChange={patch => change('postLabels', patch)} disabled={Boolean(busy)} /></div></details>)}
+      </Section>
         <Section id="postPurchase" attention={checks.postPurchase} description="La oferta que se muestra después del pago">
           <p className="text-sm leading-6 text-muted-foreground">{store.postPurchase.enabled && postProduct ? `Producto: ${postProduct.name}. El precio se toma de la oferta de esta tienda.` : 'La oferta post-compra está desactivada o no tiene un producto. Podés preparar los textos y activarla desde su configuración.'}</p>
           <Link to={`/panel/tiendas/${storeId}/post-compra`} target="_blank" rel="noreferrer" className="text-sm underline">Configurar producto, precio y activación</Link>
@@ -407,16 +425,35 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           <Button type="button" variant="outline" disabled={!preview?.postPurchaseOffer} onClick={() => { setPreviewTarget('post-final'); setShowPreview(true); }}><Eye aria-hidden="true" />Ver última oportunidad</Button>
         </Section>
     </>,
-    checkout: <Section id="checkoutTimer" description="El texto que acompaña al contador durante el pago" defaultOpen>
+    popups: <>
+      <section className="dashboard-card space-y-3 p-5"><h2 className="text-lg font-semibold">Cuándo aparecen</h2><OptionFields fields={POPUP_OPTION_FIELDS} value={popupOptions(content)} onChange={patch => change('popupOptions', patch)} disabled={Boolean(busy)} /><p className="text-xs leading-6 text-muted-foreground">El precio, producto y porcentaje se configuran en la oferta de la tienda. Estos controles habilitan la presentación de cada popup sin modificar el cobro.</p><Link className="text-sm underline" to={`/panel/tiendas/${storeId}/downsell`}>Configurar descuentos y video de la oferta al volver atrás</Link></section>
+      <Section id="popupLanding" description="Aviso cuando el mouse sale de la página de venta" defaultOpen><CopyFields fields={LANDING_EXIT_FIELDS} value={landingExitConfig({ content })} onChange={patch => change('landingExit', patch)} disabled={Boolean(busy)} /></Section>
+      <Section id="popupCheckout" description="Los mismos textos que en Checkout → Popup al salir">
+        {toggle('checkout', 'Mostrar popup al salir del checkout', 'showExit')}
+        <CopyFields maxLength={600} fields={Object.fromEntries(Object.entries(CHECKOUT_FIELDS).filter(([, field]) => field.group === 'exit'))} value={content.checkout} onChange={patch => change('checkout', patch)} disabled={Boolean(busy)} />
+      </Section>
+      <Section id="popupBack" description="Popup al pulsar Atrás y página de destino con descuento"><CopyFields fields={BACK_POPUP_FIELDS} value={backPopupConfig({ content, downsell: store.downsell })} onChange={patch => change('backPopup', patch)} disabled={Boolean(busy)} /></Section>
+      <Section id="popupPost" description="Oferta inicial, descuento y última oportunidad"><p className="text-sm leading-6">Los títulos, descripciones y botones de estas tres variantes se editan en Post-compra. El mapa superior permite ver cada una y sus estados de pago.</p><Button type="button" variant="outline" onClick={() => selectTab('post')}>Editar textos de post-compra</Button></Section>
+    </>,
+    checkout: <CheckoutContentFields copy={content.checkout} onChange={patch => change('checkout', patch)} disabled={Boolean(busy)} storeId={storeId}>
+    <Section id="checkoutTimer" description="El texto que acompaña al contador durante el pago" defaultOpen>
       {field('promotion', 'timerLabel', 'Texto del contador en el checkout', { maxLength: 120 })}
       <p className="text-xs leading-6 text-muted-foreground">El contador se comparte con la landing. Cambiar este texto no modifica precios ni bloquea pagos.</p>
-    </Section>,
+    </Section>
+    <details className="landing-form-section"><summary><span><strong>Enlaces legales y garantía</strong><small>Compartidos con la landing</small></span></summary><div className="landing-section-fields">
+      {field('footer', 'privacyUrl', 'URL de privacidad', { type: 'url' })}
+      {field('footer', 'termsUrl', 'URL de términos', { type: 'url' })}
+      {toggle('guarantee', 'Activar garantía')}
+      {numberField('guarantee', 'days', 'Días de garantía', 365)}
+      {field('guarantee', 'text', 'Condiciones de garantía', { multiline: true, maxLength: 1200 })}
+    </div></details>
+    </CheckoutContentFields>,
   };
 
   return <Tabs.Root value={activeTab} onValueChange={selectTab} className="landing-configurator">
     <div className="mb-6 space-y-3">
       <Button asChild variant="ghost" className="-ml-3"><Link to={`/panel/tiendas/${storeId}`}><ArrowLeft aria-hidden="true" />Inicio de la tienda</Link></Button>
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">Landing clásica</span><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configurá tu landing</h1><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Elegí qué querés configurar: la landing, la oferta post-compra o el checkout. Cada pestaña reúne sus propios formularios.</p></div>{activeTab !== 'checkout' && <Button type="button" variant="outline" onClick={() => setShowPreview(value => !value)}><Eye aria-hidden="true" />{showPreview ? 'Volver al formulario' : 'Ampliar vista previa'}</Button>}</div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">Landing clásica</span><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configurá tu landing</h1><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Elegí qué querés configurar: la landing, post-compra, checkout y popups. Cada pestaña reúne sus propios formularios.</p></div><Button type="button" variant="outline" onClick={() => setShowPreview(value => !value)}><Eye aria-hidden="true" />{showPreview ? 'Volver al formulario' : 'Ampliar vista previa'}</Button></div>
       <p className="text-xs leading-6 text-muted-foreground">{landing?.publishedAt ? `Publicada el ${formatDate(landing.publishedAt)}.` : 'Todavía sin publicar.'} {dirty ? 'Tenés cambios sin guardar.' : pending ? 'Hay un borrador pendiente de publicar.' : ''}</p>
     </div>
     <Tabs.List className="landing-settings-tabs" aria-label="Configuración de la tienda">
@@ -428,16 +465,16 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
       {todo.length > 0 && <ul>{todo.map((item, index) => <li key={index}><button type="button" onClick={() => openSection(item.id)}><span>{SECTIONS[item.id][0]}</span><span><strong>{SECTIONS[item.id][1]}</strong>{item.text}</span></button></li>)}</ul>}
       {optional > 0 && <p>{optional === 1 ? 'Además hay 1 dato opcional que la IA no completa (fotos, cifras o enlaces); está marcado' : `Además hay ${optional} datos opcionales que la IA no completa (fotos, cifras y enlaces); están marcados`} en el encabezado de cada sección.</p>}
     </section>}
+    {activeTab === 'popups' && <PopupJourney view={preview} target={previewTarget} onChoose={target => { setPreviewTarget(target); setPostState('offer'); setShowPreview(true); requestAnimationFrame(() => document.querySelector('.landing-preview-panel')?.scrollIntoView({ block: 'start' })); }} />}
     {LANDING_TABS.map(tab => <Tabs.Content key={tab.id} value={tab.id} forceMount hidden={activeTab !== tab.id} className="landing-settings-panel">
-      <div className={`landing-config-grid ${tab.id === 'checkout' ? 'is-checkout' : showPreview ? 'preview-expanded' : ''}`}>
-        {tab.id === 'checkout' && <CheckoutSettings store={store} products={products} landingNotifications={landing?.published?.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications} />}
+      <div className={`landing-config-grid ${showPreview ? 'preview-expanded' : ''}`}>
         <form onSubmit={submit} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} className="landing-config-form" aria-busy={Boolean(busy)}>
           {sectionForms[tab.id]}
         <div ref={activeTab === tab.id ? errorRef : undefined} tabIndex={-1}><ErrorAlert>{error}</ErrorAlert></div>
         <div className="landing-save-bar"><div className="flex flex-wrap gap-3"><Button type="submit" name="action" value="save" variant="outline" disabled={Boolean(busy)}>{busy === 'save' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar borrador</Button><Button type="submit" name="action" value="publish" disabled={Boolean(busy)}>{busy === 'publish' && <LoaderCircle className="animate-spin" aria-hidden="true" />}Guardar y publicar</Button></div><p className="text-xs leading-5 text-muted-foreground" role="status">{uploading ? 'Subiendo archivo… Esperá para guardar.' : notice || (dirty ? 'Cambios sin guardar' : 'Tu borrador está al día')}</p></div>
         </form>
-        {tab.id === activeTab && tab.id !== 'checkout' && (
-      <aside className="landing-preview-panel"><div className="landing-preview-toolbar"><div><strong>Vista previa</strong><span>Hacé clic en una sección para editarla</span></div><div className="flex gap-1"><Button type="button" variant={mode === 'desktop' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de escritorio" aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}><Monitor aria-hidden="true" /></Button><Button type="button" variant={mode === 'mobile' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de celular" aria-pressed={mode === 'mobile'} onClick={() => setMode('mobile')}><Smartphone aria-hidden="true" /></Button></div></div><div className="border-b p-3"><Field label="Página de la vista previa">{ids => <NativeSelect {...ids} value={previewTarget} onChange={event => { const target = event.target.value; setPreviewTarget(target); setActiveTab(target === 'landing' ? 'landing' : 'post'); }}><option value="landing">Landing principal</option><option value="post">Post-compra</option>{preview?.postPurchaseOffer?.downsellPrice > 0 && <option value="post-downsell">Post-compra · una oportunidad más</option>}{preview?.postPurchaseOffer && <option value="post-final">Post-compra · última oportunidad</option>}</NativeSelect>}</Field>{previewTarget !== 'landing' && <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar la oferta como modal" checked={postAsModal} onCheckedChange={setPostAsModal} />Ver como modal</label>}</div>{preview ? <LandingFrame view={preview} mode={mode} target={previewTarget} postAsModal={postAsModal} onSelectSection={openSection} /> : <p className="p-6 text-sm">Elegí un producto principal para ver la landing.</p>}</aside>
+        {tab.id === activeTab && (
+      <aside className="landing-preview-panel"><div className="landing-preview-toolbar"><div>{activeTab === 'popups' && <Button type="button" variant="ghost" onClick={() => document.querySelector('.popup-journey')?.scrollIntoView({ block: 'start' })}>Ver mapa de modales</Button>}<strong>Vista previa</strong><span>{activeTab === 'checkout' || activeTab === 'popups' ? 'Probá los extras y revisá los textos sin realizar pagos' : 'Hacé clic en una sección para editarla'}</span></div><div className="flex gap-1"><Button type="button" variant={mode === 'desktop' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de escritorio" aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}><Monitor aria-hidden="true" /></Button><Button type="button" variant={mode === 'mobile' ? 'secondary' : 'ghost'} size="icon" aria-label="Vista de celular" aria-pressed={mode === 'mobile'} onClick={() => setMode('mobile')}><Smartphone aria-hidden="true" /></Button></div></div><div className="border-b p-3"><Field label="Página de la vista previa">{ids => <NativeSelect {...ids} value={previewTarget} onChange={event => { const target = event.target.value; setPreviewTarget(target); setPostState('offer'); setActiveTab(target.startsWith('popup') ? 'popups' : target === 'checkout' ? 'checkout' : target === 'landing' ? 'landing' : activeTab === 'popups' ? 'popups' : 'post'); }}><option value="landing">Landing principal</option><option value="checkout">Checkout</option><option value="post">Post-compra · oferta inicial</option>{Object.entries(POPUP_PREVIEW_TARGETS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}<option value="post-downsell">Post-compra · una oportunidad más</option><option value="post-final">Post-compra · última oportunidad</option></NativeSelect>}</Field>{previewTarget.startsWith('post') && <Field label="Estado de post-compra">{ids => <NativeSelect {...ids} value={postState} onChange={event => setPostState(event.target.value)}>{Object.entries(PURCHASE_PREVIEW_STATES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect>}</Field>}{previewTarget.startsWith('post') && <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar la oferta como modal" checked={postAsModal} onCheckedChange={setPostAsModal} />Ver como modal</label>}{previewTarget === 'checkout' && <Field label="Estado del checkout">{ids => <NativeSelect {...ids} value={checkoutState} onChange={event => setCheckoutState(event.target.value)}>{Object.entries({ ready: 'Formulario listo', loadingSecure: 'Carga inicial', loading: 'Cargando medios', processing: 'Procesando pago', unavailable: 'Pagos deshabilitados', error: 'Error de confirmación', loadError: 'Error de carga', methodError: 'Error del medio', sessionError: 'Error al iniciar', changedError: 'Precio actualizado', emailError: 'Falta email', nameError: 'Falta nombre', exit: 'Popup al salir' }).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect>}</Field>}</div>{preview ? <LandingFrame view={preview} mode={mode} target={previewTarget} checkoutState={checkoutState} postState={postState} postAsModal={postAsModal} onSelectSection={openSection} /> : <p className="p-6 text-sm">Elegí un producto principal para ver la landing.</p>}</aside>
         )}
       </div>
     </Tabs.Content>)}

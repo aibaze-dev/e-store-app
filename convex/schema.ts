@@ -1,3 +1,5 @@
+import { POST_LABEL_FIELDS, POST_OPTION_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, POPUP_OPTION_FIELDS } from '../shared/purchase-copy.js';
+import { CHECKOUT_FIELDS, CHECKOUT_FLAGS } from '../shared/checkout-copy.js';
 import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
@@ -10,7 +12,16 @@ const feature = v.object({ title: v.string(), description: v.string(), icon: v.s
 const storyFields = { ...sectionFields, eyebrow: v.optional(v.string()), title: v.string() };
 const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.string()) };
 
+const optionalTexts = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.string())]))));
+const optionalFlags = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.boolean())]))));
 export const landingContent = v.object({
+  postLabels: optionalTexts(POST_LABEL_FIELDS), postOptions: optionalFlags(POST_OPTION_FIELDS),
+  landingExit: optionalTexts(LANDING_EXIT_FIELDS), backPopup: optionalTexts(BACK_POPUP_FIELDS), popupOptions: optionalFlags(POPUP_OPTION_FIELDS),
+  checkout: v.optional(v.object({
+    ...Object.fromEntries(Object.keys(CHECKOUT_FIELDS).map(key => [key, v.optional(v.string())])),
+    ...Object.fromEntries(Object.keys(CHECKOUT_FLAGS).map(key => [key, v.optional(v.boolean())])),
+    paymentLocale: v.optional(v.union(v.literal('es'), v.literal('en'), v.literal('pt'), v.literal('auto'))),
+  })),
   labels: v.optional(v.object(Object.fromEntries(Object.keys(LANDING_LABEL_DEFAULTS).map(key => [key, v.optional(v.string())])))),
   postPurchase: v.optional(v.object({
     eyebrow: v.string(), title: v.string(), subtitle: v.string(), description: v.string(),

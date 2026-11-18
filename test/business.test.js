@@ -1,3 +1,4 @@
+import { CHECKOUT_DEFAULTS, checkoutConfig } from '../shared/checkout-copy.js';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
 import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
@@ -79,6 +80,33 @@ describe('panel access', () => {
       expect(modules[name].isInternal).toBe(true);
     }
     expect(t).toBeDefined();
+  });
+});
+
+describe('checkout configuration publication', () => {
+  it('keeps legacy settings, persists all checkout fields and publishes only on request', async () => {
+    const { t, admin, storeId } = await campaign();
+    await admin.mutation(api.stores.updateCheckout, { id: storeId, checkout: { upsellTitle: 'Extras anteriores', notifications: false, upsellReferences: [] } });
+    const publicView = () => t.query(api.storefront.getCheckout, { subdomain: 'inversion' });
+    const legacy = await publicView();
+    expect(checkoutConfig(legacy)).toMatchObject({ upsellTitle: 'Extras anteriores', notifications: false, secure: 'Pago seguro' });
+    const draft = normalizeContent(content);
+    draft.checkout = { ...CHECKOUT_DEFAULTS, secure: 'Compra protegida', guaranteeFallback: '', pay: 'Comprar por {importe}', upsellTitle: 'Completá tu kit', showActivity: false, showExit: false, notifications: true, paymentLocale: 'en' };
+    const save = value => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: value });
+    await save(draft);
+    expect((await admin.query(api.landings.getForStore, { storeId })).draft.checkout).toEqual(draft.checkout);
+    expect((await admin.query(api.landings.preview, { storeId })).content.checkout).toEqual(draft.checkout);
+    expect(checkoutConfig(await publicView()).secure).toBe('Pago seguro');
+    await admin.mutation(api.landings.publish, { storeId });
+    const published = await publicView();
+    expect(checkoutConfig(published)).toEqual(draft.checkout);
+    expect(published.offer).toEqual(legacy.offer);
+    expect(await t.run(ctx => ctx.db.query('orders').collect())).toHaveLength(0);
+    for (const checkout of [{ secure: 'x'.repeat(601) }, { secure: '   ' }, { showActivity: 'false' }, { paymentLocale: 'invalid' }]) {
+      await expect(save({ ...draft, checkout })).rejects.toThrow();
+    }
+    await expect(t.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft })).rejects.toThrow();
+    expect(checkoutConfig(await publicView())).toEqual(draft.checkout);
   });
 });
 
@@ -801,12 +829,21 @@ describe('post-purchase landing content', () => {
     const { t, admin, storeId, store } = await campaign();
     const draft = normalizeContent(content);
     draft.postPurchase = { ...draft.postPurchase, title: 'Continuá con el curso', ctaText: 'Agregar a mi compra' };
+    draft.postLabels = { paidTitle: 'Tu compra está lista', open: 'Acceder', pendingText: 'Estamos preparando tus accesos', discount: 'Ahorro {porcentaje}%', close: 'Cerrar oferta' };
+    draft.postOptions = { showCover: false, showPaymentNote: true };
+    draft.popupOptions = { landingExit: false, postOnReturn: false, postFinal: false };
+    draft.landingExit = { exitTitle: 'Antes de salir', exitIntro: 'Llevate {producto}' };
+    draft.backPopup = { modalTitle: 'Un precio para vos', cta: 'Comprar ahora' };
+    draft.checkout = { paymentTitle: 'Tu medio de pago', paymentLocale: 'en' };
     draft.postPurchaseBenefits = { enabled: true, title: 'Tu siguiente paso', items: [{ title: 'Profundizá', description: 'Contenido adicional', icon: 'book' }] };
     draft.postPurchaseVideo = { enabled: true, title: 'Presentación del curso', url: 'https://example-123.convex.cloud/api/storage/4e364f57-c5e6-4e8f-a3cb-0d97e097b5dc' };
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     const preview = await admin.query(api.landings.preview, { storeId });
     expect(preview.postPurchaseOffer.content.postPurchase.title).toBe('Continuá con el curso');
     expect(preview.postPurchaseOffer.price).toBe(4700);
+    expect(preview.postPurchaseOffer.content.postLabels).toEqual(draft.postLabels);
+    expect(preview.content.landingExit).toEqual(draft.landingExit);
+    expect(preview.content.backPopup).toEqual(draft.backPopup);
     expect(JSON.stringify(preview.postPurchaseOffer)).not.toContain('files.example.com');
     mockStripe();
     await start(t);
@@ -815,15 +852,32 @@ describe('post-purchase landing content', () => {
     const beforePublish = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
     expect(beforePublish.postPurchaseOffer.content.postPurchase.title).toBe('');
     expect(beforePublish.postPurchaseOffer.content.postPurchaseVideo.enabled).toBe(false);
+    expect(beforePublish.presentation.postLabels).toEqual({});
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.landingExit).toEqual({});
     await admin.mutation(api.landings.publish, { storeId });
     const afterPublish = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
     expect(afterPublish.postPurchaseOffer.content.postPurchase).toMatchObject(draft.postPurchase);
     expect(afterPublish.postPurchaseOffer.content.postPurchaseVideo).toEqual(draft.postPurchaseVideo);
     expect(afterPublish.postPurchaseOffer.content.postPurchaseBenefits).toMatchObject(draft.postPurchaseBenefits);
     expect(afterPublish.postPurchaseOffer.price).toBe(4700);
+    expect(afterPublish.presentation.postLabels).toEqual(draft.postLabels);
+    for (const key of ['postLabels', 'postOptions', 'popupOptions', 'checkout']) expect(afterPublish.postPurchaseOffer.content[key]).toEqual(draft[key]);
+    const publicView = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });
+    expect(publicView.content.landingExit).toEqual(draft.landingExit);
+    expect(publicView.content.backPopup).toEqual(draft.backPopup);
+    expect(publicView.offer.main.price).toBe(2700);
     await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { enabled: false, price: 0 } });
     expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).postPurchaseOffer).toBeNull();
     expect((await admin.query(api.landings.preview, { storeId })).postPurchaseOffer).toBeNull();
+  });
+
+  it('validates popup options and copy and protects draft updates', async () => {
+    const { t, admin, storeId } = await campaign();
+    for (const patch of [{ postLabels: { paidTitle: 'x'.repeat(1201) } }, { landingExit: { exitTitle: 5 } }, { popupOptions: { postEnabled: 'false' } }, { postOptions: { showCover: null } }, { backPopup: { modalTitle: 'x'.repeat(1201) } }]) {
+      await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, ...patch } })).rejects.toThrow();
+    }
+    await expect(t.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', draft: { ...content, popupOptions: { postEnabled: false } } })).rejects.toThrow();
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.popupOptions).toEqual({});
   });
 
   it('rejects invalid video settings and overlong copy without publishing changes', async () => {

@@ -101,6 +101,7 @@ export const getDelivery = query({
       deliveries,
       postPurchaseOffer,
       presentation: {
+        postLabels: content?.postLabels ?? {},
         accentColor: content?.style?.accentColor ?? '',
         brandName: content?.footer?.brandName ?? '',
         termsUrl: content?.footer?.termsUrl ?? '',

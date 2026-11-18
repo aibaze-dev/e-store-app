@@ -23,15 +23,19 @@ export const LANDING_SECTIONS = {
   postPurchaseVideo: ['03', 'Post-compra · Video VSL'],
   postPurchaseDownsell: ['04', 'Post-compra · Una oportunidad más'],
   postPurchaseFinal: ['05', 'Post-compra · Última oportunidad'],
+  postPurchaseCopy: ['06', 'Textos y estados de post-compra'],
+  popupLanding: ['01', 'Salida de la landing'], popupCheckout: ['02', 'Salida del checkout'], popupBack: ['03', 'Oferta al volver atrás'], popupPost: ['04', 'Popups después del pago'],
 };
 
 export const LANDING_TABS = [
   { id: 'landing', label: 'Config. landing' },
   { id: 'post', label: 'Post-compra' },
   { id: 'checkout', label: 'Checkout' },
+  { id: 'popups', label: 'Popups' },
 ];
 
 export function landingSectionTab(id = '') {
+  if (id.startsWith('popup')) return 'popups';
   if (id.startsWith('postPurchase')) return 'post';
   if (id.startsWith('checkout')) return 'checkout';
   return 'landing';
