@@ -1,10 +1,17 @@
-import { formatLandingText } from '../shared/landing-copy.js';
+import { formatLandingText, LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { classicTheme, plainText } from '../shared/classic-design.js';
 import { describe, it, expect } from 'vitest';
 import { normalizeContent, mergeGeneratedContent, offerTotals, productDiscount, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
 import { content } from './helpers';
 
 describe('sales template content', () => {
+  it('fills missing landing labels and preserves edits, empty labels and problem subtitles during regeneration', () => {
+    expect(normalizeContent(content).labels).toEqual(LANDING_LABEL_DEFAULTS);
+    const draft = normalizeContent({ labels: { free: 'Included', rights: '' }, painPoints: { items: [{ title: 'Question', description: 'Editable detail', icon: 'check' }] } });
+    const generated = mergeGeneratedContent(draft, { hero: { title: 'New headline' } });
+    expect(generated.labels).toEqual({ ...LANDING_LABEL_DEFAULTS, free: 'Included', rights: '' });
+    expect(generated.painPoints.items[0].description).toBe('Editable detail');
+  });
   it('uses each product reference for OFF badges and never labels a paid product as free', () => {
     expect(productDiscount(900, 1800)).toBe(50);
     expect(productDiscount(1900, 4900)).toBe(61);

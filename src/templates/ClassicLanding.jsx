@@ -61,16 +61,16 @@ function Head({ section, tone = '', icon: Icon, align = '' }) {
   </div>;
 }
 
-function Price({ offer, money, savings, tone = '' }) {
+function Price({ offer, money, savings, labels, tone = '' }) {
   return <div className={`cl-price ${tone}`}>
     {offer.main.compareAtPrice > offer.main.price && <del>{money(offer.main.compareAtPrice)}</del>}
     <strong>{money(offer.main.price)}</strong>
-    {savings > 0 && <span className="cl-save">Ahorrás {money(savings)}</span>}
+    {savings > 0 && <span className="cl-save">{formatLandingText(labels.savings, { importe: money(savings) })}</span>}
   </div>;
 }
 
 // Bonus covers as a coverflow: the centre card is the selected one.
-function BonusFlow({ bonuses }) {
+function BonusFlow({ bonuses, labels }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = bonuses.length;
@@ -98,7 +98,7 @@ function BonusFlow({ bonuses }) {
       </button>;
     })}</div>
     <div className="cl-flow-info" aria-live={paused ? 'polite' : 'off'}>
-      <p><span>{String(current + 1).padStart(2, '0')}</span><strong>Gratis</strong></p>
+      <p><span>{String(current + 1).padStart(2, '0')}</span><strong>{labels.free}</strong></p>
       <h3>{bonus.name}</h3>
       {bonus.description && <p>{bonus.description}</p>}
     </div>
@@ -111,27 +111,27 @@ function BonusFlow({ bonuses }) {
 }
 
 // The kit video starts muted; one tap turns the sound on and shows the controls.
-function KitMedia({ section, preview }) {
+function KitMedia({ section, preview, labels }) {
   const [sound, setSound] = useState(false);
   const video = useRef(null);
   const source = section.videoUrl ? videoSource(section.videoUrl) : null;
   if (source?.kind === 'embed') return <div className="cl-kit-media"><iframe src={source.src} title={section.imageAlt || 'Video del kit'} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>;
   if (source) return <div className="cl-kit-media">
     <video ref={video} src={source.src} poster={section.imageUrl || undefined} autoPlay muted loop playsInline controls={sound} aria-label={section.imageAlt || 'Video del kit'} />
-    {!sound && <button type="button" onClick={() => { video.current.muted = false; video.current.currentTime = 0; video.current.play(); setSound(true); }}><Volume2 aria-hidden="true" />Tocá para escuchar</button>}
+    {!sound && <button type="button" onClick={() => { video.current.muted = false; video.current.currentTime = 0; video.current.play(); setSound(true); }}><Volume2 aria-hidden="true" />{labels.listen}</button>}
   </div>;
   if (!section.imageUrl) return preview ? <PhotoSlot className="cl-kit-slot" ratio="4 / 3" title="Foto o video del kit" hint="Opcional · horizontal, 880 × 660 px" /> : null;
   return <div className="cl-kit-media"><Picture src={section.imageUrl} alt={section.imageAlt || section.title} /></div>;
 }
 
-function Testimonial({ item }) {
+function Testimonial({ item, labels }) {
   if (item.imageUrl && !item.quote) return <figure className="cl-testi"><img src={item.imageUrl} alt={`Testimonio de ${item.name}`} loading="lazy" /></figure>;
   return <figure className="cl-testi"><div className="cl-testi-card">
     {item.photoUrl ? <img className="cl-avatar" src={item.photoUrl} alt="" loading="lazy" /> : <span className="cl-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span>}
     <figcaption>{item.name}</figcaption>
     <span className="cl-stars" role="img" aria-label="5 de 5 estrellas">★★★★★</span>
     <blockquote>{item.quote}</blockquote>
-    {item.verified && <span className="cl-verified"><CircleCheck aria-hidden="true" />Compra verificada</span>}
+    {item.verified && <span className="cl-verified"><CircleCheck aria-hidden="true" />{labels.verified}</span>}
   </div></figure>;
 }
 
@@ -151,7 +151,7 @@ export default function ClassicLanding({ view, onCta }) {
   const content = normalizeContent(view.content);
   const { offer, store } = view;
   const upsells = offer.upsells ?? [];
-  const { hero, promotion, combo, closing } = content;
+  const { hero, promotion, combo, closing, labels } = content;
   // Presentation-only count, stable while the landing is mounted.
   const [simulatedSales] = useState(() => 540 + Math.floor(Math.random() * (6490 - 540 + 1)));
   const preview = !onCta;
@@ -195,8 +195,8 @@ export default function ClassicLanding({ view, onCta }) {
   const chosen = upsells.filter(upsell => selected.includes(upsell.productId));
   const order = checkoutTotals(offer, chosen);
   const guarantee = content.guarantee.enabled && Boolean(content.guarantee.text);
-  const guaranteeLabel = content.guarantee.days ? `Garantía ${content.guarantee.days} días` : content.guarantee.title;
-  const trustText = hero.trustText || ['Acceso inmediato', 'Pago seguro', guarantee && guaranteeLabel].filter(Boolean).join(' · ');
+  const guaranteeLabel = content.guarantee.days ? formatLandingText(labels.guarantee, { dias: content.guarantee.days }) : content.guarantee.title;
+  const trustText = hero.trustText || [labels.access, labels.payment, guarantee && guaranteeLabel].filter(Boolean).join(' · ');
   const pay = onCta ? () => onCta(chosen.map(upsell => upsell.productId)) : undefined;
   // With an order builder every button leads to it; the builder's own button starts the payment.
   const go = hasCombo ? () => comboRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : pay;
@@ -225,7 +225,7 @@ export default function ClassicLanding({ view, onCta }) {
           {hero.subtitle && <p>{rich(hero.subtitle)}</p>}
         </div>
         <div className="cl-masthead-offer">
-          <Price offer={offer} money={money} savings={totals.savings} />
+          <Price labels={labels} offer={offer} money={money} savings={totals.savings} />
           <button type="button" className="cl-btn is-white" onClick={go} disabled={!go}>{hero.headerCtaText || hero.ctaText || 'Comprar ahora'}<ArrowRight aria-hidden="true" /></button>
         </div>
       </div></header>
@@ -239,9 +239,9 @@ export default function ClassicLanding({ view, onCta }) {
             : preview && <PhotoSlot ratio="1" title="Segunda foto" hint="Opcional · cuadrada, 1000 × 1000 px. Sin ella, la principal queda sola y centrada." />}
         </div>
         {(proof.rating > 0 || hero.ratingText) && <p className="cl-rating">{proof.rating > 0 && <span className="cl-stars" aria-hidden="true">★★★★★</span>}
-          <span>{[proof.rating > 0 && number(proof.rating), proof.rating > 0 && proof.customers > 0 && `${number(proof.customers)} clientes`, hero.ratingText].filter(Boolean).join(' · ')}</span></p>}
+          <span>{[proof.rating > 0 && number(proof.rating), proof.rating > 0 && proof.customers > 0 && `${number(proof.customers)} ${labels.customers}`, hero.ratingText].filter(Boolean).join(' · ')}</span></p>}
         {content.activity.salesCount && <p className="cl-sales"><ShoppingBag aria-hidden="true" />{formatLandingText(content.activity.salesText, { cantidad: simulatedSales })}</p>}
-        <Price offer={offer} money={money} savings={totals.savings} tone="is-big" />
+        <Price labels={labels} offer={offer} money={money} savings={totals.savings} tone="is-big" />
         {cta(hero.ctaText, 'is-big')}
         {trustText && <p className="cl-trust">{trustText}</p>}
         {(hero.noteTitle || hero.note) && <p className="cl-note"><Check aria-hidden="true" /><span>{hero.noteTitle && <strong>{hero.noteTitle} </strong>}{rich(hero.note)}</span></p>}
@@ -271,7 +271,7 @@ export default function ClassicLanding({ view, onCta }) {
       {content.bonuses.enabled && offer.bonuses.length > 0 && <section {...edit('offer')} className="cl-section cl-dark"><div className="cl-wrap">
         <Head section={content.bonuses} tone="is-gold" icon={Gift} />
         {content.bonuses.chips.some(Boolean) && <ul className="cl-chips">{content.bonuses.chips.filter(Boolean).map((chip, i) => <li key={i}>{chip}</li>)}</ul>}
-        <BonusFlow bonuses={offer.bonuses} />
+        <BonusFlow labels={labels} bonuses={offer.bonuses} />
         <div className="cl-action">{cta(content.bonuses.ctaText, 'is-big')}{content.bonuses.note && <p className="cl-trust">{content.bonuses.note}</p>}</div>
       </div></section>}
 
@@ -297,11 +297,11 @@ export default function ClassicLanding({ view, onCta }) {
 
       {content.benefits.enabled && content.benefits.items.length > 0 && <section {...edit('benefits')} className="cl-section is-cream"><div className="cl-wrap cl-w-640">
         <Head section={content.benefits} />
-        <KitMedia section={content.benefits} preview={preview} />
+        <KitMedia labels={labels} section={content.benefits} preview={preview} />
         <ol className="cl-kit">{content.benefits.items.map((item, index) => <li key={index}><span aria-hidden="true">{index + 1}</span><div><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}</div></li>)}</ol>
         {content.summary.enabled && <div className="cl-total">
-          {totals.savings > 0 && <p>Valor total: <del>{money(totals.reference)}</del></p>}
-          <p className="cl-total-today">Hoy solo: <strong>{money(offer.main.price)}</strong></p>
+          {totals.savings > 0 && <p>{labels.reference} <del>{money(totals.reference)}</del></p>}
+          <p className="cl-total-today">{labels.today} <strong>{money(offer.main.price)}</strong></p>
           {cta(content.summary.ctaText || closing.ctaText, 'is-big')}
           {(content.summary.note || trustText) && <small>{content.summary.note || trustText}</small>}
         </div>}
@@ -309,11 +309,11 @@ export default function ClassicLanding({ view, onCta }) {
 
       {proof.enabled && (proof.items.length > 0 || proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <section {...edit('socialProof')} className="cl-section is-cream"><div className="cl-wrap cl-w-1450">
         <Head section={proof} />
-        {proof.items.length > 0 && <div className="cl-testis" tabIndex={0} role="region" aria-label="Testimonios">{proof.items.map((item, index) => <Testimonial key={index} item={item} />)}</div>}
+        {proof.items.length > 0 && <div className="cl-testis" tabIndex={0} role="region" aria-label="Testimonios">{proof.items.map((item, index) => <Testimonial labels={labels} key={index} item={item} />)}</div>}
         {(proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <div className="cl-metrics">
-          {proof.customers > 0 && <p><strong>{number(proof.customers)}+</strong><span>Clientes</span></p>}
-          {proof.rating > 0 && <p><strong>{number(proof.rating)}</strong><span>Calificación</span></p>}
-          {proof.satisfaction > 0 && <p><strong>{proof.satisfaction}%</strong><span>Satisfacción</span></p>}
+          {proof.customers > 0 && <p><strong>{number(proof.customers)}+</strong><span>{labels.customers}</span></p>}
+          {proof.rating > 0 && <p><strong>{number(proof.rating)}</strong><span>{labels.rating}</span></p>}
+          {proof.satisfaction > 0 && <p><strong>{proof.satisfaction}%</strong><span>{labels.satisfaction}</span></p>}
         </div>}
         <div className="cl-action">{cta(proof.ctaText)}</div>
       </div></section>}
@@ -353,16 +353,16 @@ export default function ClassicLanding({ view, onCta }) {
         <ComboRow item={offer.main} money={money} checked locked />
         {combo.upsellText && <p className="cl-combo-lead">{combo.upsellText}</p>}
         {upsells.map(upsell => <ComboRow key={upsell.productId} item={upsell} money={money} extra checked={selected.includes(upsell.productId)} onToggle={() => toggle(upsell.productId)} />)}
-        {upsells.length > 1 && combo.allText && <button type="button" className="cl-combo-all" aria-pressed={allSelected} onClick={() => setSelected(allSelected ? [] : upsells.map(upsell => upsell.productId))}>{allSelected ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{allSelected ? 'Todo agregado' : combo.allText}</button>}
-        {order.savings > 0 && <p className="cl-combo-savings"><PiggyBank aria-hidden="true" />Te ahorrás {money(order.savings)}</p>}
-        <p className="cl-combo-total" aria-live="polite"><span>Total</span><strong>{money(order.total)}</strong></p>
+        {upsells.length > 1 && combo.allText && <button type="button" className="cl-combo-all" aria-pressed={allSelected} onClick={() => setSelected(allSelected ? [] : upsells.map(upsell => upsell.productId))}>{allSelected ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{allSelected ? labels.allAdded : combo.allText}</button>}
+        {order.savings > 0 && <p className="cl-combo-savings"><PiggyBank aria-hidden="true" />{formatLandingText(labels.comboSavings, { importe: money(order.savings) })}</p>}
+        <p className="cl-combo-total" aria-live="polite"><span>{labels.total}</span><strong>{money(order.total)}</strong></p>
         <button type="button" className="cl-btn is-wide" onClick={pay} disabled={!pay}>{combo.ctaText || 'Ir a pagar ahora'}<ArrowRight aria-hidden="true" /></button>
         {combo.note && <p className="cl-combo-note"><LockKeyhole aria-hidden="true" />{combo.note}</p>}
       </div></div></section>}
     </main>
     <footer {...edit('identity')} className="cl-footer"><div className="cl-wrap">
-      <p>© {new Date().getFullYear()} {content.footer.brandName || store.name}. Todos los derechos reservados.</p>
-      {(content.footer.termsUrl || content.footer.privacyUrl) && <nav aria-label="Información legal">{content.footer.termsUrl && <a href={content.footer.termsUrl} target="_blank" rel="noreferrer">Términos y condiciones</a>}{content.footer.privacyUrl && <a href={content.footer.privacyUrl} target="_blank" rel="noreferrer">Política de privacidad</a>}</nav>}
+      <p>© {new Date().getFullYear()} {content.footer.brandName || store.name}. {labels.rights}</p>
+      {(content.footer.termsUrl || content.footer.privacyUrl) && <nav aria-label="Información legal">{content.footer.termsUrl && <a href={content.footer.termsUrl} target="_blank" rel="noreferrer">{labels.terms}</a>}{content.footer.privacyUrl && <a href={content.footer.privacyUrl} target="_blank" rel="noreferrer">{labels.privacy}</a>}</nav>}
     </div></footer>
     {hasSticky && <aside ref={stickyRef} className="cl-sticky" aria-label="Comprar" {...edit('combo')}><div>
       <strong>{money(order.total)}</strong>

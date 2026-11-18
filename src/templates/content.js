@@ -1,9 +1,10 @@
-import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
+import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_DEFAULTS } from '../../shared/landing-copy.js';
 import { POST_PURCHASE_CONTENT } from '../../shared/post-purchase.js';
 import { CLASSIC_ACCENT, CLASSIC_STORY, splitHeroTitle } from '../../shared/classic-design.js';
 
 // Defaults are shared by the form and public renderer. Existing string lists remain readable.
 export const EMPTY_CONTENT = {
+  labels: { ...LANDING_LABEL_DEFAULTS },
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
   hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },

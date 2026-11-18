@@ -83,6 +83,32 @@ describe('panel access', () => {
 });
 
 describe('public landing', () => {
+  it('persists editable problem subtitles and landing labels without publishing the draft early', async () => {
+    const { t, admin, storeId } = await campaign();
+    const draft = normalizeContent(content);
+    draft.painPoints.items = [{ title: 'Your first question', description: 'Start with a clear goal.', icon: 'check' }];
+    draft.labels = { ...draft.labels, savings: 'Save {importe}', free: 'Included', customers: 'Readers', rights: '' };
+    draft.about.subtitle = 'Meet the team';
+    draft.faq.subtitle = 'Before you start';
+    const save = value => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: value });
+    await save(draft);
+    const saved = (await admin.query(api.landings.getForStore, { storeId })).draft;
+    expect(saved.painPoints.items).toEqual(draft.painPoints.items);
+    expect(saved.labels).toEqual(draft.labels);
+    expect(saved.about.subtitle).toBe('Meet the team');
+    expect(saved.faq.subtitle).toBe('Before you start');
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.labels.free).toBe('Gratis');
+    await admin.mutation(api.landings.publish, { storeId });
+    const published = (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content;
+    expect(published.painPoints.items).toEqual(draft.painPoints.items);
+    expect(published.labels).toEqual(draft.labels);
+    await expect(save({ ...draft, labels: { ...draft.labels, free: 'x'.repeat(241) } })).rejects.toThrow();
+    await expect(save({ ...draft, labels: { ...draft.labels, unknownLabel: 'Unsupported' } })).rejects.toThrow();
+    draft.painPoints.items[0].description = '';
+    await save(draft);
+    expect((await admin.query(api.landings.getForStore, { storeId })).draft.painPoints.items[0].description).toBe('');
+  });
+
   it('serves only published content of active stores and never the deliverables', async () => {
     const { t, admin, store, storeId } = await campaign();
     const landing = await t.query(api.storefront.getLanding, { subdomain: 'inversion' });

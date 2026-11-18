@@ -1,4 +1,4 @@
-import { ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
+import { ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../../shared/landing-copy.js';
 import { Tabs } from 'radix-ui';
 import CheckoutSettings from './CheckoutSettings.jsx';
 import { LANDING_SECTIONS as SECTIONS, LANDING_TABS, landingSectionTab } from '../../shared/landing-sections.js';
@@ -104,6 +104,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
     const Control = multiline ? Textarea : Input;
     return <Control {...ids} value={content[key][property] ?? ''} onChange={event => change(key, { [property]: event.target.value, ...(key === 'postPurchaseVideo' && property === 'url' && !event.target.value.trim() ? { enabled: false } : {}) })} disabled={Boolean(busy)} {...props} />;
   }}</Field>;
+  const labels = section => <fieldset className="landing-item-fields"><legend>Textos adicionales</legend>{Object.entries(LANDING_LABEL_FIELDS).filter(([, config]) => config.section === section).map(([key, config]) => <div key={key}>{field('labels', key, config.label, { maxLength: 240, hint: config.hint })}</div>)}</fieldset>;
   const numberField = (key, property, label, max, step = 1) => <Field label={label}>{ids => <Input {...ids} type="number" min="0" max={max} step={step} value={content[key][property] ?? ''} onChange={event => change(key, { [property]: event.target.value === '' ? undefined : Number(event.target.value) })} disabled={Boolean(busy)} />}</Field>;
   const toggle = (key, label = 'Mostrar esta sección', property = 'enabled') => <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="size-5 accent-primary" checked={content[key][property]} onChange={event => change(key, { [property]: event.target.checked })} disabled={Boolean(busy)} />{label}</label>;
   const image = (key, property, label, hint) => <ImageField uploadOnly label={label} hint={hint} value={content[key][property]} onChange={value => change(key, { [property]: value })} disabled={Boolean(busy)} />;
@@ -136,9 +137,9 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   }}</Field>;
   const remove = (key, index, label) => <Button type="button" variant="ghost" className="text-destructive" disabled={Boolean(busy)} onClick={() => change(key, { items: content[key].items.filter((_, i) => i !== index) })}><Trash2 aria-hidden="true" />Quitar {label} {index + 1}</Button>;
   const add = (key, label, item, max) => <Button type="button" variant="outline" disabled={Boolean(busy) || content[key].items.length >= max} onClick={() => change(key, { items: [...content[key].items, item] })}><Plus aria-hidden="true" />Agregar {label}</Button>;
-  const features = (key, label, max, description = true) => <>{content[key].items.length === 0 && <p className="text-sm text-muted-foreground">Agregá {label} para mostrar esta sección.</p>}{content[key].items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>{label} {index + 1}</legend>
-    {itemField(key, index, 'title', description ? 'Título' : 'Texto', { maxLength: 240, required: true })}
-    {description && itemField(key, index, 'description', 'Descripción', { multiline: true, maxLength: 600 })}
+  const features = (key, label, max, descriptionLabel = 'Descripción (opcional)') => <>{content[key].items.length === 0 && <p className="text-sm text-muted-foreground">Agregá {label} para mostrar esta sección.</p>}{content[key].items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>{label} {index + 1}</legend>
+    {itemField(key, index, 'title', 'Título', { maxLength: 240, required: true })}
+    {itemField(key, index, 'description', descriptionLabel, { multiline: true, maxLength: 600 })}
     {remove(key, index, label)}
   </fieldset>)}{add(key, label, newFeature(), max)}</>;
   const itemImage = (key, index, property, label) => <ImageField uploadOnly compact label={label} value={content[key].items[index][property]} onChange={value => changeItem(key, index, { [property]: value })} disabled={Boolean(busy)} />;
@@ -239,6 +240,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('hero', 'note', 'Aclaración: respuesta', { multiline: true, maxLength: 240 })}
           {field('hero', 'footnote', 'Nota de formato (opcional)', { maxLength: 160, placeholder: 'Guía 100% digital · incluye versión para imprimir', hint: 'Se repite al pie del cierre.' })}
           <p className="text-xs leading-6 text-muted-foreground">El precio, el precio tachado y el ahorro se toman de la oferta de la tienda.</p>
+          {labels('cover')}
         </Section>
         <Section id="introduction" attention={checks.introduction} description="La pregunta y los párrafos que siguen a la portada" hidden={off('introduction')}>
           {heading('introduction', { eyebrow: false, subtitle: false })}
@@ -252,25 +254,26 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         </Section>
         <Section id="painPoints" attention={checks.painPoints} description="Los problemas con los que el lector se identifica" hidden={off('painPoints')}>
           {heading('painPoints')}
-          {features('painPoints', 'problema', 12, false)}
+          {features('painPoints', 'problema', 12, 'Subtítulo del problema (opcional)')}
           {field('painPoints', 'closingText', 'Frase de cierre (opcional)', { maxLength: 240 })}
           {button('painPoints')}
         </Section>
         <Section id="offer" attention={checks.offer} description="El carrusel oscuro con las portadas de los bonos gratis" hidden={off('bonuses')}>
           {heading('bonuses')}
-          <fieldset className="landing-item-fields"><legend>Etiquetas bajo el subtítulo</legend>{[0, 1, 2].map(index => <Field key={index} label={`Etiqueta ${index + 1} (opcional)`}>{ids => <Input {...ids} maxLength={40} value={content.bonuses.chips[index] ?? ''} disabled={Boolean(busy)}
-            onChange={event => change('bonuses', { chips: [0, 1, 2].map(i => i === index ? event.target.value : content.bonuses.chips[i] ?? '') })} />}</Field>)}</fieldset>
+          <fieldset className="landing-item-fields"><legend>Etiquetas bajo el subtítulo</legend>{[0, 1, 2, 3].map(index => <Field key={index} label={`Etiqueta ${index + 1} (opcional)`}>{ids => <Input {...ids} maxLength={40} value={content.bonuses.chips[index] ?? ''} disabled={Boolean(busy)}
+            onChange={event => change('bonuses', { chips: [0, 1, 2, 3].map(i => i === index ? event.target.value : content.bonuses.chips[i] ?? '') })} />}</Field>)}</fieldset>
           {button('bonuses')}
           {field('bonuses', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240 })}
           <StoreOfferSummary store={store} products={products} openInNewTab />
           <p className="text-xs leading-6 text-muted-foreground">Cada tarjeta del carrusel usa la portada, el nombre y la descripción del producto bono. Para cambiar una foto, editá ese producto. Estos enlaces abren otra pestaña para que conserves lo que estás escribiendo.</p>
+          {labels('offer')}
         </Section>
         <Section id="steps" attention={checks.steps} description="Los pasos numerados del recorrido" hidden={off('steps')}>
           {heading('steps')}
           {features('steps', 'paso', 7)}
         </Section>
         <Section id="about" attention={checks.about} description="La foto del equipo y su historia" hidden={off('about')}>
-          {heading('about', { subtitle: false })}
+          {heading('about')}
           {image('about', 'imageUrl', 'Foto del equipo')}
           {field('about', 'imageAlt', 'Descripción de la foto', { maxLength: 240 })}
           {field('about', 'text', 'Texto', { multiline: true, rows: 8, maxLength: 2400, hint: `Separá los párrafos con un salto de línea. ${MARKS}` })}
@@ -292,6 +295,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
             {button('summary')}
             {field('summary', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240, placeholder: 'Precio de lanzamiento · Descarga inmediata · Garantía 7 días' })}
           </fieldset>
+          {labels('benefits')}
         </Section>
         <Section id="socialProof" attention={checks.socialProof} description="Las tarjetas con foto, estrellas y opinión" hidden={off('socialProof')}>
           {heading('socialProof')}
@@ -313,6 +317,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           </fieldset>
           <p className="text-xs leading-6 text-muted-foreground">Si cargás solo la captura, se muestra esa imagen como tarjeta. Marcá “Compra verificada” únicamente en opiniones de compradores reales. Los testimonios cargados a mano se conservan al volver a generar con IA.</p>
           {button('socialProof')}
+          {labels('socialProof')}
         </Section>
         <Section id="comparison" attention={checks.comparison} description="Hasta tres columnas, con tu producto destacado" hidden={off('comparison')}>
           {heading('comparison', { eyebrow: false })}
@@ -335,7 +340,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {button('guarantee')}
         </Section>
         <Section id="faq" attention={checks.faq} description="Las dudas que respondés antes de la compra" hidden={off('faq')}>
-          {heading('faq', { eyebrow: false, subtitle: false })}
+          {heading('faq', { eyebrow: false })}
           {content.faq.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Pregunta {index + 1}</legend>{itemField('faq', index, 'question', 'Pregunta', { maxLength: 240, required: true })}{itemField('faq', index, 'answer', 'Respuesta', { multiline: true, maxLength: 1200, required: true })}{remove('faq', index, 'pregunta')}</fieldset>)}
           {add('faq', 'pregunta', { question: '', answer: '' }, 20)}
         </Section>
@@ -357,6 +362,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('combo', 'ctaText', 'Botón para ir a pagar', { maxLength: 60 })}
           {field('combo', 'note', 'Nota debajo del botón', { maxLength: 240 })}
           {toggle('closing', 'Mostrar el botón fijo al pie de la pantalla', 'stickyEnabled')}
+          {labels('combo')}
         </Section>
         <Section id="identity" attention={checks.identity} description="Color, marca, enlaces legales y dirección pública">
           <Field label="Color principal" hint="Los botones ajustan su contraste automáticamente.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
@@ -364,6 +370,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
           <Field label="Subdominio" hint="Minúsculas, números y guiones. Guardar un cambio de dirección lo aplica de inmediato.">{ids => <Input {...ids} value={form.subdomain} onChange={event => setForm(current => ({ ...current, subdomain: event.target.value }))} required maxLength={63} autoCapitalize="none" spellCheck={false} disabled={Boolean(busy)} />}</Field>
           {urls && <p className="text-xs leading-6 text-muted-foreground">Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a><br />El subdominio propio requiere configurar dominio y DNS.</p>}
+          {labels('identity')}
         </Section>
     </>,
     post: <>

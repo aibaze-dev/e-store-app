@@ -1,6 +1,6 @@
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { forStore, setAddress } from './lib/landing_records';
-import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS } from '../shared/landing-copy.js';
+import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../shared/landing-copy.js';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 import { v } from 'convex/values';
 import { mutation, query } from './lib/functions';
@@ -71,6 +71,7 @@ export function cleanContent(content: typeof landingContent.type) {
   if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: subí un archivo MP4, WebM u OGV.');
   const combo = { ...CLASSIC_STORY.combo, ...content.combo };
   return {
+    labels: Object.fromEntries(Object.entries(LANDING_LABEL_FIELDS).map(([key, field]) => [key, cleanText(content.labels?.[key] ?? field.value, field.label, 240)])),
     introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400), badge: cleanText(content.introduction?.badge ?? '', 'Frase destacada', 120) },
     transformation: { ...storyHeading('transformation'), ...storyImage('transformation') },
     about: { ...storyHeading('about'), ...storyImage('about'), text: cleanText(content.about?.text ?? '', 'Quiénes somos', 2400), signature: cleanText(content.about?.signature ?? '', 'Firma del equipo', 120) },

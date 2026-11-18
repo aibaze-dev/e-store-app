@@ -1,3 +1,4 @@
+import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -10,6 +11,7 @@ const storyFields = { ...sectionFields, eyebrow: v.optional(v.string()), title: 
 const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.string()) };
 
 export const landingContent = v.object({
+  labels: v.optional(v.object(Object.fromEntries(Object.keys(LANDING_LABEL_DEFAULTS).map(key => [key, v.optional(v.string())])))),
   postPurchase: v.optional(v.object({
     eyebrow: v.string(), title: v.string(), subtitle: v.string(), description: v.string(),
     ctaText: v.string(), declineText: v.string(), downsellTitle: v.string(), downsellText: v.string(), downsellCtaText: v.string(),
