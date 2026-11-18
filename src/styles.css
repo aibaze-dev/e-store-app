@@ -492,3 +492,30 @@
 .popup-journey-status.is-on { background: var(--accent); color: var(--primary); }
 .popup-journey-status::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
 @media (prefers-reduced-motion: reduce) { .copy-group > summary > svg { transition: none; } }
+
+/* Landings list: one card per experience (classic and quiz). */
+.landings-page { display: grid; gap: 24px; max-width: 1120px; margin-inline: auto; }
+.landings-heading { display: grid; gap: 8px; }
+.landings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; align-items: start; }
+.landing-card { display: grid; gap: 18px; padding: 24px; }
+.landing-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+.landing-status { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; background: var(--muted); padding: 4px 12px; color: var(--muted-foreground); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.landing-status::before { content: ''; width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+.landing-status.is-live { background: var(--accent); color: var(--primary); }
+.landing-status.is-draft { color: var(--foreground); }
+.landing-card .dashboard-share-row { padding: 14px; }
+.landing-card .dashboard-share-row > div:last-child { flex-wrap: wrap; }
+.landing-card-empty { border: 1px dashed var(--border); border-radius: 13px; padding: 18px; color: var(--muted-foreground); }
+.landing-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); padding-top: 18px; }
+.landing-card-confirm { display: grid; gap: 12px; border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border)); border-radius: 13px; background: color-mix(in srgb, var(--destructive) 6%, var(--card)); padding: 16px; }
+.landings-quiz-preview { overflow: hidden; }
+@media (max-width: 639px) {
+  .landing-card { padding: 18px; }
+  .landing-card-actions > * { width: 100%; }
+  .landing-card-actions > div > * { flex: 1; }
+}
+.landing-card-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.landing-card-meta > p { flex: 1 1 240px; }
+.landing-card-unpublish { min-height: 44px; padding-inline: 4px; color: var(--destructive); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.landing-card-unpublish:disabled { opacity: .5; cursor: not-allowed; }
+.landing-card-unpublish:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
