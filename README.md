@@ -339,3 +339,9 @@ Verificación local: 199 pruebas pasan, incluido un informe con más de 100 pago
 La estructura usa tablas de presentación y estilos inline, con ajuste de espacios para móvil. Verificación: 201 pruebas existentes y build correctos; HTML generado desde la función real revisado en navegador en escritorio y a 320 px, sin desborde horizontal. No se envió un correo con el nuevo diseño ni se publicó el backend; los correos confirmados durante el QA anterior corresponden al diseño previo. Para aplicar el cambio a futuros envíos se debe desplegar Convex.
 
 El formulario de la landing permite editar el subtítulo de cada problema en «Si te pasa esto», los subtítulos de «Quiénes somos» y FAQ y las cuatro etiquetas de bonos. Los grupos «Textos adicionales» de portada, bonos, kit, testimonios, combo e identidad configuran las etiquetas de precios, ahorro, confianza, métricas y enlaces legales. Se guardan en `landingContent.labels`, con valores predeterminados compartidos para publicaciones anteriores; `{importe}` y `{dias}` insertan valores calculados. Guardar borrador conserva la publicación actual hasta usar «Guardar y publicar».
+
+## Entregables opcionales y tipo de acceso (19/11/2026)
+
+El formulario de producto comienza sin entregables y permite guardar el catálogo así. Cada entregable agregado tiene un selector exclusivo «Documento» o «Enlace»: carga de archivo para el primero y URL para el segundo. El tipo se conserva al editar mediante `deliverables[].kind`; los registros anteriores sin tipo mantienen la opción Documento. Cambiar de tipo limpia el destino anterior. Se conservan la validación HTTP/HTTPS y la entrega después del pago. La activación de una tienda sigue requiriendo un entregable en su producto principal.
+
+Publicar frontend y backend juntos para aceptar el campo opcional `kind`; no requiere migrar registros existentes.

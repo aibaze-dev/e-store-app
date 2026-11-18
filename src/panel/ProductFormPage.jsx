@@ -14,7 +14,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 
-const EMPTY = { shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [{ title: '', url: '' }] };
+const EMPTY = { shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [] };
 
 export default function ProductFormPage() {
   const { productsPath } = useStoreWorkspace();
@@ -94,16 +94,21 @@ export default function ProductFormPage() {
     </Card>
 
     <Card>
-      <CardHeader><CardTitle>Entregables</CardTitle><CardDescription>Subí los archivos que recibe el comprador después de pagar. No se muestran en la landing.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Entregables (opcional)</CardTitle><CardDescription>Podés guardar el producto sin entregables y agregarlos después. Subí un documento o pegá un enlace para el comprador; se entrega después del pago y no se muestra en la landing.</CardDescription></CardHeader>
       <CardContent className="space-y-5">
-        {form.deliverables.length === 0 && <p className="text-sm text-muted-foreground">Sin entregables. Agregá al menos uno para poder vender este producto.</p>}
-        {form.deliverables.map((link, index) => <fieldset key={index} className="grid gap-4 rounded-lg border p-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+        {form.deliverables.length === 0 && <p className="text-sm text-muted-foreground">Todavía no agregaste entregables. Podés guardar el producto así.</p>}
+        {form.deliverables.map((link, index) => <fieldset key={index} className="grid min-w-0 gap-4 rounded-lg border p-4">
           <legend className="sr-only">Entregable {index + 1}</legend>
           <Field label="Título">{props => <Input {...props} value={link.title} onChange={event => setLink(index, { title: event.target.value })} maxLength={120} required disabled={busy} />}</Field>
-          <FileField label={`Archivo del entregable ${index + 1}`} value={link.url} onChange={url => setLink(index, { url })} disabled={busy} />
-          <Button type="button" variant="outline" size="icon" disabled={busy} aria-label={`Quitar entregable ${index + 1}`} onClick={() => set({ deliverables: form.deliverables.filter((_, i) => i !== index) })}><Trash2 aria-hidden="true" /></Button>
+          <Field label="Tipo de entregable">{props => <NativeSelect {...props} value={link.kind ?? 'file'} onChange={event => setLink(index, { kind: event.target.value, url: '' })} disabled={busy}>
+            <option value="file">Documento</option><option value="link">Enlace</option>
+          </NativeSelect>}</Field>
+          {link.kind === 'link'
+            ? <Field label={`Enlace del entregable ${index + 1}`} hint="Este enlace se comparte con el comprador después del pago.">{props => <Input {...props} type="url" value={link.url} placeholder="https://…" onChange={event => setLink(index, { url: event.target.value })} maxLength={2000} required disabled={busy} />}</Field>
+            : <FileField label={`Documento del entregable ${index + 1}`} value={link.url} onChange={url => setLink(index, { url })} disabled={busy} />}
+          <Button type="button" variant="outline" className="justify-self-start" disabled={busy} aria-label={`Quitar entregable ${index + 1}`} onClick={() => set({ deliverables: form.deliverables.filter((_, i) => i !== index) })}><Trash2 aria-hidden="true" />Quitar entregable</Button>
         </fieldset>)}
-        <Button type="button" variant="outline" disabled={busy || form.deliverables.length >= 30} onClick={() => set({ deliverables: [...form.deliverables, { title: '', url: '' }] })}><Plus aria-hidden="true" />Agregar entregable</Button>
+        <Button type="button" variant="outline" disabled={busy || form.deliverables.length >= 30} onClick={() => set({ deliverables: [...form.deliverables, { title: '', url: '', kind: 'file' }] })}><Plus aria-hidden="true" />Agregar entregable</Button>
       </CardContent>
     </Card>
 

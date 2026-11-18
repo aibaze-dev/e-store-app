@@ -595,6 +595,30 @@ describe('post-purchase offer', () => {
   });
 });
 
+describe('product deliverables', () => {
+  it('saves a product without deliverables, adds documents and web links later, and allows removing them all', async () => {
+    const t = backend();
+    const admin = await signedIn(t, ADMIN);
+    const data = { ...product('Recurso pendiente', 'pending'), deliverables: [] };
+    const id = await admin.mutation(api.products.create, data);
+    expect((await admin.query(api.products.get, { id })).deliverables).toEqual([]);
+    const deliverables = [
+      { title: 'Documento', url: 'https://files.example.com/guia.pdf', kind: 'file' },
+      { title: 'Acceso al curso', url: 'https://example.com/curso?acceso=abc#inicio', kind: 'link' },
+    ];
+    await admin.mutation(api.products.update, { id, ...data, deliverables });
+    expect((await admin.query(api.products.get, { id })).deliverables).toEqual(deliverables);
+    const linkedId = await admin.mutation(api.products.create, { ...data, deliverables: [deliverables[1]] });
+    expect((await admin.query(api.products.get, { id: linkedId })).deliverables).toEqual([deliverables[1]]);
+    await admin.mutation(api.products.update, { id, ...data });
+    expect((await admin.query(api.products.get, { id })).deliverables).toEqual([]);
+    for (const url of ['', 'no-es-un-enlace', 'javascript:alert(1)', 'data:text/html,hello']) {
+      await expect(admin.mutation(api.products.update, { id, ...data, deliverables: [{ title: 'Acceso', url }] })).rejects.toThrow();
+    }
+    expect((await admin.query(api.products.get, { id })).deliverables).toEqual([]);
+  });
+});
+
 describe('store validation', () => {
   it('rejects invalid prices, repeated products and activation without deliverables', async () => {
     const { admin, ids, store } = await campaign();

@@ -15,8 +15,8 @@ const fields = {
   deliverables: v.array(deliverable),
 };
 
-function clean(args: { name: string; shortDescription?: string; featured?: boolean; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string }[] }) {
-  if (args.deliverables.length > 30) fail('Entregables: usá hasta 30 archivos por producto.');
+function clean(args: { name: string; shortDescription?: string; featured?: boolean; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string; kind?: 'file' | 'link' }[] }) {
+  if (args.deliverables.length > 30) fail('Entregables: usá hasta 30 documentos o enlaces por producto.');
   return {
     type: 'e-book' as const,
     ...(args.shortDescription !== undefined ? { shortDescription: cleanText(args.shortDescription, 'Descripción corta', 180) } : {}),
@@ -27,6 +27,7 @@ function clean(args: { name: string; shortDescription?: string; featured?: boole
     coverUrl: cleanUrl(args.coverUrl, 'Portada'),
     status: args.status,
     deliverables: args.deliverables.map((link, index) => ({
+      ...(link.kind !== undefined ? { kind: link.kind } : {}),
       title: cleanText(link.title, `Entregable ${index + 1}`, 120, true),
       url: cleanUrl(link.url, `Entregable ${index + 1}`, true),
     })),

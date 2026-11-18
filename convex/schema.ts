@@ -2,7 +2,7 @@ import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-export const deliverable = v.object({ title: v.string(), url: v.string() });
+export const deliverable = v.object({ title: v.string(), url: v.string(), kind: v.optional(v.union(v.literal('file'), v.literal('link'))) });
 
 // Every section may carry its own label, button text and note under the button.
 const sectionFields = { enabled: v.optional(v.boolean()), subtitle: v.optional(v.string()), eyebrow: v.optional(v.string()), ctaText: v.optional(v.string()), note: v.optional(v.string()) };
