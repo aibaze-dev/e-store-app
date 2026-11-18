@@ -15,7 +15,7 @@ import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
 export { QField } from './QuizFields.jsx';
 
-export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,uploading=false}) {
+export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
  const [quiz,setQuiz]=useState(()=>clone(initial)),[subdomain,setSubdomain]=useState(address),[tab,setTab]=useState('Contenido');
  const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
  const busy=working||uploading;
@@ -28,7 +28,7 @@ export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
  return <div className="quiz-editor qe-simple-editor">
   <header className="qe-heading"><div><p className="qe-eyebrow">Landings / Quiz</p><h1>Tu quiz</h1><p>Ordená las pantallas, editá cada una y mirá cómo se ve al lado.</p></div><span className="qe-status">{published?'Publicado':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></header>
-  {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onBusy={setBusy} onApply={async proposal=>{
+  {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} exists={exists} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onBusy={setBusy} onApply={async proposal=>{
     await onSave({quiz:clone(proposal),subdomain});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
    }}/>}
   {(!aiOpen||preview)&&<div className="qe-toolbar">
@@ -83,5 +83,5 @@ export default function QuizEditor(){
  const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
  const upload=useMediaUpload();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
- return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
+ return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
 }

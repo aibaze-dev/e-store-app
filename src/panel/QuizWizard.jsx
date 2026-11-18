@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LoaderCircle, PenLine, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -13,7 +13,7 @@ const QUESTIONS = [
   { key: 'goal', label: '¿Qué querés descubrir de esa persona?', placeholder: 'Su experiencia, qué le cuesta y para qué quiere usar IA, para presentarle mi guía.' },
 ];
 
-export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerateImage, onApply, onBusy, open, onOpenChange: setOpen }) {
+export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerateImage, onApply, onBusy, open, onOpenChange: setOpen, exists = false }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ audience: '', goal: '', tone: 'Cercano', length: 7 });
   const [busy, setBusy] = useState(false);
@@ -60,7 +60,8 @@ export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerat
   return <section className="landing-wizard qe-ai-card" aria-busy={busy}>
     <div className="landing-wizard-header">
       <div><h2>Generá tu quiz con IA</h2><span>{proposal ? 'Revisá tu nuevo quiz' : `Paso ${step + 1} de 3`}</span></div>
-      <Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Editar a mano</Button>
+      {/* With a saved quiz, editing it is the main path; the assistant would replace it. */}
+      <Button type="button" variant={exists ? 'default' : 'ghost'} disabled={busy} onClick={() => setOpen(false)}>{exists && <PenLine aria-hidden="true" />}Editar a mano</Button>
     </div>
     {progress && <p role="status" className="qe-hint">{progress}</p>}
     {proposal ? <div className="qe-stack">
@@ -88,7 +89,7 @@ export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerat
       </>}
       <div className="qe-actions qe-wizard-actions">
         <Button type="button" variant="ghost" disabled={busy || step === 0} onClick={() => setStep(step - 1)}><ArrowLeft aria-hidden="true" />Anterior</Button>
-        <Button type="submit" disabled={busy || !onGenerate}>{step < QUESTIONS.length ? <>Siguiente<ArrowRight aria-hidden="true" /></> : <>{busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}{busy ? 'Generando tu quiz…' : 'Generar quiz'}</>}</Button>
+        <Button type="submit" variant={exists && step < QUESTIONS.length ? 'outline' : 'default'} disabled={busy || !onGenerate}>{step < QUESTIONS.length ? <>Siguiente<ArrowRight aria-hidden="true" /></> : <>{busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}{busy ? 'Generando tu quiz…' : 'Generar quiz'}</>}</Button>
       </div>
     </form>}
     <ErrorAlert>{error}</ErrorAlert>
