@@ -1,5 +1,5 @@
 import PopupPreview from './PopupPreview.jsx';
-import { CheckoutView } from '@/storefront/Storefront.jsx';
+import { CheckoutView } from '@/storefront/CheckoutPages.jsx';
 import { PreviewEditing } from '@/templates/PreviewEditing.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

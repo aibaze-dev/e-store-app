@@ -6,6 +6,7 @@ import { errorText } from '@/lib/format.js';
 import { Button } from '@/components/ui/button';
 import { videoSource } from '../../shared/post-purchase.js';
 import { MEDIA, mediaError } from '../../shared/media.js';
+import { compressImage } from './compress-image.js';
 import './image-field.css';
 
 export const UploadContext = createContext(null);
@@ -21,6 +22,7 @@ export function useMediaUpload() {
     try {
       let result;
       try {
+        if (kind === 'image') file = await compressImage(file);
         const response = await fetch(await uploadUrl(), { method: 'POST', headers: { 'Content-Type': file.type }, body: file });
         if (!response.ok) throw new Error('upload');
         result = await finalize({ storageId: (await response.json()).storageId, kind });

@@ -1,12 +1,17 @@
-import { useLayoutEffect } from 'react';
+import { lazy, Suspense, useLayoutEffect } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation, useParams } from 'react-router-dom';
-import AccessPage from './pages/AccessPage.jsx';
-import Panel from './panel/Panel.jsx';
 import Storefront from './storefront/Storefront.jsx';
-import ArtifactPage from './artifacts/ArtifactPage.jsx';
 import { resolveSubdomain } from './lib/site.js';
 import { Button } from './components/ui/button';
 import { InternalThemeProvider } from './components/InternalTheme.jsx';
+import { PageSkeleton } from './components/Field.jsx';
+
+// Public landings ship in the first download; the panel, the access page and the artifacts
+// are fetched only when their route is opened.
+const AccessPage = lazy(() => import('./pages/AccessPage.jsx'));
+const Panel = lazy(() => import('./panel/Panel.jsx'));
+const ArtifactPage = lazy(() => import('./artifacts/ArtifactPage.jsx'));
+const routeFallback = <main className="mx-auto max-w-2xl px-5 py-10 sm:px-6"><PageSkeleton /></main>;
 
 function PathStorefront() {
   const { subdomain } = useParams();
@@ -38,12 +43,12 @@ export default function App() {
     <DocumentLanguage subdomain={subdomain} />
     {subdomain
       ? <Routes><Route path="/*" element={<Storefront subdomain={subdomain} via="subdomain" />} /></Routes>
-      : <Routes>
+      : <Suspense fallback={routeFallback}><Routes>
         <Route path="/" element={<AccessPage />} />
         <Route path="/panel/*" element={<Panel />} />
         <Route path="/a/:slug" element={<ArtifactPage />} />
         <Route path="/l/:subdomain/*" element={<PathStorefront />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>}
+      </Routes></Suspense>}
   </BrowserRouter></InternalThemeProvider>;
 }

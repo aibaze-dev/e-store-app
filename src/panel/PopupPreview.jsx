@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ExitIntentPreview } from '@/storefront/ExitIntentModal.jsx';
 import DownsellModal from '@/storefront/DownsellModal.jsx';
-import { DownsellOfferView } from '@/storefront/Storefront.jsx';
+import { DownsellOfferView } from '@/storefront/CheckoutPages.jsx';
 
 export default function PopupPreview({ view, target }) {
   const [page, setPage] = useState(false);

@@ -38,10 +38,11 @@ export function rich(text) {
 const paragraphs = text => String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
 
 // An image the seller uploaded; a book placeholder stands in when there is none or it fails.
-function Picture({ src, alt, name, className = '' }) {
+function Picture({ src, alt, name, className = '', priority = false }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
-  if (src && !failed) return <img className={className} src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
+  // Photos at the top of the page load right away; the rest wait until they are near the viewport.
+  if (src && !failed) return <img className={className} src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} decoding="async" onError={() => setFailed(true)} />;
   return <div className={`cl-placeholder ${className}`} role="img" aria-label={alt}>{src ? <ImageOff aria-hidden="true" /> : <BookOpen aria-hidden="true" />}{name && <strong>{name}</strong>}</div>;
 }
 
@@ -234,8 +235,8 @@ export default function ClassicLanding({ view, onCta }) {
         <div className={`cl-hero-media ${hero.secondaryImageUrl || preview ? 'is-pair' : ''}`}>
           {preview && !hero.imageUrl && !offer.main.coverUrl
             ? <PhotoSlot ratio="1" title="Foto principal" hint="Cuadrada, 1000 × 1000 px. Sin foto se usa la portada del producto." />
-            : <Picture src={hero.imageUrl || offer.main.coverUrl} alt={`Cover of ${offer.main.name}`} name={offer.main.name} />}
-          {hero.secondaryImageUrl ? <Picture src={hero.secondaryImageUrl} alt={`Contents of ${offer.main.name}`} />
+            : <Picture priority src={hero.imageUrl || offer.main.coverUrl} alt={`Cover of ${offer.main.name}`} name={offer.main.name} />}
+          {hero.secondaryImageUrl ? <Picture priority src={hero.secondaryImageUrl} alt={`Contents of ${offer.main.name}`} />
             : preview && <PhotoSlot ratio="1" title="Segunda foto" hint="Opcional · cuadrada, 1000 × 1000 px. Sin ella, la principal queda sola y centrada." />}
         </div>
         {(proof.rating > 0 || hero.ratingText) && <p className="cl-rating">{proof.rating > 0 && <span className="cl-stars" aria-hidden="true">★★★★★</span>}

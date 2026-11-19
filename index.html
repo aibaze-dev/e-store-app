@@ -7,6 +7,38 @@
   <meta name="description" content="Ateneo learning">
   <title>Ateneo Learning</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="/company-favicon.svg">
+  <!-- Landing photos are served by Convex Storage. -->
+  <link rel="preconnect" href="%VITE_CONVEX_URL%">
+  <script>
+    // On a public landing, asks for its content while the app bundle is still downloading.
+    // src/storefront/early-landing.js picks the answer up; any failure falls back to the live query.
+    (function () {
+      try {
+        var convex = '%VITE_CONVEX_URL%', site = '%VITE_SITE_URL%';
+        if (convex.indexOf('http') !== 0) return;
+        var subdomain = '';
+        var path = location.pathname.match(/^\/l\/([^/]+)\/?$/);
+        if (path) subdomain = decodeURIComponent(path[1]).toLowerCase();
+        else if (location.pathname === '/' && site.indexOf('http') === 0) {
+          // Same rule as resolveSubdomain in src/lib/site.js.
+          var base = new URL(site).hostname, host = location.hostname;
+          if (host !== base && host.slice(-base.length - 1) === '.' + base) {
+            var name = host.slice(0, -base.length - 1);
+            if (name && name.indexOf('.') < 0 && name !== 'www') subdomain = name;
+          }
+        }
+        if (!subdomain) return;
+        var early = window.__earlyLanding = { subdomain: subdomain, value: undefined, promise: null };
+        early.promise = fetch(convex + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'storefront:getLanding', args: { subdomain: subdomain }, format: 'json' }),
+        }).then(function (response) { return response.json(); })
+          .then(function (result) { return early.value = result && result.status === 'success' && result.value ? result.value : undefined; })
+          .catch(function () { return undefined; });
+      } catch (error) { /* The app loads the landing on its own. */ }
+    })();
+  </script>
 </head>
 
 <body>

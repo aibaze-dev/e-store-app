@@ -1,7 +1,7 @@
 import PopupJourney from './PopupJourney.jsx';
 import PopupPreview from './PopupPreview.jsx';
 import { POPUP_PREVIEW_TARGETS, PURCHASE_PREVIEW_STATES } from '../../shared/purchase-copy.js';
-import { CheckoutView } from '@/storefront/Storefront.jsx';
+import { CheckoutView } from '@/storefront/CheckoutPages.jsx';
 import { useState } from 'react';
 import { PostPurchasePreview } from '@/templates/PostPurchaseContent.jsx';
 import { POST_PURCHASE_PREVIEW_STAGES } from '../../shared/post-purchase.js';
