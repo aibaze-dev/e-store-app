@@ -415,8 +415,12 @@
 .checkout-sidebar > section { box-shadow: 0 2px 4px #202a3b0d; border-radius: 16px; }
 .checkout-page .checkout-positive { color: var(--checkout-green); }
 .checkout-page .checkout-extra-selected { border-color: var(--checkout-amber); background: var(--accent); }
-.checkout-page .checkout-extra-button { background: var(--foreground); color: white; min-height: 46px; border: none; font-size: 15px; }
-.checkout-page .checkout-extra-button.is-selected { background: #07845f; color: white; }
+.checkout-sidebar [role='timer'] { justify-content: flex-start; padding: 4px 8px; font-size: 12px; }
+.checkout-extra-button { color: var(--checkout-blue); }
+.checkout-extra-button[aria-pressed='true'] { color: var(--checkout-green); }
+.checkout-extra-button::after { content: ''; position: absolute; inset: 0; border-radius: 8px; }
+.checkout-extra-button:focus-visible::after { outline: 2px solid var(--ring); outline-offset: 2px; }
+.checkout-extra-button:disabled { opacity: .6; }
 .checkout-page [data-slot='badge'] { background: #eafbf0; color: var(--checkout-green); border-color: #a8edbd; }
 .checkout-page .checkout-legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 24px; padding: 0 20px 48px; font-size: 13px; text-transform: uppercase; }
 .checkout-legal a { color: var(--checkout-blue); text-decoration: underline; text-underline-offset: 3px; }
@@ -448,8 +452,7 @@
 
 /* Custom checkout copy can be longer than the default labels. */
 .checkout-page { overflow-wrap: anywhere; }
-.checkout-page .checkout-pay,
-.checkout-page .checkout-extra-button { height: auto; min-height: 56px; white-space: normal; padding-block: 14px; }
+.checkout-page .checkout-pay { height: auto; min-height: 56px; white-space: normal; padding-block: 14px; }
 .checkout-page [data-slot='badge'] { white-space: normal; }
 .checkout-page > header > div { flex-wrap: wrap; }
 

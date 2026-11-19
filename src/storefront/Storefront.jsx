@@ -132,43 +132,12 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
       <Link onClick={event => { if (preview) event.preventDefault(); }} to={origin==='quiz'?'../quiz/resultado':'..'} className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">{copy.back}</Link>
     </div></header>
     {copy.showActivity && <CheckoutActivityBar shoppers={shoppers} copy={copy} />}
-    <div className="px-5 pt-5 lg:hidden"><CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} /></div>
     <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
-      <section className="min-w-0 space-y-8">
-        <h1 ref={headingRef} tabIndex={-1} className="sr-only">{copy.title}</h1>
-        {preview ? <CheckoutPaymentPreview copy={copy} totalLabel={money(total)} state={previewState} /> : <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={initialBuyer} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />}
-        {trust}
-      </section>
-
-      <aside className="checkout-sidebar min-w-0 space-y-6">
-        {offer.upsells.length === 0 && <div className="hidden lg:block"><CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} /></div>}
-        {offer.upsells.length > 0 && <section className="space-y-4 rounded-xl border bg-card p-5" aria-labelledby="checkout-extras">
-          <h2 id="checkout-extras" className="flex items-center justify-center gap-2 text-center text-xs font-bold tracking-widest text-primary uppercase"><Zap className="size-4" aria-hidden="true" />{copy.upsellTitle}</h2>
-          <div className="hidden lg:block"><CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} /></div>
-          {offer.upsells.map(upsell => {
-            const on = selected.includes(upsell.productId);
-            const percent = productDiscount(upsell.price, upsell.compareAtPrice);
-            return <article key={upsell.productId} className={`relative overflow-hidden rounded-xl border-2 p-4 transition-colors ${on ? 'checkout-extra-selected' : 'border-border'}`}>
-              {percent > 0 && <span className="mb-2 ml-auto block w-fit max-w-full rounded-lg bg-destructive px-2 py-1 text-xs font-bold text-white">{t('discount', { porcentaje: percent })}</span>}
-              <div className="flex gap-4">
-                <Thumb src={upsell.coverUrl} name={upsell.name} className="size-14" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <h3 className="pr-10 leading-snug font-semibold">{upsell.name}</h3>
-                  <p className="flex flex-wrap items-baseline gap-x-2 text-sm">{upsell.compareAtPrice && <del className="text-muted-foreground">{money(upsell.compareAtPrice)}</del>}<strong className="text-base checkout-positive">+ {money(upsell.price)}</strong></p>
-                  {(upsell.shortDescription || upsell.description) && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{upsell.shortDescription || upsell.description}</p>}
-                </div>
-              </div>
-              <Button type="button" variant={on ? 'outline' : 'default'} className={`checkout-extra-button mt-4 w-full ${on ? 'is-selected' : ''}`} aria-pressed={on} disabled={locked}
-                onClick={() => setSelected(on ? selected.filter(id => id !== upsell.productId) : [...selected, upsell.productId])}>
-                {on ? <Check aria-hidden="true" /> : <Plus aria-hidden="true" />}{on ? copy.added : copy.add}
-              </Button>
-            </article>;
-          })}
-        </section>}
-
+      <h1 ref={headingRef} tabIndex={-1} className="sr-only">{copy.title}</h1>
+      <aside className="checkout-sidebar min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
         <section className="overflow-hidden rounded-xl border bg-card" aria-labelledby="checkout-summary">
-          <h2 id="checkout-summary" className="border-b p-5 font-semibold">{copy.summaryTitle}</h2>
-          <div className="space-y-4 p-5">
+          <h2 id="checkout-summary" className="border-b px-4 py-3 font-semibold">{copy.summaryTitle}</h2>
+          <div className="space-y-3 p-4">
             <div className="flex gap-4">
               <Thumb src={offer.main.coverUrl} name={offer.main.name} className="h-20 w-16" />
               <div className="min-w-0 flex-1 space-y-2">
@@ -190,7 +159,36 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
           </div>
           <div className="border-t bg-muted/40 p-4">{trust}</div>
         </section>
+
+        {offer.upsells.length > 0 ? <section className="space-y-2 rounded-xl border bg-card p-3" aria-labelledby="checkout-extras">
+          <h2 id="checkout-extras" className="flex items-center gap-2 text-sm font-semibold"><Zap className="size-4 shrink-0 text-primary" aria-hidden="true" />{copy.upsellTitle}</h2>
+          <CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} />
+          {offer.upsells.map(upsell => {
+            const on = selected.includes(upsell.productId);
+            const percent = productDiscount(upsell.price, upsell.compareAtPrice);
+            return <article key={upsell.productId} className={`relative flex items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${on ? 'checkout-extra-selected' : 'border-border'}`}>
+              <Thumb src={upsell.coverUrl} name={upsell.name} className="size-10" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <h3 className="text-sm leading-snug font-semibold">{upsell.name}</h3>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  {upsell.compareAtPrice && <del className="text-muted-foreground">{money(upsell.compareAtPrice)}</del>}
+                  <strong className="checkout-positive text-sm">+ {money(upsell.price)}</strong>
+                  {percent > 0 && <span className="rounded bg-destructive/10 px-1.5 font-semibold text-destructive">{t('discount', { porcentaje: percent })}</span>}
+                </p>
+                {(upsell.shortDescription || upsell.description) && <p className="line-clamp-2 text-xs leading-4 text-muted-foreground">{upsell.shortDescription || upsell.description}</p>}
+                <button type="button" className="checkout-extra-button inline-flex items-center gap-1 text-left text-xs font-semibold" aria-label={`${on ? copy.added : copy.add} · ${upsell.name}`} aria-pressed={on} disabled={locked}
+                  onClick={() => setSelected(on ? selected.filter(id => id !== upsell.productId) : [...selected, upsell.productId])}>
+                  {on ? <Check className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}{on ? copy.added : copy.add}
+                </button>
+              </div>
+            </article>;
+          })}
+        </section> : <CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} />}
       </aside>
+      <section className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
+        {preview ? <CheckoutPaymentPreview copy={copy} totalLabel={money(total)} state={previewState} /> : <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={initialBuyer} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />}
+        {trust}
+      </section>
     </main>
     {copy.notifications && <DemoPurchaseToasts key={view.subdomain} copy={copy} preview={preview} checkoutCopy={copy} placement="bottom" />}
     {(content.footer.termsUrl || content.footer.privacyUrl) && <nav className="checkout-legal" aria-label={copy.legalLabel}>
