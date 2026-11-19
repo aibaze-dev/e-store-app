@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, RefreshCw } from 'lucide-react';
 import LiveAnalytics from './LiveAnalytics.jsx';
 import PeriodAnalytics from './PeriodAnalytics.jsx';
 import AnalyticsCharts from './AnalyticsCharts.jsx';
+import CampaignAnalytics from './CampaignAnalytics.jsx';
 import { api } from '@/lib/api.js';
 import { errorText, formatDate } from '@/lib/format.js';
 import business from '@/config/businessData.json';
@@ -30,6 +31,7 @@ export function AnalyticsResults({ data, currency }) {
   ];
   return <div className="space-y-6">
     <PeriodAnalytics data={data} currency={currency} />
+    <CampaignAnalytics sources={data.sources} currency={currency} />
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Audiencia del período</h2>
       <div className="grid gap-4 sm:grid-cols-3">{cards.map(card => <section key={card.label} className="dashboard-card space-y-2 p-5">

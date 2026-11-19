@@ -13,6 +13,7 @@ import DownsellModal from './DownsellModal.jsx';
 import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useEarlyLanding } from './early-landing.js';
+import { captureAttribution } from './attribution.js';
 
 const quizModule = () => import('./Quiz.jsx');
 const Quiz = lazy(quizModule);
@@ -73,6 +74,9 @@ function LandingRoutes({ subdomain, via }) {
 // `via` records whether the visit came through the subdomain or the /l/<subdomain> path,
 // so the server sends the buyer back to the same address after paying.
 export default function Storefront({ subdomain, via }) {
+  // Read while rendering: the quiz and the checkout navigate to addresses without the
+  // campaign parameters, and child effects run before this component's own.
+  captureAttribution(subdomain);
   return <ErrorBoundary language="en-US"><Suspense fallback={<Page><PageSkeleton label="Loading" /></Page>}><Routes>
     <Route path="gracias" element={<ThankYou via={via} subdomain={subdomain} />} />
     <Route path="*" element={<LandingRoutes subdomain={subdomain} via={via} />} />

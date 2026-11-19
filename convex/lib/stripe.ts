@@ -13,6 +13,8 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   locale: 'en' | 'es' | 'pt' | 'auto';
   // Elements only: ask for the name (new buyers) or reuse a known buyer's email.
   collectContact?: boolean; customerEmail?: string;
+  // Campaign of the order (utm_source, ad_id…), shown on the session and on the payment.
+  metadata?: Record<string, string>;
 }) {
   const body = new URLSearchParams({
     mode: 'payment',
@@ -26,6 +28,11 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
     body.set('name_collection[individual][enabled]', 'true');
   }
   if (input.customerEmail) body.set('customer_email', input.customerEmail);
+  for (const [name, value] of Object.entries(input.metadata ?? {})) {
+    body.set(`metadata[${name}]`, value);
+    // The Payments list and its exports read the payment's own metadata.
+    body.set(`payment_intent_data[metadata][${name}]`, value);
+  }
   input.lineItems.forEach((item, index) => {
     body.set(`line_items[${index}][quantity]`, '1');
     body.set(`line_items[${index}][price_data][currency]`, input.currency.toLowerCase());

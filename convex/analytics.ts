@@ -6,10 +6,12 @@ import { requireAdmin } from './lib/permissions';
 import { hashIp, requestIp } from './lib/analytics_ip';
 import { createIntervalReport, createReport, dateKey, shiftDate, startOfDate, validRange, PRESENCE_WINDOW_MS } from '../shared/analytics';
 import business from '../src/config/businessData.json';
+import { cleanAttribution } from '../shared/attribution.js';
+import { attribution as attributionArg } from './schema';
 
 export const recordView = mutation({
-  args: { subdomain: v.string(), page: v.union(v.literal('landing'), v.literal('checkout')), eventId: v.string(), origin:v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct'))) },
-  handler: async (ctx, { subdomain, page, eventId, origin }) => {
+  args: { subdomain: v.string(), page: v.union(v.literal('landing'), v.literal('checkout')), eventId: v.string(), origin:v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct'))), attribution: v.optional(attributionArg) },
+  handler: async (ctx, { subdomain, page, eventId, origin, attribution }) => {
     if (!/^[a-z0-9-]{1,63}$/.test(subdomain) || !/^[a-zA-Z0-9-]{16,64}$/.test(eventId)) return null;
     const store=(await checkoutRecord(ctx,subdomain))?.store;
     if(!store)return null;
@@ -25,7 +27,8 @@ export const recordView = mutation({
     const recent = await ctx.db.query('pageViews').withIndex('by_store_ip', q => q.eq('storeId', store._id).eq('ipHash', ipHash).gte('_creationTime', now - 60_000)).take(120);
     if (recent.length >= 120) return null;
     const day = dateKey(now, business.timeZone);
-    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId, origin:origin ?? (page==='landing'?'classic':'direct') });
+    const campaign = cleanAttribution(attribution);
+    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId, origin:origin ?? (page==='landing'?'classic':'direct'), ...(campaign ? { attribution: campaign } : {}) });
     return { status: 'recorded' as const, day };
   },
 });
@@ -68,7 +71,7 @@ export const readPurchases = internalQuery({
       const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
       if (transaction?.status !== 'paid' || transaction.paidAt === undefined || transaction.paidAt >= before) return null;
       const day = dateKey(transaction.paidAt, business.timeZone);
-      return day >= from && day <= to ? { day, amount: transaction.amount, currency: transaction.currency, postPurchase: Boolean(order.parentOrderId) } : null;
+      return day >= from && day <= to ? { day, amount: transaction.amount, currency: transaction.currency, postPurchase: Boolean(order.parentOrderId), attribution: order.attribution } : null;
     }));
     return { ...result, page: dates.filter(row => row !== null) };
   },
@@ -120,7 +123,7 @@ export const readActivityTimes = internalQuery({
     const times = await Promise.all(result.page.map(async row => {
       const order = await ctx.db.get(row.orderId);
       return order?.storeId === storeId && order.status === 'paid'
-        ? { at: row.paidAt, amount: row.amount, currency: row.currency, postPurchase: Boolean(order.parentOrderId) } : null;
+        ? { at: row.paidAt, amount: row.amount, currency: row.currency, postPurchase: Boolean(order.parentOrderId), attribution: order.attribution } : null;
     }));
     return { ...result, page: times.filter(row => row !== null) };
   },
@@ -153,8 +156,8 @@ export const rollingActivity = action({
         cursor = result.continueCursor;
       }
     }
-    const { total, buckets } = report.finish();
+    const { total, buckets, sources } = report.finish();
     const hours = buckets.map(({ key, ...counts }) => ({ ...counts, start: key, end: Math.min(end, key + hour), visits: counts.views }));
-    return { asOf, hours, total, day: day ?? null };
+    return { asOf, hours, total, sources, day: day ?? null };
   },
 });

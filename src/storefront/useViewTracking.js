@@ -3,6 +3,7 @@ import { useMutation } from 'convex/react';
 import { api } from '@/lib/api.js';
 import business from '@/config/businessData.json';
 import { createVisitTracker } from './visitTracking.js';
+import { attributionArgs } from './attribution.js';
 
 const tracker = createVisitTracker({
   getStorage: () => window.localStorage,
@@ -20,7 +21,7 @@ export function useViewTracking(subdomain, page, storeId, origin = page === 'lan
     const send = () => {
       if (!active || document.visibilityState === 'hidden') return;
       clearTimeout(retry);
-      void tracker.track({ subdomain, page, storeId: `${storeId}:${origin}` }, args => record({...args,origin})).then(confirmed => {
+      void tracker.track({ subdomain, page, storeId: `${storeId}:${origin}` }, args => record({ ...args, origin, ...attributionArgs(subdomain) })).then(confirmed => {
         if (!confirmed) scheduleRetry();
       }).catch(() => {
         // Failed deliveries remain retryable with the same event ID.

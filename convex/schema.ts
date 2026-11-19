@@ -1,10 +1,14 @@
 import { POST_LABEL_FIELDS, POST_OPTION_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, POPUP_OPTION_FIELDS } from '../shared/purchase-copy.js';
 import { CHECKOUT_FIELDS, CHECKOUT_FLAGS } from '../shared/checkout-copy.js';
 import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
+import { ATTRIBUTION_FIELDS } from '../shared/attribution.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export const presencePage = v.union(v.literal('landing'), v.literal('checkout'), v.literal('offer'), v.literal('thanks'));
+
+// Campaign parameters of the ad link (UTM and Meta IDs). Always stored through cleanAttribution.
+export const attribution = v.object(Object.fromEntries(ATTRIBUTION_FIELDS.map(field => [field, v.optional(v.string())])));
 
 export const deliverable = v.object({ title: v.string(), url: v.string(), kind: v.optional(v.union(v.literal('file'), v.literal('link'))) });
 
@@ -113,6 +117,7 @@ export const itemRole = v.union(
 
 export default defineSchema({
   // Minimal view history. _creationTime is the server timestamp; no raw IP or UA.
+  // `attribution` is the campaign of the ad link, when the visit came from one.
   pageViews: defineTable({
     storeId: v.id('stores'),
     page: v.union(v.literal('landing'), v.literal('checkout')),
@@ -120,6 +125,7 @@ export default defineSchema({
     day: v.string(),
     ipHash: v.optional(v.string()),
     eventId: v.string(),
+    attribution: v.optional(attribution),
   }).index('by_store', ['storeId']).index('by_store_day', ['storeId', 'day'])
     .index('by_store_event', ['storeId', 'eventId'])
     .index('by_store_ip', ['storeId', 'ipHash']),
@@ -173,6 +179,9 @@ export default defineSchema({
     attemptId: v.string(),
     origin: v.optional(v.union(v.literal('classic'), v.literal('quiz'), v.literal('direct'))),
     quizSessionId: v.optional(v.id('quizSessions')),
+    // Campaign that brought the buyer, copied when the order is created. A post-purchase
+    // order repeats its parent's.
+    attribution: v.optional(attribution),
     // Sold at the store's downsell discount; the items hold the price actually charged.
     downsell: v.optional(v.boolean()),
     // Post-purchase only: the last, fixed extra discount offered after the downsell. Also has `downsell`.
@@ -217,7 +226,7 @@ export default defineSchema({
   quizPublications: defineTable({ storeId: v.id('stores'), landingId: v.id('landings'), content: v.any() }).index('by_store', ['storeId']),
   quizSessions: defineTable({
     storeId: v.id('stores'), landingId: v.id('landings'), publicationId: v.id('quizPublications'),
-    ipHash:v.optional(v.string()), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
+    ipHash:v.optional(v.string()), attribution: v.optional(attribution), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
     stepEvents: v.optional(v.array(v.object({stepId:v.string(),at:v.number()}))), firstCompletedAt:v.optional(v.number()), contactCapturedAt:v.optional(v.number()),
     history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
     contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),

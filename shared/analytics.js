@@ -1,3 +1,5 @@
+import { MAX_SOURCE_ROWS, OTHER_SOURCES, createSourceRow, sourceKey } from './attribution.js';
+
 export const PRESENCE_WINDOW_MS = 45_000;
 export const PRESENCE_REFRESH_MS = 15_000;
 export const DAY_MS = 86_400_000;
@@ -46,6 +48,15 @@ export function createIntervalReport(keys, viewKey, paymentKey) {
   const total = bucket();
   const buckets = new Map(keys.map(key => [key, bucket()]));
   const recent = [];
+  // Visits and purchases of the whole range by ad link; '' gathers those without campaign.
+  const sources = new Map();
+  const sourceOf = row => {
+    const fits = !row.attribution || sources.has(sourceKey(row.attribution)) || sources.size < MAX_SOURCE_ROWS;
+    const attribution = fits ? row.attribution : OTHER_SOURCES;
+    const key = sourceKey(attribution);
+    if (!sources.has(key)) sources.set(key, createSourceRow(attribution));
+    return sources.get(key);
+  };
   const addTo = (target, row) => {
     target.views++;
     target[`${row.page}Views`]++;
@@ -60,6 +71,7 @@ export function createIntervalReport(keys, viewKey, paymentKey) {
         const interval = buckets.get(viewKey(row));
         if (!interval) continue;
         addTo(total, row); addTo(interval, row);
+        sourceOf(row)[`${row.page}Views`]++;
         recent.push({ id: row._id, at: row._creationTime, page: row.page, ipCode: row.ipHash?.slice(0, 12) ?? null });
       }
       recent.sort((a, b) => b.at - a.at);
@@ -74,10 +86,14 @@ export function createIntervalReport(keys, viewKey, paymentKey) {
           if (!row.postPurchase) target.checkoutPurchases++;
           target.revenue[row.currency] = (target.revenue[row.currency] ?? 0) + row.amount;
         }
+        // Like the funnel: a purchase is a paid main order; revenue includes post-purchase.
+        const source = sourceOf(row);
+        if (!row.postPurchase) source.purchases++;
+        source.revenue[row.currency] = (source.revenue[row.currency] ?? 0) + row.amount;
       }
     },
     finish() {
-      return { total: serialize(total), buckets: [...buckets].map(([key, value]) => ({ key, ...serialize(value) })), recent };
+      return { total: serialize(total), buckets: [...buckets].map(([key, value]) => ({ key, ...serialize(value) })), recent, sources: [...sources.values()] };
     },
   };
 }

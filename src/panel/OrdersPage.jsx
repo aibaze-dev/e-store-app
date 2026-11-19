@@ -9,6 +9,9 @@ import { useStoreWorkspace } from './StoreWorkspace.jsx';
 const ROLE_LABELS = { main: 'Principal', bonus: 'Bono', upsell: 'Extra', post_purchase: 'Post-compra' };
 const REVIEW_REASONS = { amount: ' y no coincide con la orden', duplicate: ' por una oferta post-compra que ya estaba pagada', late: ' por una orden vencida o rechazada' };
 
+// Campaign and ad of the link that brought the buyer, when the order has them.
+const campaignLabel = attribution => attribution ? [attribution.campaign || attribution.campaignId, attribution.content || attribution.adId].filter(Boolean).join(' › ') || attribution.source || '' : '';
+
 export default function OrdersPage() {
   const { store } = useStoreWorkspace();
   const orders = useQuery(api.orders.list, store ? { storeId: store._id } : 'skip');
@@ -27,7 +30,7 @@ export default function OrdersPage() {
         <TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Tienda</TableHead><TableHead>Comprador</TableHead><TableHead>Detalle</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
         <TableBody>{orders.map(order => <TableRow key={order._id}>
           <TableCell className="whitespace-nowrap">{formatDate(order.createdAt)}</TableCell>
-          <TableCell className="min-w-40">{order.storeName || '—'}{order.isPostPurchase && <span className="block text-xs text-muted-foreground">Oferta post-compra</span>}{order.downsell && <span className="block text-xs text-muted-foreground">{order.finalDownsell ? 'Con último descuento' : 'Con descuento de downsell'}</span>}</TableCell>
+          <TableCell className="min-w-40">{order.storeName || '—'}{order.isPostPurchase && <span className="block text-xs text-muted-foreground">Oferta post-compra</span>}{order.downsell && <span className="block text-xs text-muted-foreground">{order.finalDownsell ? 'Con último descuento' : 'Con descuento de downsell'}</span>}{campaignLabel(order.attribution) && <span className="block text-xs break-words text-muted-foreground">Campaña: {campaignLabel(order.attribution)}</span>}</TableCell>
           <TableCell className="min-w-44">{order.buyer?.email
             ? <>{order.buyer.name && <span className="block">{order.buyer.name}</span>}<span className="block text-xs break-all text-muted-foreground">{order.buyer.email}</span></>
             : <span className="text-muted-foreground">Sin datos todavía</span>}

@@ -10,6 +10,7 @@ import QuizStep from './QuizStep.jsx';
 import QuizResult from './QuizResult.jsx';
 import './quiz.css';
 import { quizTokenKey, readQuizToken } from './quiz-session.js';
+import { attributionArgs } from './attribution.js';
 
 export { QuizBlocks } from './QuizResult.jsx';
 
@@ -104,7 +105,7 @@ export default function Quiz({ subdomain, view }) {
     let token = readQuizToken(subdomain);
     try { if (!token) { token = crypto.randomUUID() + crypto.randomUUID(); sessionStorage.setItem(quizTokenKey(subdomain), token); } }
     catch { setError('Habilitá el almacenamiento de la pestaña para recuperar tu quiz.'); setBusy(false); return; }
-    start({ subdomain, token }).then(value => { if (!ignore) setData(value); }, e => { if (!ignore) setError(errorText(e, 'No se pudo recuperar el quiz.')); }).finally(() => { if (!ignore) setBusy(false); });
+    start({ subdomain, token, ...attributionArgs(subdomain) }).then(value => { if (!ignore) setData(value); }, e => { if (!ignore) setError(errorText(e, 'No se pudo recuperar el quiz.')); }).finally(() => { if (!ignore) setBusy(false); });
     return () => { ignore = true; };
   }, [subdomain, retry, start]);
   // The visit is counted only for a published quiz.
@@ -112,7 +113,7 @@ export default function Quiz({ subdomain, view }) {
     const token = config && readQuizToken(subdomain);
     if (!token) return;
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(`quiz-visit:${token}`))
-      .then(bytes => recordView({ subdomain, page: 'landing', origin: 'quiz', eventId: Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('').slice(0, 32) })).catch(() => {});
+      .then(bytes => recordView({ subdomain, page: 'landing', origin: 'quiz', ...attributionArgs(subdomain), eventId: Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('').slice(0, 32) })).catch(() => {});
   }, [subdomain, Boolean(config), retry, recordView]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!data) return;

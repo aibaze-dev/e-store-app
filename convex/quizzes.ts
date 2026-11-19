@@ -8,6 +8,8 @@ import { forStore, publicStore, purchaseContent } from './lib/landing_records';
 import { buildLandingView } from './lib/landing_view';
 import { fail } from './lib/validation';
 import { assertQuiz, createQuizTemplate, initialSession, advanceSession } from '../shared/quiz.js';
+import { cleanAttribution } from '../shared/attribution.js';
+import { attribution as attributionArg } from './schema';
 
 export async function tokenHash(token: string) {
  if(!/^[a-zA-Z0-9-]{64,128}$/.test(token)) fail('Token de recuperación inválido.');
@@ -53,7 +55,7 @@ export const publicConfig = query({args:{subdomain:v.string()},handler:async(ctx
  const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)return null;
  return (await ctx.db.get(landing.publicationId))!.content;
 }});
-export const start = mutation({args:{subdomain:v.string(),token:v.string()},handler:async(ctx,{subdomain,token})=>{
+export const start = mutation({args:{subdomain:v.string(),token:v.string(),attribution:v.optional(attributionArg)},handler:async(ctx,{subdomain,token,attribution})=>{
  const hash=await tokenHash(token);const store=await publicStore(ctx,subdomain);
  if(!store || store.status!=='active')fail('Quiz no disponible.');
  const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)fail('Quiz no publicado.');
@@ -64,7 +66,9 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string()},hand
  const recent=await ctx.db.query('quizSessions').withIndex('by_store_ip',q=>q.eq('storeId',store._id).eq('ipHash',ipHash).gte('_creationTime',Date.now()-60000)).take(120);
  if(recent.length>=120)fail('Demasiados intentos. Esperá un minuto antes de comenzar.');
  const publication=(await ctx.db.get(landing.publicationId))!;
- const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
+ // The campaign of the ad link that opened the quiz; a recovered session keeps its own.
+ const campaign=cleanAttribution(attribution);
+ const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,...(campaign?{attribution:campaign}:{}),tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
  return response(ctx,await ctx.db.get(id));
 }});
 export const recover = query({args:{token:v.string()},handler:async(ctx,{token})=>response(ctx,await authorizedSession(ctx,token))});

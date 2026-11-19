@@ -22,6 +22,7 @@ export const list = query({
         downsell: Boolean(order.downsell),
         finalDownsell: Boolean(order.finalDownsell),
         buyer: order.buyer ?? null,
+        attribution: order.attribution ?? null,
         status: order.status,
         currency: order.currency,
         total: order.total,

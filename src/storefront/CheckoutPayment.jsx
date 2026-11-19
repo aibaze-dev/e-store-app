@@ -10,6 +10,7 @@ import { Field, ErrorAlert } from '@/components/Field.jsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { confirmCheckout } from './confirmCheckout.js';
+import { attributionArgs } from './attribution.js';
 
 export const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 // Stripe.js is only loaded when a payment form is actually shown.
@@ -100,7 +101,7 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
       if (!attempt) { attempt = { id: crypto.randomUUID() }; attempts.current.set(key, attempt); }
       // Reuse the pending request/session for this selection, including retries and Strict Mode.
       // After a failure the retry asks for a fresh Stripe key: Stripe replays cached errors.
-      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...(quizToken?{quizToken}:{}), ...(attempt.failed ? { retry: true } : {}) }).catch(failure => { attempt.promise = null; attempt.failed = true; throw failure; });
+      attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...attributionArgs(view.subdomain), ...(quizToken?{quizToken}:{}), ...(attempt.failed ? { retry: true } : {}) }).catch(failure => { attempt.promise = null; attempt.failed = true; throw failure; });
       attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, () => { if (!ignore) setError(copy.sessionError); });
     }, 250);
     return () => { ignore = true; clearTimeout(timer); };

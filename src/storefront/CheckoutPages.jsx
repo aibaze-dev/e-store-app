@@ -24,6 +24,7 @@ import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } 
 import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useQuizContact } from './useQuizContact.js';
+import { attributionArgs } from './attribution.js';
 
 // Everything after the landing: checkout, downsell offer and thank-you page. Storefront.jsx
 // loads this file on demand, so a landing visit does not download the payment screens.
@@ -199,7 +200,7 @@ export function DownsellOffer({ view, via }) {
     setBusy(true); setError('');
     const attempt = attemptFor('downsell');
     try {
-      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, elements: true, origin, ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
+      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, elements: true, origin, ...attributionArgs(view.subdomain), ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
       trackPixel(store.metaPixelId, 'InitiateCheckout', { value: downsell.price / 100, currency: store.currency });
       setClientSecret(result.clientSecret);
     } catch (failure) { attempt.failed = true; setError(postLabels(view.content).startError); }

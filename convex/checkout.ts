@@ -8,6 +8,8 @@ import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
 import { queueEmail } from './emails';
 import { queueSaleAlert } from './discord';
 import { fail } from './lib/validation';
+import { attributionMetadata, cleanAttribution } from '../shared/attribution.js';
+import { attribution as attributionArg } from './schema';
 
 const via = v.union(v.literal('subdomain'), v.literal('path'));
 const attemptId = v.string();
@@ -19,8 +21,10 @@ const origin = v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.liter
 const quizToken = v.optional(v.string());
 // Set by the browser when the previous call for this attempt failed.
 const retry = v.optional(v.boolean());
+// Campaign of the ad link, as the browser remembers it. Cleaned again before it is stored.
+const attribution = v.optional(attributionArg);
 
-type OpenOrder = { paymentLocale: NonNullable<Doc<'transactions'>['paymentLocale']>; orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string };
+type OpenOrder = { paymentLocale: NonNullable<Doc<'transactions'>['paymentLocale']>; orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string; attribution?: Doc<'orders'>['attribution'] };
 type Snapshot = ReturnType<typeof buildInitialOrder>;
 
 const lineItems = (items: { name: string; price: number }[]) =>
@@ -42,7 +46,7 @@ async function reopen(ctx: MutationCtx, order: Doc<'orders'>, subdomain: string,
   const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
   if (!transaction || order.status !== 'pending') fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
   // Earlier transactions sent Spanish to Stripe. Retries must replay the same parameters.
-  return { paymentLocale: transaction.paymentLocale ?? 'es', orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry) };
+  return { paymentLocale: transaction.paymentLocale ?? 'es', orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry), attribution: order.attribution };
 }
 
 async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
@@ -57,7 +61,7 @@ async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
 // Creates the order and its pending transaction once per attempt. A retry of the same
 // attempt returns the order already created, so it can never produce a second one.
 async function openOrder(ctx: MutationCtx, input: {
-  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; finalDownsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; retry?: boolean; build: () => Promise<Snapshot>;
+  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; finalDownsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; attribution?: Doc<'orders'>['attribution']; retry?: boolean; build: () => Promise<Snapshot>;
 }): Promise<OpenOrder> {
   checkAttempt(input.attemptId);
   const existing = await ctx.db.query('orders').withIndex('by_attempt', q => q.eq('attemptId', input.attemptId)).first();
@@ -76,6 +80,7 @@ async function openOrder(ctx: MutationCtx, input: {
     attemptId: input.attemptId,
     origin: input.origin ?? 'direct',
     quizSessionId: input.quizSessionId,
+    ...(input.attribution ? { attribution: input.attribution } : {}),
     ...(input.downsell || input.finalDownsell ? { downsell: true } : {}),
     ...(input.finalDownsell ? { finalDownsell: true } : {}),
     status: 'pending',
@@ -94,7 +99,7 @@ async function openOrder(ctx: MutationCtx, input: {
     currency: input.store.currency,
     deliveries: snapshot.deliveries,
   });
-  return { paymentLocale, orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}` };
+  return { paymentLocale, orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}`, attribution: input.attribution };
 }
 
 function checkAttempt(attemptId: string) {
@@ -102,7 +107,7 @@ function checkAttempt(attemptId: string) {
 }
 
 export const createOrder = internalMutation({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, origin, quizToken, retry },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, origin, quizToken, retry, attribution },
   handler: async (ctx, args): Promise<OpenOrder> => {
     if (args.downsell && args.upsellProductIds.length > 0) fail('La oferta con descuento no incluye extras.');
     const record = await checkoutRecord(ctx,args.subdomain);
@@ -115,6 +120,8 @@ export const createOrder = internalMutation({
     if(session) {landing=(await ctx.db.get(session.landingId))!;await ctx.db.patch(session._id,{checkoutAt:session.checkoutAt ?? Date.now()});}
     return await openOrder(ctx, {
       store, landing, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
+      // A quiz buyer whose browser lost the campaign keeps the one their quiz started with.
+      attribution: cleanAttribution(args.attribution) ?? session?.attribution,
       build: async () => {
         const products = await loadProducts(ctx, [
           store.offer.mainProductId,
@@ -146,7 +153,7 @@ export const createPostPurchaseOrder = internalMutation({
     const stageOf = (child: Doc<'orders'>) => child.finalDownsell ? 'final' : child.downsell ? 'downsell' : 'offer';
     const open = children.find(child => child.status === 'pending' && stageOf(child) === stage);
     const order = open ? await reopen(ctx, open, landing.subdomain, args.retry) : await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, retry: args.retry,
+      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, attribution: parent.attribution, retry: args.retry,
       build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), stage),
     });
     // The buyer just paid the parent order: their email is reused instead of asked again.
@@ -187,6 +194,8 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
     idempotencyKey: order.idempotencyKey,
     currency: order.currency,
     lineItems: order.lineItems,
+    // Always the campaign stored on the order: a retry must send Stripe the same parameters.
+    metadata: attributionMetadata(order.attribution),
     returnUrl: `${base}/gracias?session_id={CHECKOUT_SESSION_ID}`,
   });
   if (!session) throw new ConvexError('No se pudo iniciar el pago. Volvé a intentar en unos minutos.');
@@ -200,11 +209,11 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
 }
 
 export const start = action({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, origin, quizToken, retry, elements: v.optional(v.boolean()) },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, origin, quizToken, retry, attribution, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createOrder, {
-      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry,
+      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry, attribution: args.attribution,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },
