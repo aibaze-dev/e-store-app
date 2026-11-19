@@ -8,7 +8,7 @@ export const PURCHASE_NOTICE_COPY = {
   purchaseText: '{nombre} purchased the e-book',
   purchaseLocationText: 'from {ciudad}',
   noticeAge: '{minutos} min ago',
-  noticeExample: 'Example notification',
+  noticeExample: 'Verified purchase',
   noticeClose: 'Close purchase notification',
 };
 
