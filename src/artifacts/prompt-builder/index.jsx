@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import brand from '@/config/brandData.json';
 import { buildPrompt, contextChecklist, EMPTY_FORM, FORMATS, LENGTHS, TASKS, TONES, taskFor } from './builder.js';
 import { deletePrompt, HISTORY_KEY, readHistory, savePrompt } from './history.js';
+import { EXAMPLES } from './examples.js';
 import './styles.css';
 
 const icons = { email: Mail, writing: PenLine, research: Search, planning: ListChecks, analysis: Table2, general: SlidersHorizontal };
@@ -33,6 +34,7 @@ export default function PromptBuilder() {
   const [copyState, setCopyState] = useState('idle');
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [showExamples, setShowExamples] = useState(false);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [storageError, setStorageError] = useState('');
@@ -103,13 +105,14 @@ export default function PromptBuilder() {
     update({ category: category.id, ...(category.id !== form.category ? { format: category.format } : {}) });
     setStep(1);
   }
-  function loadExample() {
+  function loadExample(example) {
+    setShowExamples(false);
     const apply = () => {
-      setForm({ ...EMPTY_FORM, category: preset.id, format: preset.format, ...preset.example });
+      setForm({ ...EMPTY_FORM, category: preset.id, format: preset.format, ...example.answers });
       clearOutput(); setStep(1); requestAnimationFrame(() => inputRef.current?.focus());
     };
     if (['task', 'context', 'audience', 'outcome', 'resources', 'constraints'].some(key => form[key].trim()) || output) {
-      setConfirmation({ title: 'Try this example?', description: 'This replaces your current answers and prompt with a complete sample task.', label: 'Use example', action: apply });
+      setConfirmation({ title: `Use “${example.title}”?`, description: 'This replaces your current answers and prompt with a complete sample task. Your saved prompts stay in your history.', label: 'Use example', action: apply });
     } else apply();
   }
   function reset() {
@@ -167,7 +170,7 @@ export default function PromptBuilder() {
           <Textarea key={question.key} id={`pb-${question.key}`} ref={inputRef} className={`pb-answer-input${['audience', 'outcome'].includes(question.key) ? ' pb-short-answer' : ''}`} value={form[question.key]} maxLength={question.limit} required={step === 1} aria-invalid={step === 1 && !!error} aria-describedby={error ? 'pb-task-error' : 'pb-answer-hint'} placeholder={step === 1 ? preset.placeholder : preset.example[question.key] || 'Paste your notes, source material, or links here…'} onChange={event => update({ [question.key]: event.target.value })} />
           <div className="pb-answer-meta"><span id="pb-answer-hint">{step === 1 ? 'Be specific about the action and the result.' : 'Only include what’s useful. You can leave this blank.'}</span><span>{form[question.key].length.toLocaleString('en-US')} / {question.limit.toLocaleString('en-US')}</span></div>
           {error && <p id="pb-task-error" className="pb-error" role="alert">{error}</p>}
-          {step === 1 && <Button type="button" variant="ghost" className="pb-example" onClick={loadExample}>Need a starting point? Try a complete example.</Button>}
+          {step === 1 && <Button type="button" variant="ghost" className="pb-example" onClick={() => setShowExamples(true)}>Need a starting point? Explore {EXAMPLES[preset.id].length} examples.</Button>}
         </div>}
 
         {step === LAST_STEP && <div className="pb-preferences">{[['tone', 'Tone', TONES], ['format', 'Format', FORMATS], ['length', 'Detail', LENGTHS]].map(([name, label, options]) => <div className="pb-field" key={name}><Label htmlFor={`pb-${name}`}>{label}</Label><div className="pb-select-wrap"><select id={`pb-${name}`} value={form[name]} onChange={event => update({ [name]: event.target.value })}>{options.map(option => <option key={option}>{option}</option>)}</select><ChevronDown aria-hidden="true" /></div></div>)}</div>}
@@ -197,6 +200,13 @@ export default function PromptBuilder() {
       <p className="pb-honesty">Built with templates, not AI. Prompts are saved only in this browser. After editing the text, use Save changes to keep your edits.</p>
     </main>}
 
+    <Dialog open={showExamples} onOpenChange={setShowExamples}>
+      <DialogContent className="artifact-prompt-builder pb-examples-dialog" lang="en" closeLabel="Close examples">
+        <DialogTitle>{preset.label} examples</DialogTitle>
+        <DialogDescription>Pick a complete starting point, then make it yours. Each example fills in the task, context, audience, outcome, references, and constraints with sample answers.</DialogDescription>
+        <div className="pb-example-options">{EXAMPLES[preset.id].map(example => <button key={example.id} type="button" className="pb-example-option" aria-label={`Use example: ${example.title}`} onClick={() => loadExample(example)}><strong>{example.title}</strong><span>{example.answers.task}</span><span className="pb-example-use">Use this example</span></button>)}</div>
+      </DialogContent>
+    </Dialog>
     <Dialog open={!!confirmation} onOpenChange={open => { if (!open) setConfirmation(null); }}>
       <DialogContent className="artifact-prompt-builder pb-confirm-dialog" lang="en" closeLabel="Close" onOpenAutoFocus={event => { event.preventDefault(); cancelRef.current?.focus(); }}>
         <DialogTitle>{confirmation?.title}</DialogTitle><DialogDescription>{confirmation?.description}</DialogDescription>

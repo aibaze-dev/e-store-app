@@ -126,7 +126,7 @@ export default function StoreFormPage({ section }) {
   const options = products.filter(product => product.status === 'active' || used.includes(product._id));
   const productSelect = (props, value, onChange) => <NativeSelect {...props} value={value} onChange={event => onChange(event.target.value)} disabled={busy}>
     <option value="">Elegí un producto</option>
-    {options.map(product => <option key={product._id} value={product._id}>{product.name}{product.status === 'archived' ? ' (archivado)' : ''}</option>)}
+    {options.map(product => <option key={product._id} value={product._id}>{product.name}{product.type === 'artifact' ? ' · Artefacto' : ''}{product.status === 'archived' ? ' (archivado)' : ''}</option>)}
   </NativeSelect>;
   const priceInput = (props, value, onChange) => <Input {...props} inputMode="decimal" placeholder="0.00" value={value} onChange={event => onChange(event.target.value)} disabled={busy} />;
 

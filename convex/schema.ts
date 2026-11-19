@@ -124,7 +124,8 @@ export default defineSchema({
   // Shared catalogue: the same resource can be a main product, a bonus or an upsell.
   products: defineTable({
     // Optional for existing records; product mutations always persist this value.
-    type: v.optional(v.literal('e-book')),
+    type: v.optional(v.union(v.literal('e-book'), v.literal('artifact'))),
+    artifactSlug: v.optional(v.string()),
     shortDescription: v.optional(v.string()),
     featured: v.optional(v.boolean()),
     referencePrice: v.optional(v.union(v.null(), v.object({ currency: v.string(), value: v.number() }))),
@@ -133,9 +134,9 @@ export default defineSchema({
     coverUrl: v.string(),
     status: v.union(v.literal('active'), v.literal('archived')),
     deliverables: v.array(deliverable),
-  }),
+  }).index('by_artifact_slug', ['artifactSlug']),
 
-  // A store is one campaign selling one main ebook; the commercial offer lives here.
+  // A store is one campaign selling one main resource; the commercial offer lives here.
   stores: defineTable({
     name: v.string(),
     status: v.union(v.literal('draft'), v.literal('active')),

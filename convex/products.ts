@@ -3,6 +3,7 @@ import { mutation, query } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { cleanText, cleanUrl, cleanAmount, cleanCurrency, fail } from './lib/validation';
 import { deliverable } from './schema';
+import { artifacts } from '../shared/artifact-registry.js';
 
 const fields = {
   name: v.string(),
@@ -64,8 +65,42 @@ export const update = mutation({
     await requireAdmin(ctx);
     const existing = await ctx.db.get(id);
     if (!existing) fail('El producto ya no existe.');
+    if (existing.type === 'artifact') fail('Editá este recurso desde el catálogo de Artefactos.');
     // Older clients omit the new presentation fields; keep the saved product settings.
     await ctx.db.patch(id, clean(args));
     return id;
+  },
+});
+
+
+export const getByArtifactSlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    await requireAdmin(ctx);
+    return await ctx.db.query('products').withIndex('by_artifact_slug', q => q.eq('artifactSlug', slug)).unique();
+  },
+});
+
+// The code registry owns identity and execution; the product owns its commercial presentation.
+const { deliverables: _deliverables, ...presentationFields } = fields;
+export const saveArtifact = mutation({
+  args: { slug: v.string(), ...presentationFields },
+  handler: async (ctx, { slug, ...args }) => {
+    await requireAdmin(ctx);
+    if (!artifacts.some(artifact => artifact.slug === slug)) fail('El artefacto no está registrado.');
+    let origin: string;
+    try {
+      const site = new URL(process.env.SITE_URL ?? '');
+      if (!['https:', 'http:'].includes(site.protocol)) throw new Error();
+      origin = site.origin;
+    } catch { return fail('Configurá SITE_URL con el dominio principal antes de guardar artefactos.'); }
+    const data = {
+      ...clean({ ...args, deliverables: [{ title: args.name, url: `${origin}/a/${encodeURIComponent(slug)}`, kind: 'link' }] }),
+      type: 'artifact' as const,
+      artifactSlug: slug,
+    };
+    const existing = await ctx.db.query('products').withIndex('by_artifact_slug', q => q.eq('artifactSlug', slug)).unique();
+    if (existing) { await ctx.db.patch(existing._id, data); return existing._id; }
+    return await ctx.db.insert('products', data);
   },
 });

@@ -2,7 +2,7 @@
 
 Public route: `/a/prompt-builder`. UI, examples, and generated instructions are in English.
 
-The interface is a category-first wizard with eight steps: category, task, context, audience, desired outcome, reference material, constraints, and delivery preferences. Categories cover email, writing, research, planning, analysis, and general tasks. Only the task is required; optional questions can be skipped. Back navigation preserves answers. Complete examples are explicitly loaded by the visitor.
+The interface is a category-first wizard with eight steps: category, task, context, audience, desired outcome, reference material, constraints, and delivery preferences. Categories cover email, writing, research, planning, analysis, and general tasks. Only the task is required; optional questions can be skipped. Back navigation preserves answers. The task step offers a chooser with four complete examples per category (24 total), defined in `examples.js`. Opening or closing the chooser leaves answers untouched; selecting an example fills all six text fields, with confirmation before replacing existing work. Saved history is unaffected.
 
 `builder.js` holds the category templates, examples, delivery options, and deterministic `buildPrompt(form)` function. It preserves the user's text, omits empty optional sections, adds task-specific guidance, and requests clarification for essential missing information. It does not rewrite vague input semantically, translate supplied text, browse links, or invent missing facts. The completeness checklist only indicates which fields have text; it does not grade quality.
 

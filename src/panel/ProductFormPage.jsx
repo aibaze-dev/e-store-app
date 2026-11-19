@@ -1,9 +1,11 @@
 import { ImageField, FileField, UploadContext, useMediaUpload } from './ImageField.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { ArrowLeft, LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import { artifacts } from '@/artifacts/registry.js';
+import { artifactUrl } from '@/lib/site.js';
 import { api } from '@/lib/api.js';
 import business from '@/config/businessData.json';
 import { errorText, fromMinor, toMinor } from '@/lib/format.js';
@@ -16,26 +18,40 @@ import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.
 
 const EMPTY = { shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [] };
 
-export default function ProductFormPage() {
-  const { productsPath } = useStoreWorkspace();
-  const { productId } = useParams();
+export default function ProductFormPage({ artifactMode = false }) {
+  const { productId, artifactSlug } = useParams();
+  return <ProductForm key={artifactSlug || productId || 'new'} artifactMode={artifactMode} productId={productId} artifactSlug={artifactSlug} />;
+}
+
+function ProductForm({ artifactMode, productId, artifactSlug }) {
+  const workspace = useStoreWorkspace();
+  const productsPath = artifactMode ? '/panel/artefactos' : workspace.productsPath;
+  const artifact = artifacts.find(item => item.slug === artifactSlug);
   const navigate = useNavigate();
-  const existing = useQuery(api.products.get, productId ? { id: productId } : 'skip');
+  const product = useQuery(api.products.get, productId ? { id: productId } : 'skip');
+  const artifactProduct = useQuery(api.products.getByArtifactSlug, artifactMode && artifact ? { slug: artifactSlug } : 'skip');
+  const existing = artifactMode ? artifactProduct : product;
+  const saveArtifact = useMutation(api.products.saveArtifact);
   const create = useMutation(api.products.create);
   const update = useMutation(api.products.update);
-  const [form, setForm] = useState(productId ? null : EMPTY);
+  const [form, setForm] = useState(productId || artifactMode ? null : EMPTY);
   const [saving, setBusy] = useState(false);
   const upload = useMediaUpload();
   const busy = saving || upload.pending;
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (artifactMode && artifact && existing === null && !form) {
+      setForm({ ...EMPTY, name: artifact.name, description: artifact.description, coverUrl: artifact.coverUrl || '' });
+    }
     if (existing && !form) {
       const { name, description, coverUrl, status, deliverables } = existing;
       setForm({ name, description, coverUrl, status, deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
     }
-  }, [existing, form]);
+  }, [existing, form, artifactMode, artifact]);
 
+  if (!artifactMode && existing?.type === 'artifact') return <Navigate replace to={`/panel/artefactos/${existing.artifactSlug}`} />;
+  if (artifactMode && !artifact) return <EmptyState title="Artefacto no encontrado"><Button asChild variant="outline"><Link to={productsPath}>Volver a artefactos</Link></Button></EmptyState>;
   if (productId && existing === null) return <EmptyState title="Este producto ya no existe">
     <Button asChild variant="outline"><Link to={productsPath}>Volver a productos</Link></Button>
   </EmptyState>;
@@ -55,7 +71,10 @@ export default function ProductFormPage() {
         if (value !== null && (!Number.isInteger(value) || value <= 0)) { setError('Ingresá un precio de referencia válido o dejalo vacío.'); setBusy(false); return; }
         data.referencePrice = value === null ? null : { currency: referenceCurrency, value };
       }
-      if (productId) await update({ id: productId, ...data });
+      if (artifactMode) {
+        const { deliverables, ...presentation } = data;
+        await saveArtifact({ slug: artifactSlug, ...presentation });
+      } else if (productId) await update({ id: productId, ...data });
       else await create(data);
       navigate(productsPath);
     } catch (failure) { setError(errorText(failure, 'No se pudo guardar el producto. Volvé a intentar.')); setBusy(false); }
@@ -63,8 +82,8 @@ export default function ProductFormPage() {
 
   return <UploadContext.Provider value={upload}><form onSubmit={submit} className="mx-auto max-w-3xl space-y-6" aria-busy={busy}>
     <div className="space-y-3">
-      <Button asChild variant="ghost" className="-ml-3"><Link to={productsPath}><ArrowLeft aria-hidden="true" />Productos</Link></Button>
-      <h1 className="text-3xl font-semibold tracking-tight">{productId ? 'Editar producto' : 'Nuevo producto'}</h1>
+      <Button asChild variant="ghost" className="-ml-3"><Link to={productsPath}><ArrowLeft aria-hidden="true" />{artifactMode ? 'Artefactos' : 'Productos'}</Link></Button>
+      <h1 className="text-3xl font-semibold tracking-tight">{artifactMode ? 'Ficha del artefacto' : productId ? 'Editar producto' : 'Nuevo producto'}</h1>
     </div>
 
     <Card>
@@ -93,7 +112,14 @@ export default function ProductFormPage() {
       </CardContent>
     </Card>
 
-    <Card>
+    {artifactMode ? <Card>
+      <CardHeader><CardTitle>Entregable del artefacto</CardTitle><CardDescription>El comprador recibe este enlace al incluir el recurso como producto principal, bono gratis o upsell. Elegí su función y precio en Productos y oferta de cada tienda.</CardDescription></CardHeader>
+      <CardContent className="space-y-4">
+        <Field label="Enlace público" hint="El enlace es fijo. Cambiar el nombre o la portada no modifica la herramienta ni su URL.">{props => <Input {...props} readOnly value={artifactUrl(artifactSlug)} onFocus={event => event.target.select()} />}</Field>
+        <Button asChild variant="outline"><a href={artifactUrl(artifactSlug)} target="_blank" rel="noopener noreferrer">Abrir artefacto</a></Button>
+        <p className="text-sm text-muted-foreground">La herramienta es pública para quien tenga el enlace. Archivarla retira el recurso de nuevas ofertas, pero no desactiva su página.</p>
+      </CardContent>
+    </Card> : <Card>
       <CardHeader><CardTitle>Entregables (opcional)</CardTitle><CardDescription>Podés guardar el producto sin entregables y agregarlos después. Subí un documento o pegá un enlace para el comprador; se entrega después del pago y no se muestra en la landing.</CardDescription></CardHeader>
       <CardContent className="space-y-5">
         {form.deliverables.length === 0 && <p className="text-sm text-muted-foreground">Todavía no agregaste entregables. Podés guardar el producto así.</p>}
@@ -110,11 +136,11 @@ export default function ProductFormPage() {
         </fieldset>)}
         <Button type="button" variant="outline" disabled={busy || form.deliverables.length >= 30} onClick={() => set({ deliverables: [...form.deliverables, { title: '', url: '', kind: 'file' }] })}><Plus aria-hidden="true" />Agregar entregable</Button>
       </CardContent>
-    </Card>
+    </Card>}
 
     <ErrorAlert>{error}</ErrorAlert>
     <div className="flex flex-wrap gap-3">
-      <Button type="submit" size="lg" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{upload.pending ? 'Subiendo archivo…' : saving ? 'Guardando…' : 'Guardar producto'}</Button>
+      <Button type="submit" size="lg" disabled={busy}>{busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{upload.pending ? 'Subiendo archivo…' : saving ? 'Guardando…' : artifactMode ? 'Guardar ficha' : 'Guardar producto'}</Button>
       <Button asChild variant="outline" size="lg"><Link to={productsPath}>Cancelar</Link></Button>
     </div>
   </form></UploadContext.Provider>;

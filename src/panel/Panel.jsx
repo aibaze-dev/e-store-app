@@ -103,7 +103,7 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
   const location = useLocation();
   const basePath = selected ? storePath(selected._id) : '/panel';
   const section = SECTIONS.find(item => location.pathname === `${basePath}${item.path ? `/${item.path}` : ''}`);
-  const title = location.pathname === '/panel/artefactos' ? 'Artefactos' : location.pathname === '/panel/tiendas' ? 'Todas las tiendas' : location.pathname === '/panel/tiendas/nueva' ? 'Nueva tienda' : location.pathname.includes('/catalogo') || location.pathname.startsWith('/panel/productos') ? 'Catálogo compartido' : section?.label || 'Tu tienda';
+  const title = location.pathname.startsWith('/panel/artefactos') ? 'Artefactos' : location.pathname === '/panel/tiendas' ? 'Todas las tiendas' : location.pathname === '/panel/tiendas/nueva' ? 'Nueva tienda' : location.pathname.includes('/catalogo') || location.pathname.startsWith('/panel/productos') ? 'Catálogo compartido' : section?.label || 'Tu tienda';
   const closeMenu = () => {
     setMobileOpen(false);
     if (mobileOpen) mobileToggleRef.current?.focus();
@@ -182,6 +182,7 @@ function Workspace({ user }) {
         <Route path="tiendas/:storeId/catalogo/:productId" element={<ProductFormPage />} />
         <Route path="productos" element={<ProductsPage />} />
         <Route path="artefactos" element={<ArtifactsPage />} />
+        <Route path="artefactos/:artifactSlug" element={<ProductFormPage artifactMode />} />
         <Route path="productos/nuevo" element={<ProductFormPage />} />
         <Route path="productos/:productId" element={<ProductFormPage />} />
         <Route path="cobros" element={selected ? <Navigate to={`${basePath}/cobros`} replace /> : <EmptyState title="Primero creá una tienda" />} />

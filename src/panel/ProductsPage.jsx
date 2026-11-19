@@ -10,12 +10,13 @@ import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 
 export default function ProductsPage() {
   const { productsPath } = useStoreWorkspace();
-  const products = useQuery(api.products.list, {});
+  const resources = useQuery(api.products.list, {});
+  const products = resources?.filter(product => product.type !== 'artifact');
   return <div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Productos</h1>
-        <p className="text-sm leading-6 text-muted-foreground">El catálogo común: cada recurso puede usarse como principal, bono o extra en cualquier tienda.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Catálogo de ebooks</h1>
+        <p className="text-sm leading-6 text-muted-foreground">Ebooks compartidos: cada recurso puede usarse como principal, bono o extra en cualquier tienda.</p>
       </div>
       <Button asChild><Link to={`${productsPath}/nuevo`}><Plus aria-hidden="true" />Nuevo producto</Link></Button>
     </div>
