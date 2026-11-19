@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import { CoverArt, SectionHeading, StatusPill, deliverableSummary } from './CatalogParts.jsx';
+import { ViewContentButton } from './DeliverableViewer.jsx';
 
 const EMPTY = { shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [] };
 const KINDS = [{ value: 'file', label: 'Documento', icon: FileText }, { value: 'link', label: 'Enlace', icon: Link2 }];
@@ -217,6 +218,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Estado</dt><dd className="font-medium">{form.status === 'active' ? 'Activo' : 'Archivado'}</dd></div>
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Entrega</dt><dd className="text-right font-medium">{artifactMode ? 'Enlace a la herramienta' : deliverableSummary(form.deliverables)}</dd></div>
           </dl>
+          {!artifactMode && form.deliverables.length > 0 && <ViewContentButton product={{ name: form.name.trim() || 'Ebook sin título', deliverables: form.deliverables }} variant="secondary" className="w-full" />}
         </div>
         {actions}
       </aside>

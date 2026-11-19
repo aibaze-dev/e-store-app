@@ -31,6 +31,12 @@ export function InternalThemeProvider({ children }) {
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
+// Portaled content (dialogs) renders outside the themed wrapper and needs these classes itself.
+export function useInternalThemeClass() {
+  const { theme } = useContext(ThemeContext);
+  return cn('internal-theme', theme === 'dark' && 'dark');
+}
+
 export function InternalTheme({ children, className, fullHeight = true }) {
   const { theme } = useContext(ThemeContext);
   return <div data-internal-theme={theme} className={cn(

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import { CatalogHeader, CoverArt, StatusPill, deliverableCounts, deliverableSummary } from './CatalogParts.jsx';
+import { ViewContentButton } from './DeliverableViewer.jsx';
 
 const FILTERS = [{ id: 'all', label: 'Todos' }, { id: 'active', label: 'Activos' }, { id: 'archived', label: 'Archivados' }];
 
@@ -34,6 +35,7 @@ function EbookCard({ product, to }) {
         </p>
         {product.referencePrice?.value > 0 && <p className="text-xs text-muted-foreground">Precio normal <span className="font-semibold text-foreground">{formatMoney(product.referencePrice.value, product.referencePrice.currency)}</span></p>}
       </div>
+      {total > 0 && <ViewContentButton product={product} className="relative z-10 w-full" />}
     </div>
     <ArrowRight className="catalog-card-arrow" aria-hidden="true" />
   </article>;
