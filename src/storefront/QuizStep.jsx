@@ -3,7 +3,7 @@ import { Check, ChevronRight, CircleCheck, CircleX, Info, TriangleAlert } from '
 import { feedbackFor, hasOptionFeedback, personalize, QUESTION_TYPES } from '../../shared/quiz.js';
 import { QuizBlocks } from './QuizResult.jsx';
 
-export const Media = ({ src, alt = '', className = 'quiz-image' }) => src ? <img className={className} src={src} alt={alt} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} /> : null;
+export const Media = ({ src, alt = '', className = 'quiz-image', priority = false }) => src ? <img className={className} src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} decoding="async" onError={e => { e.currentTarget.hidden = true; }} /> : null;
 
 const toneIcons = { good: CircleCheck, warn: TriangleAlert, bad: CircleX, info: Info };
 export function FeedbackCard({ feedback, t }) {
@@ -69,7 +69,8 @@ function Loading({ step, t, onDone }) {
 
 export function StepImage({ step, t, layout }) {
   if (!step.imageUrl || (step.imageLayout || 'top') !== layout) return null;
-  return <Media src={step.imageUrl} alt={t(step.imageAlt)} className={`quiz-image is-${layout}`} />;
+  // At the top it is the first thing the visitor sees; below the question it can wait.
+  return <Media priority={layout !== 'hero-bottom'} src={step.imageUrl} alt={t(step.imageAlt)} className={`quiz-image is-${layout}`} />;
 }
 
 // One quiz screen. `next(answer)` validates and saves; the parent owns the answer state.

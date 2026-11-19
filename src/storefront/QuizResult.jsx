@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Info, ShieldCheck, Star, Target } from 'lucide-react';
 import { formatMoney } from '@/lib/format.js';
 import { displayRef, evaluate, gaugeFor, matches, personalize, resolveRef, statPercent } from '../../shared/quiz.js';
+
+// The chart library is large and only result pages with a chart block need it.
+const QuizChart = lazy(() => import('./QuizChart.jsx'));
+const CHART_HEIGHT = 220;
 
 // "*word*" in a title is highlighted with the accent color.
 export function Rich({ text }) {
@@ -155,7 +158,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
       {b.type === 'answers' && <dl>{context.quiz.steps.filter(s => context.answers[s.id] != null && s.type !== 'contact').map(s => <div key={s.id}><dt>{t(s.title)}</dt><dd>{displayRef(`answer:${s.id}`, context)}</dd></div>)}</dl>}
       {['metric', 'scale'].includes(b.type) && <><strong className="quiz-metric">{displayRef(b.ref, context)} {t(b.suffix)}</strong>{b.type === 'scale' && typeof value === 'number' && <meter min={b.min} max={b.max} value={value} aria-label={t(b.title)} />}</>}
       {b.type === 'comparison' && <dl className="quiz-comparison">{data.map((p, i) => <div key={i}><dt>{p.label}</dt><dd>{p.value ?? 'Sin resultado'}</dd></div>)}</dl>}
-      {['line', 'bar'].includes(b.type) && <><div className="quiz-chart" role="img" aria-label={t(b.title)}><ResponsiveContainer width="100%" height={220}>{b.type === 'line' ? <LineChart data={data}><XAxis dataKey="label" /><YAxis width={42} /><Tooltip /><Line dataKey="value" name={t(b.legend) || 'Valor'} stroke="var(--quiz-accent)" connectNulls={false} /></LineChart> : <BarChart data={data}><XAxis dataKey="label" /><YAxis width={42} /><Tooltip /><Bar dataKey="value" name={t(b.legend) || 'Valor'} fill="var(--quiz-accent)" /></BarChart>}</ResponsiveContainer></div><table className="quiz-data"><caption>{t(b.legend) || 'Valores del gráfico'}</caption><tbody>{data.map((p, i) => <tr key={i}><th>{p.label}</th><td>{p.value ?? 'Sin resultado'}</td></tr>)}</tbody></table></>}
+      {['line', 'bar'].includes(b.type) && <><div className="quiz-chart" role="img" aria-label={t(b.title)}><Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}><QuizChart type={b.type} data={data} name={t(b.legend) || 'Valor'} height={CHART_HEIGHT} /></Suspense></div><table className="quiz-data"><caption>{t(b.legend) || 'Valores del gráfico'}</caption><tbody>{data.map((p, i) => <tr key={i}><th>{p.label}</th><td>{p.value ?? 'Sin resultado'}</td></tr>)}</tbody></table></>}
       {['benefits', 'testimonials'].includes(b.type) && (b.items || []).map((item, i) => <article key={i}><Img src={item.imageUrl} className="quiz-image" /><h3>{t(item.title)}</h3><p>{t(item.text)}</p></article>)}
       {b.type === 'faq' && (b.items || []).map((item, i) => <details key={i}><summary>{t(item.title)}</summary><p>{t(item.text)}</p></details>)}
       {b.type === 'offer' && view && <><Img src={view.offer.main.coverUrl} alt={view.offer.main.name} className="quiz-image" /><h3>{view.offer.main.name}</h3><p>{view.offer.main.description}</p><strong className="quiz-price">{money(view.offer.main.price)}</strong><p>Pago único</p>{view.offer.bonuses.length > 0 && <><h3>Bonos incluidos</h3><ul>{view.offer.bonuses.map(p => <li key={p.productId}>{p.name}</li>)}</ul></>}<button className="quiz-primary" type="button" onClick={onCheckout}>{t(b.buttonText) || 'Ir al checkout'}</button></>}

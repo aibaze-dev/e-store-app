@@ -6,8 +6,9 @@ afterEach(() => vi.unstubAllGlobals());
 const file = (type, size, name = 'cover.png') => new File([new Uint8Array(size)], name, { type });
 
 // A canvas whose encoder answers with a blob of the given type and size.
-function stubCanvas(bitmap, output) {
-  const canvas = { width: 0, height: 0, getContext: () => ({ drawImage: vi.fn() }), toBlob: (done, type) => done(output(type)) };
+function stubCanvas(bitmap, output, alpha = 255) {
+  const context = { drawImage: vi.fn(), getImageData: () => ({ data: new Uint8ClampedArray([10, 20, 30, 255, 10, 20, 30, alpha]) }) };
+  const canvas = { width: 0, height: 0, getContext: () => context, toBlob: (done, type) => done(output(type)) };
   vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ ...bitmap, close: vi.fn() })));
   vi.stubGlobal('document', { createElement: () => canvas });
   return canvas;
@@ -34,9 +35,14 @@ describe('image compression before upload', () => {
     expect(result).toMatchObject({ type: 'image/webp', name: 'cover.webp', size: 10 });
   });
 
-  it('keeps the original format where WebP cannot be written', async () => {
-    stubCanvas({ width: 800, height: 600 }, type => new Blob([new Uint8Array(10)], { type: type === 'image/webp' ? 'image/png' : type }));
+  it('stores photos as JPEG where WebP cannot be written', async () => {
+    const withoutWebp = type => new Blob([new Uint8Array(10)], { type: type === 'image/webp' ? 'image/png' : type });
+    stubCanvas({ width: 800, height: 600 }, withoutWebp);
     expect(await compressImage(file('image/jpeg', 100, 'photo.jpeg'))).toMatchObject({ type: 'image/jpeg', name: 'photo.jpg' });
+    expect(await compressImage(file('image/png', 100))).toMatchObject({ type: 'image/jpeg', name: 'cover.jpg' });
+    // Transparency survives only in PNG.
+    stubCanvas({ width: 800, height: 600 }, withoutWebp, 120);
+    expect(await compressImage(file('image/png', 100, 'logo.png'))).toMatchObject({ type: 'image/png', name: 'logo.png' });
   });
 
   it('falls back to the original when the copy is not smaller or the photo cannot be read', async () => {

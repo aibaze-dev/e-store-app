@@ -27,6 +27,13 @@ export function QuizPlayer({ quiz, session, view, onCommand, onCheckout, busy = 
     if (!preview) window.scrollTo({ top: 0 }); else screenRef.current?.scrollIntoView({ block: 'nearest' });
   }, [session.revision, session.currentStep, preview]);
   useEffect(() => { if (!busy) submitting.current = false; }, [busy]);
+  // The next screen's picture is fetched while the visitor reads this one.
+  useEffect(() => {
+    if (preview) return;
+    const index = quiz.steps.findIndex(s => s.id === session.currentStep);
+    const url = index < 0 ? '' : quiz.steps[index + 1]?.imageUrl;
+    if (url) new Image().src = url;
+  }, [quiz, session.currentStep, preview]);
   const context = contextFor(quiz, session.answers), raw = quiz.steps.find(s => s.id === session.currentStep), step = raw && effectiveStep(raw, context);
   const result = session.currentStep === null ? (quiz.results.find(r => r.id === session.resultId) || quiz.results.find(r => r.default)) : null;
   if (!step && !result) return <p className="p-8">Este quiz no tiene pantallas disponibles.</p>;
@@ -90,17 +97,23 @@ export default function Quiz({ subdomain, view }) {
   const pending = useRef(null);
   const navigate = useNavigate(), location = useLocation();
   const base = location.pathname.includes('/l/') ? `/l/${subdomain}` : '';
+  // The session is requested at once: `start` checks by itself that the quiz is published,
+  // so waiting for the configuration first would only add a round trip.
   useEffect(() => {
-    if (!config) return;
     let ignore = false; setBusy(true); setError('');
     let token = readQuizToken(subdomain);
     try { if (!token) { token = crypto.randomUUID() + crypto.randomUUID(); sessionStorage.setItem(quizTokenKey(subdomain), token); } }
     catch { setError('Habilitá el almacenamiento de la pestaña para recuperar tu quiz.'); setBusy(false); return; }
     start({ subdomain, token }).then(value => { if (!ignore) setData(value); }, e => { if (!ignore) setError(errorText(e, 'No se pudo recuperar el quiz.')); }).finally(() => { if (!ignore) setBusy(false); });
+    return () => { ignore = true; };
+  }, [subdomain, retry, start]);
+  // The visit is counted only for a published quiz.
+  useEffect(() => {
+    const token = config && readQuizToken(subdomain);
+    if (!token) return;
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(`quiz-visit:${token}`))
       .then(bytes => recordView({ subdomain, page: 'landing', origin: 'quiz', eventId: Array.from(new Uint8Array(bytes), n => n.toString(16).padStart(2, '0')).join('').slice(0, 32) })).catch(() => {});
-    return () => { ignore = true; };
-  }, [subdomain, Boolean(config), retry, start, recordView]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [subdomain, Boolean(config), retry, recordView]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!data) return;
     const expected = `${base}/quiz${data.session.currentStep === null ? '/resultado' : ''}`;

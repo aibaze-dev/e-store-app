@@ -14,7 +14,10 @@ import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useEarlyLanding } from './early-landing.js';
 
-const Quiz = lazy(() => import('./Quiz.jsx'));
+const quizModule = () => import('./Quiz.jsx');
+const Quiz = lazy(quizModule);
+// A visit that opens on the quiz fetches its code together with the app, not after the data.
+if (typeof window !== 'undefined' && /\/quiz(\/|$)/.test(window.location.pathname)) quizModule();
 // Checkout, downsell offer and thank-you page share one chunk, loaded when first needed.
 const checkoutPages = () => import('./CheckoutPages.jsx');
 const Checkout = lazy(() => checkoutPages().then(module => ({ default: module.Checkout })));
@@ -59,7 +62,8 @@ function LandingRoutes({ subdomain, via }) {
   const ready = element => view === undefined ? loading : element;
   return <Suspense fallback={loading}><Routes>
     <Route index element={classic === undefined ? loading : classic ? <Landing view={classic} /> : <Unavailable />} />
-    <Route path="quiz/*" element={ready(<Suspense fallback={<p className="p-8">Loading quiz…</p>}><Quiz subdomain={subdomain} view={view}/></Suspense>)} />
+    {/* The quiz starts on its own data; offer blocks appear once the store's view arrives. */}
+    <Route path="quiz/*" element={<Suspense fallback={<p className="p-8">Loading quiz…</p>}><Quiz subdomain={subdomain} view={view}/></Suspense>} />
     <Route path="checkout" element={ready(view ? <Checkout view={view} via={via} /> : <Unavailable />)} />
     <Route path="oferta" element={ready(view?.downsell ? <DownsellOffer view={view} via={via} /> : <Unavailable />)} />
     <Route path="*" element={ready(<Unavailable />)} />
