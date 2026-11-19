@@ -15,7 +15,7 @@ export default function OrdersPage() {
   return <div className="space-y-6">
     <div className="space-y-1">
       <h1 className="text-3xl font-semibold tracking-tight">Cobros y entregas</h1>
-      <p className="text-sm leading-6 text-muted-foreground">Las últimas 100 compras de {store?.name || 'esta tienda'}, con el estado que confirmó Stripe y los links de cada una.</p>
+      <p className="text-sm leading-6 text-muted-foreground">Las últimas 100 compras de {store?.name || 'esta tienda'}, con el estado que confirmó Stripe y los entregables de cada una.</p>
     </div>
 
     {orders === undefined && <PageSkeleton label="Cargando cobros" />}
@@ -35,7 +35,7 @@ export default function OrdersPage() {
           <TableCell className="min-w-64">
             <ul className="space-y-1">{order.items.map((item, index) => <li key={index}>{item.name} <span className="text-xs text-muted-foreground">· {ROLE_LABELS[item.role]}{item.price > 0 && ` · ${formatMoney(item.price, order.currency)}`}</span></li>)}</ul>
             {order.deliveries.length > 0 && <details className="mt-2">
-              <summary className="flex min-h-11 cursor-pointer items-center text-xs font-medium text-primary">Ver {order.deliveries.length === 1 ? '1 link' : `${order.deliveries.length} links`} de entrega</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center text-xs font-medium text-primary">Ver {order.deliveries.length === 1 ? '1 entregable' : `${order.deliveries.length} entregables`}</summary>
               <ul className="space-y-1 pb-1 text-xs">{order.deliveries.map((link, index) => <li key={index}>{link.productName} · <a className="break-all underline underline-offset-4" href={link.url} target="_blank" rel="noreferrer">{link.title}</a></li>)}</ul>
             </details>}
           </TableCell>

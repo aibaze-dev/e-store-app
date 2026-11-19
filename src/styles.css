@@ -519,3 +519,70 @@
 .landing-card-unpublish { min-height: 44px; padding-inline: 4px; color: var(--destructive); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .landing-card-unpublish:disabled { opacity: .5; cursor: not-allowed; }
 .landing-card-unpublish:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
+
+/* Shared catalog: ebook and artifact lists plus their detail pages. */
+.catalog-hero { position: relative; overflow: hidden; padding: 28px; border: 1px solid var(--border); border-radius: 20px; background: linear-gradient(120deg, var(--accent), var(--card) 70%); }
+.catalog-hero::after { content: ''; position: absolute; right: -60px; top: -80px; width: 280px; height: 280px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent); box-shadow: 0 0 0 36px color-mix(in srgb, var(--primary) 4%, transparent), 0 0 0 72px color-mix(in srgb, var(--primary) 3%, transparent); pointer-events: none; }
+.catalog-stat { display: inline-flex; align-items: baseline; gap: 8px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; background: color-mix(in srgb, var(--card) 80%, transparent); font-size: 12px; }
+.catalog-stat dd { font-size: 14px; }
+.catalog-segmented { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted); }
+.catalog-segmented > :is(button, label) { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; transition: background .15s, color .15s; }
+.catalog-segmented > :is(button, label):hover { color: var(--foreground); }
+.catalog-segmented > .is-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px #0000001f; }
+.catalog-segmented > label:has(input:focus-visible), .catalog-segmented > button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.catalog-segmented > label:has(input:disabled) { cursor: not-allowed; opacity: .6; }
+.catalog-card { position: relative; display: flex; flex-direction: column; width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: var(--card); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.catalog-card:hover, .catalog-card:focus-within { border-color: var(--ring); box-shadow: 0 14px 34px -18px #0006; }
+.catalog-card-link::after { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.catalog-card-link:focus-visible { outline: none; }
+.catalog-card:has(.catalog-card-link:focus-visible) { outline: 2px solid var(--ring); outline-offset: 3px; }
+.catalog-card-arrow { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; padding: 8px; border-radius: 50%; background: var(--card); color: var(--primary); opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px #0003; }
+.catalog-card:hover .catalog-card-arrow, .catalog-card:focus-within .catalog-card-arrow { opacity: 1; transform: none; }
+.catalog-cover { position: relative; display: grid; place-items: center; overflow: hidden; background: var(--muted); }
+.catalog-cover.is-book { aspect-ratio: 16 / 10; padding: 18px; background: radial-gradient(circle at 30% 20%, var(--accent), var(--muted) 70%); }
+.catalog-cover.is-book img { height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: 4px 10px 10px 4px; box-shadow: 8px 14px 28px -10px #0007; transition: transform .2s; }
+.catalog-card:hover .catalog-cover.is-book img { transform: translateY(-3px) rotate(-1.5deg); }
+.catalog-cover.is-tool { aspect-ratio: 16 / 9; }
+.catalog-cover.is-tool img { width: 100%; height: 100%; object-fit: cover; }
+.catalog-cover-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 18px; text-align: center; color: var(--primary); }
+.catalog-cover-fallback svg { width: 34px; height: 34px; }
+.catalog-cover-fallback span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font-size: 11px; font-weight: 600; line-height: 1.5; letter-spacing: .08em; text-transform: uppercase; }
+.is-book > .catalog-cover-fallback { height: 100%; aspect-ratio: 3 / 4; border: 1px solid var(--border); border-left: 6px solid var(--primary); border-radius: 4px 12px 12px 4px; background: linear-gradient(160deg, color-mix(in srgb, var(--primary) 14%, var(--card)), var(--card) 60%); box-shadow: 8px 14px 28px -12px #0006; }
+.is-tool > .catalog-cover-fallback { width: 100%; height: 100%; background: radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 55%), linear-gradient(135deg, var(--accent), var(--muted)); }
+.catalog-status { --status-color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--status-color) 35%, var(--card)); border-radius: 999px; background: color-mix(in srgb, var(--status-color) 10%, var(--card)); color: var(--status-color); font-size: 11px; font-weight: 600; }
+.catalog-status > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.catalog-status[data-state='active'] { --status-color: var(--order-paid); }
+.catalog-status[data-state='draft'] { --status-color: var(--chart-3); }
+.catalog-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--secondary); color: var(--secondary-foreground); font-size: 11px; font-weight: 600; }
+.catalog-url { overflow: hidden; padding: 6px 10px; border-radius: 8px; background: var(--muted); color: var(--muted-foreground); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.catalog-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.catalog-panel { display: flex; flex-direction: column; gap: 24px; min-width: 0; padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--card); }
+.catalog-step { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: var(--accent); color: var(--primary); font-size: 14px; font-weight: 700; }
+.catalog-step svg { width: 19px; height: 19px; }
+.catalog-toggle { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--background); }
+.catalog-deliverable { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--background); }
+.catalog-deliverable.is-editable { border-left: 3px solid var(--primary); }
+.catalog-dropzone { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 20px; border: 1.5px dashed var(--border); border-radius: 14px; background: var(--background); text-align: center; }
+.catalog-aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.catalog-preview { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--background); }
+.catalog-preview.is-featured { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+.catalog-preview-cover { border-radius: 10px; }
+.catalog-preview-cover.is-book { aspect-ratio: 3 / 4; padding: 8px; }
+.catalog-preview-cover.is-tool { aspect-ratio: 1; }
+.catalog-preview-cover .catalog-cover-fallback { gap: 0; padding: 6px; }
+.catalog-preview-cover .catalog-cover-fallback span { display: none; }
+.catalog-preview-cover .catalog-cover-fallback svg { width: 22px; height: 22px; }
+.is-book.catalog-preview-cover > .catalog-cover-fallback { border-left-width: 4px; }
+@media (min-width: 1280px) {
+  .catalog-detail { grid-template-columns: minmax(0, 1fr) 320px; }
+  .catalog-aside { position: sticky; top: 104px; }
+}
+@media (max-width: 639px) {
+  .catalog-hero { padding: 22px 20px; }
+  .catalog-panel { padding: 20px 16px; }
+  .catalog-hero > div > a { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-card, .catalog-card-arrow, .catalog-cover img { transition: none; }
+  .catalog-card:hover .catalog-cover.is-book img { transform: none; }
+}

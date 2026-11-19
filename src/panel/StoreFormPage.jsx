@@ -220,7 +220,7 @@ export default function StoreFormPage({ section }) {
     </OfferSection>}
 
     {show('post') && <Card>
-      <CardHeader><CardTitle>Oferta post-compra</CardTitle><CardDescription>Se ofrece después del primer pago y se cobra con un segundo checkout. Si el comprador la rechaza, sigue a sus links.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Oferta post-compra</CardTitle><CardDescription>Se ofrece después del primer pago y se cobra con un segundo checkout. Si el comprador la rechaza, sigue a sus entregables.</CardDescription></CardHeader>
       <CardContent className="space-y-5">
         {storeId && <p className="text-sm leading-6 text-muted-foreground">Los textos, beneficios y video VSL se configuran en <Link to={`/panel/tiendas/${storeId}/landing#postPurchase`} target="_blank" rel="noreferrer" className="underline">las secciones de post-compra del editor de landing</Link>. Guardá aquí el producto y el precio antes de generar sus textos con IA.</p>}
         <label className="flex min-h-11 items-center gap-3 text-sm font-medium">

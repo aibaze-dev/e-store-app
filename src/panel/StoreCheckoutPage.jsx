@@ -24,6 +24,6 @@ export default function StoreCheckoutPage() {
     <Link to={`/panel/tiendas/${storeId}/landing#checkout`} className="block rounded-xl border bg-card p-5 text-sm font-medium text-primary underline underline-offset-4">Editar los textos en la pestaña Checkout</Link>
     <p className="text-sm text-muted-foreground">Los textos, avisos y opciones se configuran y previsualizan en la pestaña Checkout del editor de landing. Guardá y publicá para aplicarlos.</p>
     <StoreOfferSummary store={store} products={products} />
-    <p className="text-sm leading-7 text-muted-foreground">El total se calcula con el producto principal y los extras elegidos. La oferta post-compra es opcional y se cobra en un segundo pago. Después de pagar, el comprador recibe sus links en pantalla.</p>
+    <p className="text-sm leading-7 text-muted-foreground">El total se calcula con el producto principal y los extras elegidos. La oferta post-compra es opcional y se cobra en un segundo pago. Después de pagar, el comprador recibe sus entregables (documentos y enlaces) en pantalla.</p>
   </div>;
 }
