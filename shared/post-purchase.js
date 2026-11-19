@@ -1,18 +1,18 @@
 export const POST_PURCHASE_CONTENT = {
   postPurchase: {
-    eyebrow: 'Oferta especial para vos', title: '', subtitle: '', description: '',
-    ctaText: 'Sí, lo quiero', declineText: 'No, gracias',
+    eyebrow: 'A special offer for you', title: '', subtitle: '', description: '',
+    ctaText: 'Yes, add it to my order', declineText: 'No thanks',
     // Second step: same product, lower price. The discount badge and prices are shown apart.
-    downsellTitle: 'Esperá: no te vayas sin esto (ahora más barato)',
-    downsellText: 'Sabemos que el precio puede frenar. Por eso, solo porque acabás de comprar, te dejamos exactamente el mismo producto con descuento: el mismo contenido completo y el mismo acceso inmediato, por menos. Este precio no se vuelve a mostrar.',
-    downsellCtaText: 'Sí, lo quiero a este precio',
+    downsellTitle: 'Get the same offer for less',
+    downsellText: 'Your purchase unlocks a discount on this product. Get the same content and instant access for less. This price is available only here.',
+    downsellCtaText: 'Get this price',
     // Last step: the lowest price of the whole offer. After a "No" the modal never comes back.
-    finalTitle: 'Última oportunidad: el precio más bajo que vas a ver',
-    finalText: 'Lo bajamos una vez más y es definitivo: no hay una oferta mejor para este producto. Sumalo ahora a tu compra con acceso inmediato. Si cerrás esta ventana, no vuelve a aparecer.',
-    finalCtaText: 'Sí, lo quiero al precio final',
+    finalTitle: 'Last chance to get our lowest price',
+    finalText: 'This is our final price for this product. Add it to your order for instant access. The offer ends when you close this window.',
+    finalCtaText: 'Get the final offer',
   },
-  postPurchaseBenefits: { enabled: true, title: 'Qué incluye esta oferta', subtitle: '', items: [] },
-  postPurchaseVideo: { enabled: false, title: 'Conocé esta oferta', url: '' },
+  postPurchaseBenefits: { enabled: true, title: 'What this offer includes', subtitle: '', items: [] },
+  postPurchaseVideo: { enabled: false, title: 'Explore this offer', url: '' },
 };
 
 // Last post-purchase discount: 10 more points than the store's downsell, or 10% without

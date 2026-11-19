@@ -1,4 +1,5 @@
-import { BrowserRouter, Link, Route, Routes, useParams } from 'react-router-dom';
+import { useLayoutEffect } from 'react';
+import { BrowserRouter, Link, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import AccessPage from './pages/AccessPage.jsx';
 import Panel from './panel/Panel.jsx';
 import Storefront from './storefront/Storefront.jsx';
@@ -20,10 +21,21 @@ function NotFound() {
   </main>;
 }
 
+function DocumentLanguage({ subdomain }) {
+  const { pathname } = useLocation();
+  const storePath = subdomain ? pathname : pathname.replace(/^\/l\/[^/]+(?=\/|$)/, '');
+  const storefront = subdomain || storePath !== pathname;
+  const englishStorePage = storefront && !/^\/quiz(?:\/|$)/.test(storePath);
+  const language = englishStorePage || pathname.startsWith('/a/') ? 'en-US' : 'es';
+  useLayoutEffect(() => { document.documentElement.lang = language; }, [language]);
+  return null;
+}
+
 export default function App() {
   // On a landing subdomain the whole site is that landing; the panel lives on the base domain.
   const subdomain = resolveSubdomain();
   return <InternalThemeProvider><BrowserRouter>
+    <DocumentLanguage subdomain={subdomain} />
     {subdomain
       ? <Routes><Route path="/*" element={<Storefront subdomain={subdomain} via="subdomain" />} /></Routes>
       : <Routes>

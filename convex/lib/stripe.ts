@@ -10,13 +10,14 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   orderId: string; currency: string; lineItems: LineItem[]; returnUrl: string; elements?: boolean;
   // Defaults to one key per order; a retry after a cached Stripe failure passes a new one.
   idempotencyKey?: string;
+  locale: 'en' | 'es' | 'pt' | 'auto';
   // Elements only: ask for the name (new buyers) or reuse a known buyer's email.
   collectContact?: boolean; customerEmail?: string;
 }) {
   const body = new URLSearchParams({
     mode: 'payment',
     ui_mode: input.elements ? 'elements' : 'embedded_page',
-    locale: 'es',
+    locale: input.locale,
     return_url: input.returnUrl,
     client_reference_id: input.orderId,
     'metadata[orderId]': input.orderId,

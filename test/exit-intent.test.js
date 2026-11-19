@@ -11,10 +11,10 @@ afterEach(() => vi.unstubAllGlobals());
 describe('exit intent copy', () => {
   it('only states what the offer backs: no savings, bonuses or guarantee unless configured', () => {
     const copy = exitIntentCopy(view(), 'landing', money);
-    expect(copy).toMatchObject({ emoji: '👋', title: 'Pará un segundo', button: 'Quiero mi copia', closing: 'El pago es seguro y el acceso es inmediato.' });
+    expect(copy).toMatchObject({ emoji: '👋', title: 'Before you go', button: 'Quiero mi copia', closing: 'Pay securely and get instant access.' });
     expect(copy.intro).toContain('Guía de inversión');
-    expect(copy.bullets).toEqual(['Accedés al ebook apenas se confirma el pago', 'Es un único pago', 'Pagás de forma segura']);
-    expect(JSON.stringify(copy)).not.toMatch(/garant|ahorr|bono|\$/i);
+    expect(copy.bullets).toEqual(['Get the e-book as soon as your payment is confirmed', 'One-time payment', 'Secure checkout']);
+    expect(JSON.stringify(copy)).not.toMatch(/guarantee|sav(e|ings)|bonus|\$/i);
   });
   it('uses the real bonuses, savings and guarantee days, within four bullets', () => {
     const full = view(
@@ -22,12 +22,12 @@ describe('exit intent copy', () => {
       { guarantee: { enabled: true, text: 'Devolución total.', days: 7 } },
     );
     const copy = exitIntentCopy(full, 'checkout', money);
-    expect(copy.bullets).toEqual(['Accedés al ebook apenas se confirma el pago', 'Sumás 2 bonos gratis', 'Ahorrás $54 (67% OFF) sobre el valor de referencia', 'Es un único pago']);
-    expect(copy.closing).toBe('Comprás con garantía de 7 días.');
-    expect(copy.button).toBe('Volver a mi compra');
+    expect(copy.bullets).toEqual(['Get the e-book as soon as your payment is confirmed', 'Get 2 free bonuses', 'Save $54 (67% off the regular value)', 'One-time payment']);
+    expect(copy.closing).toBe('Your purchase includes a 7-day guarantee.');
+    expect(copy.button).toBe('Return to checkout');
     const hidden = exitIntentCopy(view({}, { guarantee: { enabled: false, text: 'Devolución total.', days: 7 } }), 'landing', money);
-    expect(hidden.closing).not.toMatch(/garant/i);
-    expect(exitIntentCopy(view({ bonuses: [{ name: 'Plantillas' }] }), 'landing', money).bullets[1]).toBe('Sumás gratis el bono «Plantillas»');
+    expect(hidden.closing).not.toMatch(/guarantee/i);
+    expect(exitIntentCopy(view({ bonuses: [{ name: 'Plantillas' }] }), 'landing', money).bullets[1]).toBe('Get Plantillas as a free bonus');
   });
 });
 

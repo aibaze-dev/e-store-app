@@ -5,7 +5,7 @@ const Quiz = lazy(() => import('./Quiz.jsx'));
 import { PurchaseResult, Video } from '@/templates/PostPurchaseContent.jsx';
 import { videoSource } from '../../shared/post-purchase.js';
 import PostPurchaseModal from './PostPurchaseModal.jsx';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAction, useQuery } from 'convex/react';
 import { Check, Gift, LoaderCircle, LockKeyhole, Plus, ShieldCheck, Zap } from 'lucide-react';
@@ -30,8 +30,8 @@ import { useQuizContact } from './useQuizContact.js';
 
 const Page = ({ children }) => <main className="mx-auto max-w-2xl space-y-6 px-5 py-10 sm:px-6">{children}</main>;
 const Unavailable = () => <Page>
-  <h1 className="text-3xl font-semibold tracking-tight">Esta página no está disponible</h1>
-  <p className="leading-7 text-muted-foreground">La oferta que buscás no existe o ya no está publicada.</p>
+  <h1 className="text-3xl font-semibold tracking-tight">This page is unavailable</h1>
+  <p className="leading-7 text-muted-foreground">This offer could not be found. It may no longer be available.</p>
 </Page>;
 
 // One checkout attempt per selection: retrying the same selection reuses the same order.
@@ -90,10 +90,26 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
   const content = normalizeContent(view.content);
   const money = amount => formatMoney(amount, store.currency);
   const navigate = useNavigate();
-  const focusHeading = useLocation().state?.focusHeading;
+  const focusHeading = !preview && location.state?.focusHeading;
   const headingRef = useRef(null);
   const payRef = useRef(null);
-  useEffect(() => { if (focusHeading) headingRef.current?.focus(); }, [focusHeading]);
+  useLayoutEffect(() => {
+    const viewport = headingRef.current.ownerDocument.defaultView;
+    const scrollToTop = () => viewport.scrollTo({ top: 0, behavior: 'instant' });
+    if (focusHeading) headingRef.current.focus({ preventScroll: true });
+    scrollToTop();
+    // History navigation can restore the old offset after React commits.
+    let frame = viewport.requestAnimationFrame(scrollToTop);
+    const onPageShow = () => {
+      viewport.cancelAnimationFrame(frame);
+      frame = viewport.requestAnimationFrame(scrollToTop);
+    };
+    viewport.addEventListener('pageshow', onPageShow);
+    return () => {
+      viewport.cancelAnimationFrame(frame);
+      viewport.removeEventListener('pageshow', onPageShow);
+    };
+  }, [location.key, view.subdomain, focusHeading]);
   // Sends the visitor back to the step they were on; it never starts the payment.
   const exitIntent = <ExitIntentModal view={view} step="checkout" onCta={() => {
     const target = payRef.current && !payRef.current.disabled ? payRef.current : headingRef.current;
@@ -294,10 +310,10 @@ function ThankYou({ via, subdomain }) {
 function LandingRoutes({ subdomain, via }) {
   const classic = useQuery(api.storefront.getLanding, { subdomain });
   const view = useQuery(api.storefront.getCheckout, { subdomain });
-  if (view === undefined || classic === undefined) return <Page><PageSkeleton label="Cargando" /></Page>;
+  if (view === undefined || classic === undefined) return <Page><PageSkeleton label="Loading" /></Page>;
   return <Routes>
     <Route index element={classic ? <Landing view={classic} /> : <Unavailable />} />
-    <Route path="quiz/*" element={<Suspense fallback={<p className="p-8">Cargando quiz…</p>}><Quiz subdomain={subdomain} view={view}/></Suspense>} />
+    <Route path="quiz/*" element={<Suspense fallback={<p className="p-8">Loading quiz…</p>}><Quiz subdomain={subdomain} view={view}/></Suspense>} />
     <Route path="checkout" element={view ? <Checkout view={view} via={via} /> : <Unavailable />} />
     <Route path="oferta" element={view?.downsell ? <DownsellOffer view={view} via={via} /> : <Unavailable />} />
     <Route path="*" element={<Unavailable />} />
@@ -307,7 +323,7 @@ function LandingRoutes({ subdomain, via }) {
 // `via` records whether the visit came through the subdomain or the /l/<subdomain> path,
 // so the server sends the buyer back to the same address after paying.
 export default function Storefront({ subdomain, via }) {
-  return <ErrorBoundary><Routes>
+  return <ErrorBoundary language="en-US"><Routes>
     <Route path="gracias" element={<ThankYou via={via} subdomain={subdomain} />} />
     <Route path="*" element={<LandingRoutes subdomain={subdomain} via={via} />} />
   </Routes></ErrorBoundary>;

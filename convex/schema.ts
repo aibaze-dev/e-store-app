@@ -14,13 +14,14 @@ const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.st
 
 const optionalTexts = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.string())]))));
 const optionalFlags = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.boolean())]))));
+const paymentLocale = v.union(v.literal('es'), v.literal('en'), v.literal('pt'), v.literal('auto'));
 export const landingContent = v.object({
   postLabels: optionalTexts(POST_LABEL_FIELDS), postOptions: optionalFlags(POST_OPTION_FIELDS),
   landingExit: optionalTexts(LANDING_EXIT_FIELDS), backPopup: optionalTexts(BACK_POPUP_FIELDS), popupOptions: optionalFlags(POPUP_OPTION_FIELDS),
   checkout: v.optional(v.object({
     ...Object.fromEntries(Object.keys(CHECKOUT_FIELDS).map(key => [key, v.optional(v.string())])),
     ...Object.fromEntries(Object.keys(CHECKOUT_FLAGS).map(key => [key, v.optional(v.boolean())])),
-    paymentLocale: v.optional(v.union(v.literal('es'), v.literal('en'), v.literal('pt'), v.literal('auto'))),
+    paymentLocale: v.optional(paymentLocale),
   })),
   labels: v.optional(v.object(Object.fromEntries(Object.keys(LANDING_LABEL_DEFAULTS).map(key => [key, v.optional(v.string())])))),
   postPurchase: v.optional(v.object({
@@ -197,6 +198,7 @@ export default defineSchema({
     reviewReason: v.optional(v.union(v.literal('amount'), v.literal('duplicate'), v.literal('late'))),
     // Bumped when a retry needs a new Stripe idempotency key (Stripe caches failures too).
     sessionAttempt: v.optional(v.number()),
+    paymentLocale: v.optional(paymentLocale),
     // Delivery email to the buyer, or the review alert to the admins, sent through Resend.
     email: v.optional(v.object({ status: emailStatus, attempts: v.number(), updatedAt: v.number(), error: v.optional(v.string()) })),
     deliveries: v.array(v.object({ productName: v.string(), title: v.string(), url: v.string() })),

@@ -10,7 +10,7 @@ describe('post-purchase presentation', () => {
   it('keeps legacy offers usable and respects video and section visibility', () => {
     const legacy = postPurchaseContent();
     expect(legacy.postPurchase.title).toBe('');
-    expect(legacy.postPurchase.ctaText).toBe('Sí, lo quiero');
+    expect(legacy.postPurchase.ctaText).toBe('Yes, add it to my order');
     expect(legacy.postPurchaseVideo).toMatchObject({ enabled: false, url: '' });
     const saved = postPurchaseContent({ postPurchaseVideo: { enabled: false, url: 'https://example.com/video.mp4' }, postPurchaseBenefits: { enabled: false, items: [] } });
     expect(saved.postPurchaseVideo.enabled).toBe(false);
@@ -20,7 +20,7 @@ describe('post-purchase presentation', () => {
   it('uses persuasive defaults for the discount steps and upgrades the old default texts', () => {
     const fresh = postPurchaseContent().postPurchase;
     expect(fresh.downsellTitle).not.toBe('Una oportunidad más');
-    expect(fresh.finalTitle).toMatch(/Última oportunidad/);
+    expect(fresh.finalTitle).toMatch(/Last chance/);
     expect(fresh.finalCtaText).toBeTruthy();
     const old = postPurchaseContent({ postPurchase: { downsellTitle: 'Una oportunidad más', downsellText: 'Sumá este producto con un descuento especial.', downsellCtaText: 'Sí, lo quiero con descuento' } }).postPurchase;
     expect(old).toMatchObject({ downsellTitle: fresh.downsellTitle, downsellText: fresh.downsellText, downsellCtaText: fresh.downsellCtaText, finalTitle: fresh.finalTitle });
@@ -74,8 +74,8 @@ describe('editable popups and their preview map', () => {
     expect(postLabels(content).linksSubtitle).toBe('');
     // Optional descriptions may stay empty; titles and actions never render blank.
     expect(backPopupConfig({ content }).modalSubtitle).toBe('');
-    expect(backPopupConfig({ content }).modalTitle).toBe('¡Esperá! Tenemos un regalo para vos 🎁');
-    expect(postLabels({ postLabels: { open: '  ', close: '' } })).toMatchObject({ open: 'Abrir', close: 'Cerrar' });
+    expect(backPopupConfig({ content }).modalTitle).toBe('Wait! We have a gift for you 🎁');
+    expect(postLabels({ postLabels: { open: '  ', close: '' } })).toMatchObject({ open: 'Open', close: 'Close' });
     expect(exitIntentCopy({ ...view(), content }, 'landing', String)).toMatchObject({ title: 'Nuevo aviso', intro: 'Llevate Guía' });
   });
 });

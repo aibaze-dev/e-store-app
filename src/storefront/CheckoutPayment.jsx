@@ -140,7 +140,7 @@ export function SessionPayment({ clientSecret, total, currency, totalLabel, askC
 // The preview mounts no Stripe provider, creates no orders and sends no analytics.
 export function CheckoutPaymentPreview({ copy, totalLabel, state = 'ready', askContact = true }) {
   const [buyer, setBuyer] = useState({ email: '', name: '' });
-  const paymentLabels = { es: ['Tarjeta', 'Número de tarjeta', 'Vencimiento', 'Código de seguridad'], en: ['Card', 'Card number', 'Expiry', 'Security code'], pt: ['Cartão', 'Número do cartão', 'Validade', 'Código de segurança'] }[copy.paymentLocale] ?? ['Tarjeta', 'Número de tarjeta', 'Vencimiento', 'Código de seguridad'];
+  const paymentLabels = { es: ['Tarjeta', 'Número de tarjeta', 'Vencimiento', 'Código de seguridad'], en: ['Card', 'Card number', 'Expiration date', 'Security code'], pt: ['Cartão', 'Número do cartão', 'Validade', 'Código de segurança'] }[copy.paymentLocale] ?? ['Card', 'Card number', 'Expiration date', 'Security code'];
   const messages = { loading: copy.loading, loadingSecure: copy.loadingSecure, unavailable: copy.unavailable, error: copy.confirmError, loadError: copy.loadError, methodError: copy.methodError, sessionError: copy.sessionError, changedError: copy.changedError, emailError: copy.emailError, nameError: copy.nameError };
   return <div className="space-y-9">
     {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} copy={copy} disabled={state === 'processing'} />}
@@ -151,8 +151,8 @@ export function CheckoutPaymentPreview({ copy, totalLabel, state = 'ready', askC
       <div className="space-y-4 rounded-xl border p-4">
         <p className="flex items-center gap-2 text-sm font-medium"><CreditCard aria-hidden="true" />{paymentLabels[0]}</p>
         <Field label={paymentLabels[1]}>{ids => <Input {...ids} disabled placeholder="1234 1234 1234 1234" />}</Field>
-        <div className="grid grid-cols-2 gap-3">{paymentLabels.slice(2).map((label, index) => <Field key={label} label={label}>{ids => <Input {...ids} disabled placeholder={index === 0 ? 'MM / AA' : 'CVC'} />}</Field>)}</div>
-        <p className="text-xs leading-5 text-muted-foreground">Vista ilustrativa. Stripe muestra los campos y medios disponibles para cada comprador.</p>
+        <div className="grid grid-cols-2 gap-3">{paymentLabels.slice(2).map((label, index) => <Field key={label} label={label}>{ids => <Input {...ids} disabled placeholder={index === 0 ? (['pt', 'es'].includes(copy.paymentLocale) ? 'MM / AA' : 'MM / YY') : 'CVC'} />}</Field>)}</div>
+        <p className="text-xs leading-5 text-muted-foreground">Preview only. Stripe shows the payment methods available to each customer.</p>
       </div>
       <Button className="checkout-pay h-auto min-h-16 w-full whitespace-normal text-lg" type="button" disabled>{state === 'processing' ? copy.processing : checkoutText(copy, 'pay', { importe: totalLabel })}</Button>
     </section>

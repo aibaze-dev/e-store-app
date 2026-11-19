@@ -89,14 +89,14 @@ describe('checkout configuration publication', () => {
     await admin.mutation(api.stores.updateCheckout, { id: storeId, checkout: { upsellTitle: 'Extras anteriores', notifications: false, upsellReferences: [] } });
     const publicView = () => t.query(api.storefront.getCheckout, { subdomain: 'inversion' });
     const legacy = await publicView();
-    expect(checkoutConfig(legacy)).toMatchObject({ upsellTitle: 'Extras anteriores', notifications: false, secure: 'Pago seguro' });
+    expect(checkoutConfig(legacy)).toMatchObject({ upsellTitle: 'Extras anteriores', notifications: false, secure: 'Secure checkout' });
     const draft = normalizeContent(content);
     draft.checkout = { ...CHECKOUT_DEFAULTS, secure: 'Compra protegida', guaranteeFallback: '', pay: 'Comprar por {importe}', upsellTitle: 'Completá tu kit', showActivity: false, showExit: false, notifications: true, paymentLocale: 'en' };
     const save = value => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: value });
     await save(draft);
     expect((await admin.query(api.landings.getForStore, { storeId })).draft.checkout).toEqual(draft.checkout);
     expect((await admin.query(api.landings.preview, { storeId })).content.checkout).toEqual(draft.checkout);
-    expect(checkoutConfig(await publicView()).secure).toBe('Pago seguro');
+    expect(checkoutConfig(await publicView()).secure).toBe('Secure checkout');
     await admin.mutation(api.landings.publish, { storeId });
     const published = await publicView();
     expect(checkoutConfig(published)).toEqual(draft.checkout);
@@ -125,7 +125,7 @@ describe('public landing', () => {
     expect(saved.labels).toEqual(draft.labels);
     expect(saved.about.subtitle).toBe('Meet the team');
     expect(saved.faq.subtitle).toBe('Before you start');
-    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.labels.free).toBe('Gratis');
+    expect((await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content.labels.free).toBe('Free');
     await admin.mutation(api.landings.publish, { storeId });
     const published = (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content;
     expect(published.painPoints.items).toEqual(draft.painPoints.items);
@@ -218,15 +218,27 @@ describe('checkout', () => {
     ]);
   });
 
-  it('opens an Elements session in Spanish with the same server prices and retry protection', async () => {
+  it('opens an Elements session in English with the same server prices and retry protection', async () => {
     const { t, ids } = await campaign();
     const stripe = mockStripe();
     const args = { subdomain: 'inversion', upsellProductIds: [ids.upsellA], attemptId: attempt(), via: 'path', elements: true };
     const first = await t.action(api.checkout.start, args);
     expect(await t.action(api.checkout.start, args)).toEqual(first);
     expect(await rows(t, 'orders')).toHaveLength(1);
-    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', locale: 'es', 'name_collection[individual][enabled]': 'true', 'line_items[1][price_data][unit_amount]': '900' });
+    expect(stripe.requests[0].body).toMatchObject({ ui_mode: 'elements', locale: 'en', 'name_collection[individual][enabled]': 'true', 'line_items[1][price_data][unit_amount]': '900' });
     expect(stripe.requests[0].headers['Idempotency-Key']).toBe(stripe.requests[1].headers['Idempotency-Key']);
+  });
+
+  it('uses the published Stripe language for new orders and retains it on retries', async () => {
+    const { t, admin, storeId } = await campaign();
+    const stripe = mockStripe();
+    const args = { subdomain: 'inversion', upsellProductIds: [], attemptId: attempt(), via: 'path', elements: true };
+    await t.action(api.checkout.start, args);
+    await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: { ...content, checkout: { paymentLocale: 'pt' } } });
+    await admin.mutation(api.landings.publish, { storeId });
+    await t.action(api.checkout.start, args);
+    await t.action(api.checkout.start, { ...args, attemptId: attempt() });
+    expect(stripe.requests.map(request => request.body.locale)).toEqual(['en', 'en', 'pt']);
   });
 
   it('builds the return address on the landing subdomain when the visit came through it', async () => {
@@ -739,8 +751,8 @@ describe('section-based sales template', () => {
     const save = draft => admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     await save(content);
     const legacy = (await admin.query(api.landings.preview, { storeId })).content;
-    expect(legacy.combo).toMatchObject({ enabled: true, title: 'Tu compra', ctaText: 'Ir a pagar ahora' });
-    expect(legacy.bonuses).toMatchObject({ eyebrow: 'Bono gratis', chips: [], ctaText: '' });
+    expect(legacy.combo).toMatchObject({ enabled: true, title: 'Your order', ctaText: 'Go to checkout' });
+    expect(legacy.bonuses).toMatchObject({ eyebrow: 'Free bonus', chips: [], ctaText: '' });
     expect(legacy.hero).toMatchObject({ headerCtaText: '', trustText: '', footnote: '' });
 
     await save({

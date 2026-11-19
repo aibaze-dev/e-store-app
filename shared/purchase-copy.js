@@ -4,32 +4,32 @@ export const POST_LABEL_FIELDS = {
   "paidEyebrow": {
     "group": "confirmation",
     "label": "Etiqueta de compra confirmada",
-    "value": "Compra confirmada"
+    "value": "Purchase confirmed"
   },
   "paidTitle": {
     "group": "confirmation",
     "label": "Título de agradecimiento",
-    "value": "¡Gracias por tu compra!"
+    "value": "Thank you for your purchase!"
   },
   "emailedText": {
     "group": "confirmation",
     "label": "Mensaje con email enviado",
-    "value": "Estos son tus links. También te los enviamos por email."
+    "value": "Your access links are below. We also sent them to your email."
   },
   "savedText": {
     "group": "confirmation",
     "label": "Mensaje sin envío por email",
-    "value": "Estos son tus links. Guardá la dirección de esta página: es la forma de volver a verlos."
+    "value": "Your access links are below. Bookmark this page to find them again."
   },
   "linksTitle": {
     "group": "access",
     "label": "Título de accesos",
-    "value": "Tus links de acceso"
+    "value": "Your access links"
   },
   "linksEyebrow": {
     "group": "access",
     "label": "Etiqueta de accesos",
-    "value": "Tu compra"
+    "value": "Your order"
   },
   "linksSubtitle": {
     "group": "access",
@@ -39,204 +39,204 @@ export const POST_LABEL_FIELDS = {
   "open": {
     "group": "access",
     "label": "Botón de acceso",
-    "value": "Abrir"
+    "value": "Open"
   },
   "emptyLinks": {
     "group": "access",
     "label": "Compra sin accesos",
-    "value": "Esta compra no tiene links cargados. Escribile a quien te vendió el producto."
+    "value": "There are no access links for this order. Please contact the seller."
   },
   "discount": {
     "group": "offer",
     "label": "Etiqueta de ahorro",
-    "value": "Ahorrás {porcentaje}%"
+    "value": "Save {porcentaje}%"
   },
   "offerDescription": {
     "group": "offer",
     "label": "Descripción accesible de la oferta",
-    "value": "Oferta especial para sumar a tu compra"
+    "value": "Special offer for your order"
   },
   "benefitsTitle": {
     "group": "offer",
     "label": "Título alternativo de beneficios",
-    "value": "Qué incluye esta oferta"
+    "value": "What this offer includes"
   },
   "preparing": {
     "group": "offer",
     "label": "Preparando el pago",
-    "value": "Preparando el pago…"
+    "value": "Preparing payment…"
   },
   "startError": {
     "group": "offer",
     "label": "Error al iniciar el pago",
-    "value": "No se pudo iniciar el pago. Volvé a intentar."
+    "value": "We couldn’t start your payment. Please try again."
   },
   "access": {
     "group": "offer",
     "label": "Sello de acceso",
-    "value": "Acceso inmediato"
+    "value": "Instant access"
   },
   "secure": {
     "group": "offer",
     "label": "Sello de seguridad",
-    "value": "Pago seguro"
+    "value": "Secure checkout"
   },
   "paymentNote": {
     "group": "offer",
     "label": "Aclaración del cobro",
-    "value": "Se paga aparte. Tu compra anterior no cambia."
+    "value": "This is a separate charge. Your original order stays the same."
   },
   "close": {
     "group": "offer",
     "label": "Cerrar oferta (accesibilidad)",
-    "value": "Cerrar"
+    "value": "Close"
   },
   "videoTitle": {
     "group": "video",
     "label": "Título alternativo del video",
-    "value": "Video de la oferta"
+    "value": "Offer video"
   },
   "videoError": {
     "group": "video",
     "label": "Error del video",
-    "value": "No se pudo cargar el video. Podés abrirlo en otra pestaña o continuar con la oferta."
+    "value": "We couldn’t load the video. Open it in a new tab or continue with the offer."
   },
   "videoUnsupported": {
     "group": "video",
     "label": "Video incompatible",
-    "value": "Tu navegador no puede reproducir este video."
+    "value": "Your browser can’t play this video."
   },
   "videoOpen": {
     "group": "video",
     "label": "Enlace para abrir el video",
-    "value": "Abrir video en otra pestaña"
+    "value": "Open video in a new tab"
   },
   "loadingTitle": {
     "group": "states",
     "label": "Buscando compra",
-    "value": "Buscando tu compra"
+    "value": "Looking up your order"
   },
   "missingTitle": {
     "group": "states",
     "label": "Compra no encontrada",
-    "value": "No encontramos esta compra"
+    "value": "We couldn’t find your order"
   },
   "missingText": {
     "group": "states",
     "label": "Ayuda de compra no encontrada",
-    "value": "Abrí el link completo de la página a la que te llevó el pago. Si el problema sigue, escribile a quien te vendió el producto."
+    "value": "Open the full link you received after checkout. If the problem continues, contact the seller."
   },
   "pendingTitle": {
     "group": "states",
     "label": "Título de pago pendiente",
-    "value": "Estamos confirmando tu pago"
+    "value": "Confirming your payment"
   },
   "pendingText": {
     "group": "states",
     "label": "Texto de pago pendiente",
-    "value": "Suele tardar unos segundos. No cierres esta página: tus links aparecen acá apenas se confirme."
+    "value": "This usually takes a few seconds. Keep this page open to see your links when your payment is confirmed."
   },
   "reviewTitle": {
     "group": "states",
     "label": "Título de pago en revisión",
-    "value": "Estamos revisando tu pago"
+    "value": "We’re reviewing your payment"
   },
   "reviewText": {
     "group": "states",
     "label": "Texto de pago en revisión",
-    "value": "Recibimos el pago, pero necesitamos verificarlo antes de entregar tus links. Te vamos a contactar al email que usaste en la compra."
+    "value": "We received your payment and need to verify it before sharing your links. We’ll contact you at the email address you used at checkout."
   },
   "refundedTitle": {
     "group": "states",
     "label": "Título de reembolso",
-    "value": "Esta compra fue reembolsada"
+    "value": "Your order was refunded"
   },
   "refundedText": {
     "group": "states",
     "label": "Texto de reembolso",
-    "value": "Los links de esta compra ya no están disponibles."
+    "value": "The access links for this order are no longer available."
   },
   "failedTitle": {
     "group": "states",
     "label": "Título de pago incompleto",
-    "value": "El pago no se completó"
+    "value": "Your payment wasn’t completed"
   },
   "failedText": {
     "group": "states",
     "label": "Pago rechazado",
-    "value": "Tu banco rechazó el pago y no se realizó ningún cobro. Podés volver a intentarlo con otro medio."
+    "value": "Your bank declined the payment. You haven’t been charged. Try another payment method."
   },
   "expiredText": {
     "group": "states",
     "label": "Pago vencido",
-    "value": "No se realizó ningún cobro. Podés volver a intentarlo."
+    "value": "You haven’t been charged. You can try again."
   },
   "back": {
     "group": "states",
     "label": "Botón para volver",
-    "value": "Volver a la oferta"
+    "value": "Back to offer"
   },
   "rights": {
     "group": "footer",
     "label": "Derechos del pie",
-    "value": "Todos los derechos reservados."
+    "value": "All rights reserved."
   },
   "terms": {
     "group": "footer",
     "label": "Enlace de términos",
-    "value": "Términos y condiciones"
+    "value": "Terms and conditions"
   },
   "privacy": {
     "group": "footer",
     "label": "Enlace de privacidad",
-    "value": "Política de privacidad"
+    "value": "Privacy policy"
   },
   "legal": {
     "group": "footer",
     "label": "Nombre del menú legal",
-    "value": "Información legal"
+    "value": "Legal information"
   }
 };
 export const BACK_POPUP_FIELDS = {
   "modalTitle": {
     "label": "Título del popup",
-    "value": "¡Esperá! Tenemos un regalo para vos 🎁"
+    "value": "Wait! We have a gift for you 🎁"
   },
   "modalSubtitle": {
     "label": "Texto del popup",
-    "value": "Antes de irte, mirá esta oferta exclusiva con un descuento que solo está disponible ahora."
+    "value": "Before you go, take a look at this exclusive limited-time discount."
   },
   "acceptText": {
     "label": "Botón para ver la oferta",
-    "value": "Ver oferta"
+    "value": "View offer"
   },
   "declineText": {
     "label": "Botón para rechazar",
-    "value": "No, gracias"
+    "value": "No thanks"
   },
   "pageTitle": {
     "label": "Título de la oferta",
-    "value": "Acabás de desbloquear una oferta secreta 🔓"
+    "value": "You’ve unlocked a special offer 🔓"
   },
   "pageSubtitle": {
     "label": "Descripción de la oferta",
-    "value": "Sabemos que el precio puede ser una traba. Por eso queremos hacerte llegar esto al alcance, con un descuento especial que solo aparece una vez."
+    "value": "If the price was holding you back, here’s a one-time discount."
   },
   "close": {
     "label": "Cerrar popup (accesibilidad)",
-    "value": "Cerrar"
+    "value": "Close"
   },
   "offerLabel": {
     "label": "Nombre del resumen",
-    "value": "Tu oferta"
+    "value": "Your offer"
   },
   "savings": {
     "label": "Etiqueta del ahorro",
-    "value": "(Ahorrás {porcentaje}%)"
+    "value": "(Save {porcentaje}%)"
   },
   "bonuses": {
     "label": "Bonos incluidos",
-    "value": "+ Bonos gratis incluidos"
+    "value": "+ Free bonuses included"
   },
   "subtotal": {
     "label": "Subtotal",
@@ -244,11 +244,11 @@ export const BACK_POPUP_FIELDS = {
   },
   "discount": {
     "label": "Descuento",
-    "value": "Descuento"
+    "value": "Discount"
   },
   "cta": {
     "label": "Botón para comprar con descuento",
-    "value": "Sí, lo quiero con descuento"
+    "value": "Get the discounted offer"
   }
 };
 export const POST_LABEL_DEFAULTS = Object.fromEntries(Object.entries(POST_LABEL_FIELDS).map(([key, field]) => [key, field.value]));
@@ -270,8 +270,8 @@ export const popupOptions = (content = {}) => ({ ...POPUP_OPTION_DEFAULTS, ...co
 export const purchaseText = (copy, key, values = {}) => formatLandingText(copy[key], values);
 export const landingExitConfig = (view = {}) => ({
   ...Object.fromEntries(Object.keys(LANDING_EXIT_FIELDS).map(key => [key, CHECKOUT_DEFAULTS[key]])),
-  exitIntro: 'Antes de irte, mirá lo que te llevás hoy con «{producto}».',
-  exitButton: view.content?.hero?.ctaText || 'Comprar ahora',
+  exitIntro: 'Before you go, see what you get with {producto}.',
+  exitButton: view.content?.hero?.ctaText || 'Buy now',
   ...filledTexts(view.content?.landingExit, LANDING_EXIT_OPTIONAL_FIELDS),
 });
 export function backPopupConfig(view = {}) {

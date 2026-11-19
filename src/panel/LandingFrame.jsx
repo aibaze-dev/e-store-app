@@ -8,7 +8,7 @@ import { PostPurchasePreview } from '@/templates/PostPurchaseContent.jsx';
 import { POST_PURCHASE_PREVIEW_STAGES } from '../../shared/post-purchase.js';
 
 // A separate viewport makes the preview use the exact public mobile/desktop styles.
-const DOCUMENT = '<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="preview-root"></div></body></html>';
+const DOCUMENT = '<!doctype html><html lang="en-US"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="preview-root"></div></body></html>';
 export default function LandingFrame({ view, mode, target = 'landing', previewRevision = 0, checkoutState = 'ready', postState = 'offer', postAsModal = true, onPostStageChange, onSelectSection }) {
   const [root, setRoot] = useState(null);
   const viewportRef = useRef(null);

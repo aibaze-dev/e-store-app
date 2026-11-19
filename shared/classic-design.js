@@ -1,13 +1,13 @@
 // Shared by the classic editor, renderer and server. New sections are opt-in.
 export const CLASSIC_ACCENT = '#f56b20';
 export const CLASSIC_STORY = {
-  introduction: { enabled: false, eyebrow: 'Una nueva forma de empezar', title: '', subtitle: '', text: '', badge: '' },
-  transformation: { enabled: false, eyebrow: 'La transformación', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
-  about: { enabled: false, eyebrow: 'Quiénes somos', title: '', subtitle: '', text: '', imageUrl: '', imageAlt: '', signature: '' },
-  showcase: { enabled: false, eyebrow: 'Qué viene adentro', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
-  comparison: { enabled: false, eyebrow: 'Elegí cómo empezar', title: '', subtitle: '', items: [], badge: '', ctaText: '' },
+  introduction: { enabled: false, eyebrow: 'A new way to get started', title: '', subtitle: '', text: '', badge: '' },
+  transformation: { enabled: false, eyebrow: 'Before and after', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
+  about: { enabled: false, eyebrow: 'About us', title: '', subtitle: '', text: '', imageUrl: '', imageAlt: '', signature: '' },
+  showcase: { enabled: false, eyebrow: 'What’s inside', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
+  comparison: { enabled: false, eyebrow: 'Choose how to get started', title: '', subtitle: '', items: [], badge: '', ctaText: '' },
   // The order builder lists the store's extras; it only shows when the store has any.
-  combo: { enabled: true, eyebrow: 'Armá tu combo', title: 'Tu compra', subtitle: '', upsellText: 'Sumá con descuento exclusivo (solo en esta compra)', allText: 'Llevar todo', ctaText: 'Ir a pagar ahora', note: 'Pago seguro' },
+  combo: { enabled: true, eyebrow: 'Build your bundle', title: 'Your order', subtitle: '', upsellText: 'Add extras at a discount with this order', allText: 'Add all extras', ctaText: 'Go to checkout', note: 'Secure checkout' },
 };
 
 // Landing texts accept two marks: *resaltado* and **negrita**. Anywhere else they are removed.

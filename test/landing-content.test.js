@@ -48,8 +48,8 @@ describe('sales template content', () => {
   });
   it('gives older landings the new section copy without touching what they saved', () => {
     const normalized = normalizeContent({ ...content, bonuses: { title: 'Bonos', chips: ['Uno'] }, socialProof: { title: '', items: [{ name: 'Ana', quote: 'Hola' }] } });
-    expect(normalized.combo).toMatchObject({ enabled: true, allText: 'Llevar todo' });
-    expect(normalized.bonuses).toMatchObject({ title: 'Bonos', chips: ['Uno'], eyebrow: 'Bono gratis' });
+    expect(normalized.combo).toMatchObject({ enabled: true, allText: 'Add all extras' });
+    expect(normalized.bonuses).toMatchObject({ title: 'Bonos', chips: ['Uno'], eyebrow: 'Free bonus' });
     expect(normalized.socialProof.items[0]).toMatchObject({ name: 'Ana', photoUrl: '', verified: false });
     expect(normalized.hero).toMatchObject({ title: content.hero.title, headerCtaText: '', trustText: '' });
   });
@@ -74,9 +74,9 @@ describe('sales template content', () => {
   });
   it('fills legacy copy and replaces repeated tokens without interpreting inserted values', () => {
     const normalized = normalizeContent(content);
-    expect(normalized.promotion.timerLabel).toBe('La oferta vence en');
-    expect(normalized.socialProof.eyebrow).toBe('Testimonios de lectores');
-    expect(formatLandingText(normalized.promotion.spotsText, { cantidad: 7 })).toBe('Quedan 7 cupos a este precio');
+    expect(normalized.promotion.timerLabel).toBe('Offer ends in');
+    expect(normalized.socialProof.eyebrow).toBe('Reader testimonials');
+    expect(formatLandingText(normalized.promotion.spotsText, { cantidad: 7 })).toBe('7 spots left at this price');
     expect(formatLandingText('{nombre}: {nombre} {desconocido}', { nombre: '{cantidad}' })).toBe('{cantidad}: {cantidad} {desconocido}');
     expect(normalizeContent({ activity: { viewersText: '' } }).activity.viewersText).toBe('');
   });
@@ -99,9 +99,9 @@ describe('sales template content', () => {
   });
   it('describes the real age of a purchase and stops announcing it after a week', () => {
     const now = 1_800_000_000_000;
-    expect(timeAgo(now - 20_000, now)).toBe('hace 1 minuto');
-    expect(timeAgo(now - 3 * 3_600_000, now)).toBe('hace 3 horas');
-    expect(timeAgo(now - 7 * 86_400_000, now)).toBe('hace 7 días');
+    expect(timeAgo(now - 20_000, now)).toBe('1 minute ago');
+    expect(timeAgo(now - 3 * 3_600_000, now)).toBe('3 hours ago');
+    expect(timeAgo(now - 7 * 86_400_000, now)).toBe('7 days ago');
     expect(timeAgo(now - 8 * 86_400_000, now)).toBeNull();
   });
   it('totals the checkout with selected extras and their reference prices', () => {

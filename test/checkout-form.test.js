@@ -6,7 +6,7 @@ import { storefrontMoney } from '../src/lib/storefront-money.js';
 
 const buyer = { name: ' Ana   Pérez ', email: ' ana@example.com ' };
 const checkout = () => ({ currency: 'ars', total: { total: { minorUnitsAmount: 1699000 } }, updateIndividualName: vi.fn().mockResolvedValue({ type: 'success' }), confirm: vi.fn().mockResolvedValue({ type: 'success' }) });
-describe('Spanish checkout confirmation', () => {
+describe('Checkout confirmation', () => {
   it('passes contact details to Stripe and confirms only after the name is accepted', async () => {
     const stripe = checkout();
     const initiate = vi.fn();
@@ -47,11 +47,11 @@ describe('Spanish checkout confirmation', () => {
     expect(stripe.updateIndividualName).not.toHaveBeenCalled();
     expect(stripe.confirm).not.toHaveBeenCalled();
   });
-  it('formats public prices in Spanish without discarding cents or zero-decimal currencies', () => {
-    expect(storefrontMoney(1699000, 'ARS')).toBe('AR$ 16.990');
-    expect(storefrontMoney(1699050, 'ARS')).toBe('AR$ 16.990,50');
-    expect(storefrontMoney(2700, 'USD')).toBe('US$ 27');
-    expect(storefrontMoney(2700, 'JPY')).toBe('JPY 2.700');
+  it('formats public prices in US English without discarding cents or zero-decimal currencies', () => {
+    expect(storefrontMoney(1699000, 'ARS')).toBe('ARS\u00a016,990.00');
+    expect(storefrontMoney(1699050, 'ARS')).toBe('ARS\u00a016,990.50');
+    expect(storefrontMoney(2700, 'USD')).toBe('$27.00');
+    expect(storefrontMoney(2700, 'JPY')).toBe('¥2,700');
   });
 });
 

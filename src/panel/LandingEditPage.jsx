@@ -234,7 +234,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {toggle('activity', 'Mostrar avisos de compra de ejemplo', 'notifications')}
           {field('activity', 'purchaseText', 'Texto del aviso de compra', { maxLength: 240, hint: 'Usá {nombre} para insertar el nombre.' })}
           {field('activity', 'purchaseLocationText', 'Texto de ubicación del aviso', { maxLength: 240, hint: 'Usá {ciudad} para insertar la ubicación.' })}
-          <p className="text-xs leading-6 text-muted-foreground">Los avisos usan nombres y ciudades ficticios y llevan la leyenda “Compra verificada”.</p>
+          <p className="text-xs leading-6 text-muted-foreground">Los avisos de ejemplo muestran nombres ficticios y ciudades de Estados Unidos y Europa.</p>
         </Section>
         <Section id="hero" attention={checks.hero} description="La franja naranja: promesa, precio y primer botón">
           {field('hero', 'eyebrow', 'Etiqueta sobre el título (opcional)', { maxLength: 120, placeholder: 'En 7 días' })}

@@ -1,4 +1,4 @@
-import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_DEFAULTS } from '../../shared/landing-copy.js';
+import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_DEFAULTS, upgradeNoticeDefaults } from '../../shared/landing-copy.js';
 import { POST_PURCHASE_CONTENT } from '../../shared/post-purchase.js';
 import { CLASSIC_ACCENT, CLASSIC_STORY, splitHeroTitle } from '../../shared/classic-design.js';
 
@@ -9,17 +9,17 @@ export const EMPTY_CONTENT = {
   labels: { ...LANDING_LABEL_DEFAULTS },
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
-  hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Quiero mi copia' },
-  promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Oferta limitada', timerMode: 'session' },
-  benefits: { enabled: true, eyebrow: 'Tu kit completo', title: '¿Qué vas a encontrar adentro?', subtitle: 'Todo lo que necesitás en un solo lugar', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
-  painPoints: { closingText: '', enabled: true, eyebrow: 'Si te pasa esto, es para vos', title: '¿Te sentís identificado?', subtitle: '', ctaText: '', items: [] },
-  socialProof: { eyebrow: 'Testimonios de lectores', enabled: true, title: 'Lo que dicen quienes lo aplicaron', subtitle: '', ctaText: '', items: [] },
-  bonuses: { enabled: true, eyebrow: 'Bono gratis', title: 'Bonos GRATIS incluidos', subtitle: 'Además del ebook, te llevás estos regalos', chips: [], ctaText: '', note: '' },
-  summary: { enabled: true, title: 'Todo lo que incluye tu compra', subtitle: '', ctaText: '', note: '' },
-  steps: { enabled: true, eyebrow: 'El método, paso a paso', title: 'Así lo aplicás', subtitle: '', items: [] },
-  faq: { enabled: true, title: 'Preguntas frecuentes', subtitle: '', items: [] },
-  guarantee: { enabled: true, title: 'Tu compra, con garantía', subtitle: '', text: '', ctaText: '' },
-  closing: { enabled: true, title: '', text: '', ctaText: 'Comprar ahora y empezar', note: '', stickyEnabled: true },
+  hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Get my copy' },
+  promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Limited-time offer', timerMode: 'session' },
+  benefits: { enabled: true, eyebrow: 'Your complete kit', title: 'What’s inside?', subtitle: 'Everything you need in one place', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
+  painPoints: { closingText: '', enabled: true, eyebrow: 'Who this is for', title: 'Does this sound familiar?', subtitle: '', ctaText: '', items: [] },
+  socialProof: { eyebrow: 'Reader testimonials', enabled: true, title: 'What readers are saying', subtitle: '', ctaText: '', items: [] },
+  bonuses: { enabled: true, eyebrow: 'Free bonus', title: 'Free bonuses included', subtitle: 'These bonuses come with your e-book', chips: [], ctaText: '', note: '' },
+  summary: { enabled: true, title: 'What your order includes', subtitle: '', ctaText: '', note: '' },
+  steps: { enabled: true, eyebrow: 'The method, step by step', title: 'How to put it into practice', subtitle: '', items: [] },
+  faq: { enabled: true, title: 'Frequently asked questions', subtitle: '', items: [] },
+  guarantee: { enabled: true, title: 'Your purchase guarantee', subtitle: '', text: '', ctaText: '' },
+  closing: { enabled: true, title: '', text: '', ctaText: 'Buy now and get started', note: '', stickyEnabled: true },
   footer: { brandName: '', termsUrl: '', privacyUrl: '' },
   style: { accentColor: CLASSIC_ACCENT },
   activity: { ...ACTIVITY_COPY, ...ACTIVITY_DEFAULTS },
@@ -27,6 +27,7 @@ export const EMPTY_CONTENT = {
 
 export function normalizeContent(content = {}) {
   const normalized = Object.fromEntries(Object.entries(EMPTY_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
+  normalized.activity = upgradeNoticeDefaults(normalized.activity);
   Object.assign(normalized.hero, splitHeroTitle(content.hero));
   for (const key of ['benefits', 'painPoints', 'steps', 'postPurchaseBenefits']) {
     normalized[key].items = normalized[key].items.map(item => typeof item === 'string' ? { title: item, description: '', icon: 'check' } : { ...item });
@@ -70,11 +71,11 @@ export function offerTotals(offer) {
 // Age of a real purchase, in words. Older than a week returns null so it is not announced.
 export function timeAgo(at, now) {
   const minutes = Math.max(1, Math.floor((now - at) / 60000));
-  if (minutes < 60) return `hace ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
   const days = Math.floor(hours / 24);
-  return days <= 7 ? `hace ${days} ${days === 1 ? 'día' : 'días'}` : null;
+  return days <= 7 ? `${days} ${days === 1 ? 'day' : 'days'} ago` : null;
 }
 
 // Checkout totals: what is charged, the reference value behind it and the difference.

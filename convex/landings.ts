@@ -120,11 +120,11 @@ export function cleanContent(content: typeof landingContent.type) {
       imageUrl: cleanUrl(content.hero.imageUrl, 'Imagen principal'),
       ctaText: cleanText(content.hero.ctaText, 'Texto del botón', 60),
     },
-    benefits: { ...section(content.benefits), ...copy(content.benefits, 'Tu kit completo'), ...storyImage('benefits'), videoUrl: kitVideo, title: cleanText(content.benefits.title, 'Título de beneficios', 120), items: features(content.benefits.items, 'Beneficios') },
-    painPoints: { closingText: cleanText(content.painPoints?.closingText ?? 'Si respondiste “sí” a alguna de estas… tenemos la solución.', 'Cierre de problemas', 240), ...section(content.painPoints), ...copy(content.painPoints, 'Si te pasa esto, es para vos'), title: cleanText(content.painPoints?.title ?? '', 'Título de problemas', 120), items: features(content.painPoints?.items ?? [], 'Problemas') },
+    benefits: { ...section(content.benefits), ...copy(content.benefits, 'Your complete kit'), ...storyImage('benefits'), videoUrl: kitVideo, title: cleanText(content.benefits.title, 'Título de beneficios', 120), items: features(content.benefits.items, 'Beneficios') },
+    painPoints: { closingText: cleanText(content.painPoints?.closingText ?? 'If this sounds familiar, here’s how we can help.', 'Cierre de problemas', 240), ...section(content.painPoints), ...copy(content.painPoints, 'Who this is for'), title: cleanText(content.painPoints?.title ?? '', 'Título de problemas', 120), items: features(content.painPoints?.items ?? [], 'Problemas') },
     socialProof: {
       ...section(content.socialProof), ...copy(content.socialProof),
-      eyebrow: cleanText(content.socialProof?.eyebrow ?? 'Testimonios de lectores', 'Antetítulo de testimonios', 120),
+      eyebrow: cleanText(content.socialProof?.eyebrow ?? 'Reader testimonials', 'Antetítulo de testimonios', 120),
       ...(rating !== undefined ? { rating } : {}), ...(customers !== undefined ? { customers } : {}), ...(satisfaction !== undefined ? { satisfaction } : {}),
       title: cleanText(content.socialProof?.title ?? '', 'Título de testimonios', 120),
       items: (content.socialProof?.items ?? []).map(item => {
@@ -141,7 +141,7 @@ export function cleanContent(content: typeof landingContent.type) {
         };
       }),
     },
-    bonuses: { ...section(content.bonuses), ...copy(content.bonuses, 'Bono gratis'), title: cleanText(content.bonuses.title, 'Título de bonos', 120), chips: chips.map(chip => cleanText(chip, 'Etiqueta de bonos', 40)).filter(Boolean) },
+    bonuses: { ...section(content.bonuses), ...copy(content.bonuses, 'Free bonus'), title: cleanText(content.bonuses.title, 'Título de bonos', 120), chips: chips.map(chip => cleanText(chip, 'Etiqueta de bonos', 40)).filter(Boolean) },
     faq: {
       ...section(content.faq), title: cleanText(content.faq.title, 'Título de preguntas', 120),
       items: content.faq.items.map(item => ({
@@ -158,14 +158,14 @@ export function cleanContent(content: typeof landingContent.type) {
       enabled: content.promotion?.enabled ?? true,
       timerMode: content.promotion?.timerMode ?? 'session',
       ...(remainingSpots !== undefined ? { remainingSpots } : {}),
-      message: cleanText(content.promotion?.message ?? 'Oferta limitada', 'Mensaje de promoción', 120),
+      message: cleanText(content.promotion?.message ?? 'Limited-time offer', 'Mensaje de promoción', 120),
       ...(endsAt !== undefined ? { endsAt } : {}),
     },
     steps: {
-      ...section(content.steps), ...copy(content.steps, 'El método, paso a paso'), title: cleanText(content.steps?.title ?? 'Así lo aplicás', 'Título de pasos', 120),
+      ...section(content.steps), ...copy(content.steps, 'The method, step by step'), title: cleanText(content.steps?.title ?? 'How to put it into practice', 'Título de pasos', 120),
       items: features(content.steps?.items ?? [], 'Pasos', 7) as Array<{ title: string; description: string; icon: string }>,
     },
-    summary: { ...section(content.summary), ...copy(content.summary), title: cleanText(content.summary?.title ?? 'Todo lo que incluye tu compra', 'Título del resumen', 120) },
+    summary: { ...section(content.summary), ...copy(content.summary), title: cleanText(content.summary?.title ?? 'What your order includes', 'Título del resumen', 120) },
     closing: {
       enabled: content.closing?.enabled ?? true,
       title: cleanText(content.closing?.title ?? '', 'Título de cierre', 160),

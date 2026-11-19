@@ -1,4 +1,4 @@
-import { checkoutRecord, forStore } from './lib/landing_records';
+import { checkoutRecord, forStore, purchaseContent } from './lib/landing_records';
 import { authorizedSession } from './quizzes';
 import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
@@ -20,7 +20,7 @@ const quizToken = v.optional(v.string());
 // Set by the browser when the previous call for this attempt failed.
 const retry = v.optional(v.boolean());
 
-type OpenOrder = { orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string };
+type OpenOrder = { paymentLocale: NonNullable<Doc<'transactions'>['paymentLocale']>; orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string };
 type Snapshot = ReturnType<typeof buildInitialOrder>;
 
 const lineItems = (items: { name: string; price: number }[]) =>
@@ -41,7 +41,8 @@ async function idempotencyKey(ctx: MutationCtx, transaction: Doc<'transactions'>
 async function reopen(ctx: MutationCtx, order: Doc<'orders'>, subdomain: string, retry?: boolean): Promise<OpenOrder> {
   const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
   if (!transaction || order.status !== 'pending') fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
-  return { orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry) };
+  // Earlier transactions sent Spanish to Stripe. Retries must replay the same parameters.
+  return { paymentLocale: transaction.paymentLocale ?? 'es', orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry) };
 }
 
 async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
@@ -82,14 +83,18 @@ async function openOrder(ctx: MutationCtx, input: {
     total: snapshot.total,
     items: snapshot.items,
   });
+  const content = await purchaseContent(ctx, input.store);
+  const checkout = content.checkout;
+  const paymentLocale = (checkout && 'paymentLocale' in checkout ? checkout.paymentLocale : undefined) ?? 'en';
   const transactionId = await ctx.db.insert('transactions', {
+    paymentLocale,
     orderId,
     status: 'pending',
     amount: snapshot.total,
     currency: input.store.currency,
     deliveries: snapshot.deliveries,
   });
-  return { orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}` };
+  return { paymentLocale, orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}` };
 }
 
 function checkAttempt(attemptId: string) {
@@ -175,6 +180,7 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
   const base = route === 'subdomain' ? `${site.protocol}//${order.subdomain}.${site.host}` : `${site.origin}/l/${order.subdomain}`;
   const session = await createEmbeddedCheckoutSession(secretKey, {
     elements,
+    locale: order.paymentLocale,
     collectContact: !order.customerEmail,
     customerEmail: elements ? order.customerEmail : undefined,
     orderId: order.orderId,
