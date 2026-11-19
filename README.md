@@ -111,7 +111,7 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 | `EMAIL_REPLY_TO` | Opcional. Dirección para las respuestas del comprador. |
 | `DISCORD_SALE_BOT_URL` | Opcional. URL de un webhook de Discord: cada venta confirmada por Stripe publica ahí solo `🔥 NUEVA VENTA 🔥 - <total>`, sin productos ni datos del comprador. Es una credencial: solo en Convex. |
 | `OPENAI_API_KEY` | Clave de la API de OpenAI para el asistente de textos de la landing. Sin ella el asistente avisa que no está habilitado; el resto del panel funciona igual. |
-| `OPENAI_MODEL` | Opcional. Modelo a usar; por defecto `gpt-6.1-sol`. Debe aceptar Structured Outputs (`response_format` con `json_schema`). |
+| `OPENAI_MODEL` | Opcional. Modelo a usar; por defecto `gpt-6.2-sol`. Debe aceptar Structured Outputs (`response_format` con `json_schema`). |
 
 `pnpm test` cubre permisos del panel, landing pública, cálculo de importes, idempotencia, webhook (incluidos `failed` y `needs_review`), emails y post-compra con Stripe y Resend simulados. No se ejecutó ningún pago contra Stripe real, no se envió ningún email real por Resend ni se probó la app desplegada.
 

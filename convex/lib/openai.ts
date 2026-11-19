@@ -1,6 +1,6 @@
 // Minimal OpenAI REST client. It relies only on fetch, available in the Convex runtime.
 const API = 'https://api.openai.com/v1';
-export const DEFAULT_MODEL = 'gpt-6.1-sol';
+export const DEFAULT_MODEL = 'gpt-6.2-sol';
 
 // Asks for a JSON document that follows `schema` (Structured Outputs, strict mode).
 // Returns null on any failure; the caller decides what to tell the person.
