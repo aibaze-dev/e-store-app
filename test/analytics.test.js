@@ -57,6 +57,36 @@ describe('live storefront analytics', () => {
   });
 });
 
+describe('rolling 12-hour activity', () => {
+  it('fills all twelve hours, paginates visits and counts only the selected store’s confirmed payments by paidAt', async () => {
+    const { t, admin, store, storeId } = await campaign();
+    const other = await admin.mutation(api.stores.create, store);
+    const hour = 3_600_000;
+    const end = Date.now() + 60_000;
+    const start = end - 12 * hour;
+    await t.run(async ctx => {
+      const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).first();
+      for (let i = 0; i < 252; i++) {
+        await ctx.db.insert('pageViews', { storeId: i === 251 ? other : storeId, day: '2026-01-01', page: 'landing', eventId: String(i) });
+      }
+      const payment = async (paidAt, owner = storeId, status = 'paid') => {
+        const orderId = await ctx.db.insert('orders', { storeId: owner, landingId: landing._id, attemptId: crypto.randomUUID(), currency: 'USD', status, total: 1900, items: [] });
+        await ctx.db.insert('transactions', { orderId, paidAt, status: 'paid', amount: 1900, currency: 'USD', deliveries: [] });
+      };
+      for (const at of [start - 1, start, start + hour, end - 1, end]) await payment(at);
+      await payment(start, other);
+      await payment(start, storeId, 'refunded');
+    });
+    vi.spyOn(Date, 'now').mockReturnValue(end);
+    await expect(t.action(api.analytics.rollingActivity, { storeId })).rejects.toThrow();
+    const result = await admin.action(api.analytics.rollingActivity, { storeId });
+    expect(result.hours.map(h => h.visits)).toEqual([...Array(11).fill(0), 251]);
+    expect(result.hours.map(h => h.purchases)).toEqual([1, 1, ...Array(9).fill(0), 1]);
+    expect(result.hours[0].start).toBe(start);
+    expect(result.hours.at(-1).end).toBe(result.asOf);
+  });
+});
+
 describe('minimal visit history', () => {
   it('records distinct events, deduplicates retries and only persists a store-scoped IP hash', async () => {
     const { t, storeId } = await campaign();

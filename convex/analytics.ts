@@ -97,3 +97,53 @@ export const report = action({
     return { ...report.finish(), timeZone: business.timeZone, asOf: before };
   },
 });
+
+// Use payment time even for orders opened before the window. The time index
+// also covers existing transactions that predate this dashboard.
+export const readActivityTimes = internalQuery({
+  args: {
+    storeId: v.id('stores'), start: v.number(), end: v.number(),
+    series: v.union(v.literal('visits'), v.literal('purchases')), paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { storeId, start, end, series, paginationOpts }) => {
+    await requireAdmin(ctx);
+    if (series === 'visits') {
+      const result = await ctx.db.query('pageViews')
+        .withIndex('by_store', q => q.eq('storeId', storeId).gte('_creationTime', start).lt('_creationTime', end))
+        .paginate(paginationOpts);
+      return { ...result, page: result.page.map(row => row._creationTime) };
+    }
+    const result = await ctx.db.query('transactions')
+      .withIndex('by_status_paid_at', q => q.eq('status', 'paid').gte('paidAt', start).lt('paidAt', end))
+      .paginate(paginationOpts);
+    const times = await Promise.all(result.page.map(async row => {
+      const order = await ctx.db.get(row.orderId);
+      return order?.storeId === storeId && order.status === 'paid' ? row.paidAt : undefined;
+    }));
+    return { ...result, page: times.filter((at): at is number => at !== undefined) };
+  },
+});
+
+export const rollingActivity = action({
+  args: { storeId: v.id('stores') },
+  handler: async (ctx, { storeId }) => {
+    await requireAdmin(ctx);
+    const end = Date.now();
+    const hour = 3_600_000;
+    const start = end - 12 * hour;
+    const hours = Array.from({ length: 12 }, (_, i) => ({
+      start: start + i * hour, end: start + (i + 1) * hour, visits: 0, purchases: 0,
+    }));
+    const read = makeFunctionReference<'query'>('analytics:readActivityTimes');
+    for (const series of ['visits', 'purchases'] as const) {
+      let cursor: string | null = null;
+      for (;;) {
+        const result = await ctx.runQuery(read, { storeId, start, end, series, paginationOpts: { cursor, numItems: 250 } });
+        for (const at of result.page) hours[Math.floor((at - start) / hour)][series]++;
+        if (result.isDone) break;
+        cursor = result.continueCursor;
+      }
+    }
+    return { asOf: end, hours };
+  },
+});

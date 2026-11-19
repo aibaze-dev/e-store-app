@@ -6,7 +6,7 @@ export const api = {
   quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival','checkoutContact','imageUploadUrl','imageUrl'].map(name=>[name,ref(`quizzes:${name}`)])),
   quizWizard: {generate:ref('quiz_wizard:generate')},
   quizImages: {generate:ref('quiz_images:generate')},
-  analytics: { liveSessions: ref('analytics:liveSessions'), recordView: ref('analytics:recordView'), report: ref('analytics:report') },
+  analytics: { rollingActivity: ref('analytics:rollingActivity'), liveSessions: ref('analytics:liveSessions'), recordView: ref('analytics:recordView'), report: ref('analytics:report') },
   auth: { getCurrentUser: ref('auth:getCurrentUser') },
   products: { getByArtifactSlug: ref('products:getByArtifactSlug'), saveArtifact: ref('products:saveArtifact'), list: ref('products:list'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update') },
   stores: { list: ref('stores:list'), get: ref('stores:get'), create: ref('stores:create'), update: ref('stores:update'), updateCheckout: ref('stores:updateCheckout') },

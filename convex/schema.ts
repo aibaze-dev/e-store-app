@@ -118,7 +118,7 @@ export default defineSchema({
     day: v.string(),
     ipHash: v.optional(v.string()),
     eventId: v.string(),
-  }).index('by_store_day', ['storeId', 'day'])
+  }).index('by_store', ['storeId']).index('by_store_day', ['storeId', 'day'])
     .index('by_store_event', ['storeId', 'eventId'])
     .index('by_store_ip', ['storeId', 'ipHash']),
 
@@ -203,6 +203,7 @@ export default defineSchema({
     email: v.optional(v.object({ status: emailStatus, attempts: v.number(), updatedAt: v.number(), error: v.optional(v.string()) })),
     deliveries: v.array(v.object({ productName: v.string(), title: v.string(), url: v.string() })),
   }).index('by_order', ['orderId'])
+    .index('by_status_paid_at', ['status', 'paidAt'])
     .index('by_session', ['stripeCheckoutSessionId'])
     .index('by_payment_intent', ['stripePaymentIntentId']),
 
