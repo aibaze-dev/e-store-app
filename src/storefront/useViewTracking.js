@@ -1,4 +1,3 @@
-import { useStorePresence } from './useStorePresence.js';
 import { useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '@/lib/api.js';
@@ -13,7 +12,6 @@ const tracker = createVisitTracker({
 
 // Mounted only on real public pages, never in the editor/preview template.
 export function useViewTracking(subdomain, page, storeId, origin = page === 'landing' ? 'classic' : 'direct') {
-  useStorePresence(subdomain, page);
   const record = useMutation(api.analytics.recordView);
   useEffect(() => {
     let active = true;

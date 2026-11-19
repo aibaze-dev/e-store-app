@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, content, product } from './helpers';
 import { hashIp, normalizeIp, requestIp } from '../convex/lib/analytics_ip';
-import { createReport, dateKey, shiftDate, validRange } from '../shared/analytics.js';
+import { createReport, dateKey, shiftDate, startOfDate, validRange } from '../shared/analytics.js';
 import business from '../src/config/businessData.json';
 import { createVisitTracker, visitStorageKey } from '../src/storefront/visitTracking.js';
 
@@ -41,10 +41,19 @@ describe('live storefront analytics', () => {
     const count = () => admin.query(api.analytics.liveSessions, { storeId, sample: Date.now() });
     await beat('landing');
     await beat('landing');
-    expect(await count()).toEqual({ total: 1, landing: 1, checkout: 0 });
+    expect(await count()).toEqual({ total: 1, landing: 1, checkout: 0, offer: 0, thanks: 0 });
     await beat('checkout');
     await beat('landing', crypto.randomUUID());
-    expect(await count()).toEqual({ total: 2, landing: 1, checkout: 1 });
+    expect(await count()).toEqual({ total: 2, landing: 1, checkout: 1, offer: 0, thanks: 0 });
+    await beat('offer');
+    expect(await count()).toEqual({ total: 2, landing: 1, checkout: 0, offer: 1, thanks: 0 });
+    await beat('thanks');
+    await beat('thanks');
+    await beat('offer', crypto.randomUUID());
+    await t.run(ctx => ctx.db.insert('checkoutPresence', { storeId, sessionId: crypto.randomUUID(), seenAt: Date.now() }));
+    expect(await count()).toEqual({ total: 4, landing: 1, checkout: 1, offer: 1, thanks: 1 });
+    await admin.mutation(api.stores.updateCheckout, { id: storeId, checkout: { notifications: false, liveVisitors: true, upsellTitle: '', upsellReferences: [] } });
+    expect(await t.query(api.storefront.checkoutVisitors, { subdomain: 'analytics' })).toBe(1);
     expect(await rows(t)).toHaveLength(0);
     expect((await admin.query(api.analytics.liveSessions, { storeId: other, sample: 0 })).total).toBe(0);
     await expect(t.query(api.analytics.liveSessions, { storeId, sample: 0 })).rejects.toThrow();
@@ -53,7 +62,7 @@ describe('live storefront analytics', () => {
         await ctx.db.patch(row._id, { seenAt: Date.now() - 46_000 });
       }
     });
-    expect(await count()).toEqual({ total: 0, landing: 0, checkout: 0 });
+    expect(await count()).toEqual({ total: 0, landing: 0, checkout: 0, offer: 0, thanks: 0 });
   });
 });
 
@@ -67,13 +76,14 @@ describe('rolling 12-hour activity', () => {
     await t.run(async ctx => {
       const landing = await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).first();
       for (let i = 0; i < 252; i++) {
-        await ctx.db.insert('pageViews', { storeId: i === 251 ? other : storeId, day: '2026-01-01', page: 'landing', eventId: String(i) });
+        await ctx.db.insert('pageViews', { storeId: i === 251 ? other : storeId, day: '2026-01-01', page: i < 42 ? 'checkout' : 'landing', eventId: String(i) });
       }
-      const payment = async (paidAt, owner = storeId, status = 'paid') => {
+      const payment = async (paidAt, owner = storeId, status = 'paid', currency = 'USD') => {
         const orderId = await ctx.db.insert('orders', { storeId: owner, landingId: landing._id, attemptId: crypto.randomUUID(), currency: 'USD', status, total: 1900, items: [] });
-        await ctx.db.insert('transactions', { orderId, paidAt, status: 'paid', amount: 1900, currency: 'USD', deliveries: [] });
+        await ctx.db.insert('transactions', { orderId, paidAt, status: 'paid', amount: 1900, currency, deliveries: [] });
       };
       for (const at of [start - 1, start, start + hour, end - 1, end]) await payment(at);
+      await payment(start + hour, storeId, 'paid', 'ARS');
       await payment(start, other);
       await payment(start, storeId, 'refunded');
     });
@@ -81,7 +91,15 @@ describe('rolling 12-hour activity', () => {
     await expect(t.action(api.analytics.rollingActivity, { storeId })).rejects.toThrow();
     const result = await admin.action(api.analytics.rollingActivity, { storeId });
     expect(result.hours.map(h => h.visits)).toEqual([...Array(11).fill(0), 251]);
-    expect(result.hours.map(h => h.purchases)).toEqual([1, 1, ...Array(9).fill(0), 1]);
+    expect(result.hours.map(h => h.purchases)).toEqual([1, 2, ...Array(9).fill(0), 1]);
+    expect(result.total).toMatchObject({ landingViews: 209, checkoutViews: 42, purchases: 4, checkoutPurchases: 4, revenue: { USD: 5700, ARS: 1900 } });
+    expect(result.hours[1].revenue).toEqual({ USD: 1900, ARS: 1900 });
+    const day = dateKey(end - 60_000, business.timeZone);
+    const today = await admin.action(api.analytics.rollingActivity, { storeId, day });
+    expect(today.day).toBe(day);
+    expect(today.hours[0].start).toBe(startOfDate(day, business.timeZone));
+    expect(today.hours.at(-1).end).toBe(Math.min(end, startOfDate(shiftDate(day, 1), business.timeZone)));
+    expect(today.total.views).toBe(251);
     expect(result.hours[0].start).toBe(start);
     expect(result.hours.at(-1).end).toBe(result.asOf);
   });
@@ -213,7 +231,7 @@ describe('paid purchases in visit reports', () => {
     });
     await new Promise(resolve => setTimeout(resolve, 5));
     const report = await admin.action(api.analytics.report, { storeId, from: '2026-01-01', to: '2026-01-03' });
-    expect(report.total).toMatchObject({ views: 0, purchases: 106 });
+    expect(report.total).toMatchObject({ views: 0, purchases: 106, checkoutPurchases: 105, revenue: { USD: 106 * 1900 } });
     expect(report.days.map(day => day.purchases)).toEqual([0, 106, 0]);
     expect((await import('../convex/analytics')).readPurchases.isInternal).toBe(true);
   });
@@ -246,13 +264,14 @@ describe('IP identity and daily timeline', () => {
       { _id: 'd', _creationTime: 4, day: '2026-11-03', page: 'checkout', ipHash: 'other' },
       { _id: 'e', _creationTime: 5, day: '2026-11-03', page: 'checkout' },
     ]);
-    expect(report.finish().total).toEqual({ views: 5, landingViews: 2, checkoutViews: 3, unknownIpViews: 1, purchases: 0, uniques: 2, landingUniques: 1, checkoutUniques: 2 });
+    expect(report.finish().total).toEqual({ views: 5, landingViews: 2, checkoutViews: 3, unknownIpViews: 1, purchases: 0, checkoutPurchases: 0, revenue: {}, uniques: 2, landingUniques: 1, checkoutUniques: 2 });
     expect(report.finish().days.map(day => day.uniques)).toEqual([1, 0, 2]);
   });
 
   it('respects business midnight, DST and calendar date bounds', () => {
     expect(dateKey(Date.parse('2026-11-01T08:59:59Z'), 'America/Adak')).toBe('2026-10-31');
     expect(dateKey(Date.parse('2026-11-01T09:00:00Z'), 'America/Adak')).toBe('2026-11-01');
+    expect(startOfDate('2026-11-02', business.timeZone) - startOfDate('2026-11-01', business.timeZone)).toBe(25 * 3_600_000);
     expect(shiftDate('2026-11-01', 1)).toBe('2026-11-02');
     expect(validRange('2024-02-29', '2024-03-01')).toBe(true);
     expect(validRange('2026-02-29', '2026-03-01')).toBe(false);

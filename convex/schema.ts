@@ -4,6 +4,8 @@ import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+export const presencePage = v.union(v.literal('landing'), v.literal('checkout'), v.literal('offer'), v.literal('thanks'));
+
 export const deliverable = v.object({ title: v.string(), url: v.string(), kind: v.optional(v.union(v.literal('file'), v.literal('link'))) });
 
 // Every section may carry its own label, button text and note under the button.
@@ -208,7 +210,7 @@ export default defineSchema({
     .index('by_payment_intent', ['stripePaymentIntentId']),
 
   // One row per storefront session. Rows from older clients represent checkout visits.
-  checkoutPresence: defineTable({ storeId: v.id('stores'), sessionId: v.string(), seenAt: v.number(), page: v.optional(v.union(v.literal('landing'), v.literal('checkout'))) })
+  checkoutPresence: defineTable({ storeId: v.id('stores'), sessionId: v.string(), seenAt: v.number(), page: v.optional(presencePage) })
     .index('by_store_session', ['storeId', 'sessionId'])
     .index('by_store_seen', ['storeId', 'seenAt']),
 

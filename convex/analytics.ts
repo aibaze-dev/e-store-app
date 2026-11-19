@@ -4,7 +4,7 @@ import { makeFunctionReference, paginationOptsValidator } from 'convex/server';
 import { action, internalQuery, mutation, query } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { hashIp, requestIp } from './lib/analytics_ip';
-import { createReport, dateKey, validRange, PRESENCE_WINDOW_MS } from '../shared/analytics';
+import { createIntervalReport, createReport, dateKey, shiftDate, startOfDate, validRange, PRESENCE_WINDOW_MS } from '../shared/analytics';
 import business from '../src/config/businessData.json';
 
 export const recordView = mutation({
@@ -38,8 +38,9 @@ export const liveSessions = query({
     const cutoff = Date.now() - PRESENCE_WINDOW_MS;
     const active = await ctx.db.query('checkoutPresence')
       .withIndex('by_store_seen', q => q.eq('storeId', storeId).gt('seenAt', cutoff)).collect();
-    const landing = active.filter(row => row.page === 'landing').length;
-    return { total: active.length, landing, checkout: active.length - landing };
+    const counts = { total: active.length, landing: 0, checkout: 0, offer: 0, thanks: 0 };
+    for (const row of active) counts[row.page ?? 'checkout']++;
+    return counts;
   },
 });
 
@@ -55,7 +56,7 @@ export const readPage = internalQuery({
 });
 
 // Scan each store's orders in bounded pages: a payment may settle long after
-// the order was created. Only payment dates leave this private query.
+// the order was created.
 export const readPurchases = internalQuery({
   args: { storeId: v.id('stores'), from: v.string(), to: v.string(), before: v.number(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, { storeId, from, to, before, paginationOpts }) => {
@@ -67,9 +68,9 @@ export const readPurchases = internalQuery({
       const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
       if (transaction?.status !== 'paid' || transaction.paidAt === undefined || transaction.paidAt >= before) return null;
       const day = dateKey(transaction.paidAt, business.timeZone);
-      return day >= from && day <= to ? { day } : null;
+      return day >= from && day <= to ? { day, amount: transaction.amount, currency: transaction.currency, postPurchase: Boolean(order.parentOrderId) } : null;
     }));
-    return { ...result, page: dates.filter((row): row is { day: string } => row !== null) };
+    return { ...result, page: dates.filter(row => row !== null) };
   },
 });
 
@@ -111,39 +112,49 @@ export const readActivityTimes = internalQuery({
       const result = await ctx.db.query('pageViews')
         .withIndex('by_store', q => q.eq('storeId', storeId).gte('_creationTime', start).lt('_creationTime', end))
         .paginate(paginationOpts);
-      return { ...result, page: result.page.map(row => row._creationTime) };
+      return { ...result, page: result.page };
     }
     const result = await ctx.db.query('transactions')
       .withIndex('by_status_paid_at', q => q.eq('status', 'paid').gte('paidAt', start).lt('paidAt', end))
       .paginate(paginationOpts);
     const times = await Promise.all(result.page.map(async row => {
       const order = await ctx.db.get(row.orderId);
-      return order?.storeId === storeId && order.status === 'paid' ? row.paidAt : undefined;
+      return order?.storeId === storeId && order.status === 'paid'
+        ? { at: row.paidAt, amount: row.amount, currency: row.currency, postPurchase: Boolean(order.parentOrderId) } : null;
     }));
-    return { ...result, page: times.filter((at): at is number => at !== undefined) };
+    return { ...result, page: times.filter(row => row !== null) };
   },
 });
 
 export const rollingActivity = action({
-  args: { storeId: v.id('stores') },
-  handler: async (ctx, { storeId }) => {
+  args: { storeId: v.id('stores'), day: v.optional(v.string()) },
+  handler: async (ctx, { storeId, day }) => {
     await requireAdmin(ctx);
-    const end = Date.now();
+    if (day !== undefined && !validRange(day, day)) throw new ConvexError('Elegí una fecha válida.');
+    const asOf = Date.now();
     const hour = 3_600_000;
-    const start = end - 12 * hour;
-    const hours = Array.from({ length: 12 }, (_, i) => ({
-      start: start + i * hour, end: start + (i + 1) * hour, visits: 0, purchases: 0,
-    }));
+    const start = day ? startOfDate(day, business.timeZone) : asOf - 12 * hour;
+    const end = day ? Math.min(asOf, startOfDate(shiftDate(day, 1), business.timeZone)) : asOf;
+    const starts = Array.from({ length: Math.max(0, Math.ceil((end - start) / hour)) }, (_, i) => start + i * hour);
+    const hourStart = (at: number) => start + Math.floor((at - start) / hour) * hour;
+    const report = createIntervalReport(starts,
+      (view: { _creationTime: number }) => hourStart(view._creationTime),
+      (payment: { at: number }) => hourStart(payment.at),
+    );
     const read = makeFunctionReference<'query'>('analytics:readActivityTimes');
     for (const series of ['visits', 'purchases'] as const) {
+      if (!starts.length) break;
       let cursor: string | null = null;
       for (;;) {
         const result = await ctx.runQuery(read, { storeId, start, end, series, paginationOpts: { cursor, numItems: 250 } });
-        for (const at of result.page) hours[Math.floor((at - start) / hour)][series]++;
+        if (series === 'visits') report.add(result.page);
+        else report.addPurchases(result.page);
         if (result.isDone) break;
         cursor = result.continueCursor;
       }
     }
-    return { asOf: end, hours };
+    const { total, buckets } = report.finish();
+    const hours = buckets.map(({ key, ...counts }) => ({ ...counts, start: key, end: Math.min(end, key + hour), visits: counts.views }));
+    return { asOf, hours, total, day: day ?? null };
   },
 });

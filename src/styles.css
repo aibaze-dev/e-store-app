@@ -603,19 +603,21 @@
   .catalog-viewer-list { width: 100%; max-height: 156px; border-right: 0; border-bottom: 1px solid var(--border); }
 }
 
-/* Live storefront presence. The ring and both tracks show the same session split. */
+/* Live storefront presence. The ring includes all four locations. */
 .presence-board {
-  --presence-base: #102c2c;
-  --presence-line: #426261;
-  --presence-muted: #bad0cc;
-  --presence-landing: #78e3c0;
-  --presence-checkout: #ffc79d;
+  --presence-base: #181c36;
+  --presence-line: #475479;
+  --presence-muted: #c4cbe0;
+  --presence-landing: #ff93ca;
+  --presence-checkout: #7cb8ff;
+  --presence-offer: #f4c8e1;
+  --presence-thanks: #b8dcff;
   padding: 20px 24px 0;
   overflow: hidden;
   border: 1px solid var(--presence-line);
   border-radius: 18px;
-  color: #f4faf7;
-  background: radial-gradient(ellipse at top right, #234846, transparent 65%), var(--presence-base);
+  color: #f8f8ff;
+  background: radial-gradient(ellipse at top right, #29385e, transparent 65%), var(--presence-base);
 }
 .presence-badge {
   padding: 5px 12px;
@@ -627,11 +629,10 @@
 .presence-badge[data-live='true'] { color: var(--presence-landing); }
 .presence-badge > span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .presence-badge[data-live='true'] > span { animation: presence-pulse 2.5s ease-out infinite; }
-@keyframes presence-pulse { 0%, 30% { box-shadow: 0 0 0 0 #78e3c050; } 75%, 100% { box-shadow: 0 0 0 5px transparent; } }
+@keyframes presence-pulse { 0%, 30% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 32%, transparent); } 75%, 100% { box-shadow: 0 0 0 5px transparent; } }
 .presence-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; align-items: center; margin: 20px 0 22px; }
 .presence-total { display: flex; align-items: center; gap: 16px; padding-right: 16px; }
 .presence-ring { position: relative; display: grid; flex: none; width: 58px; height: 58px; place-items: center; border-radius: 50%; color: var(--presence-muted); background: var(--presence-line); }
-.presence-ring[data-active='true'] { background: conic-gradient(var(--presence-landing) 0 var(--landing-share), var(--presence-checkout) var(--landing-share) 100%); }
 .presence-ring::before { content: ''; position: absolute; inset: 5px; border-radius: inherit; background: var(--presence-base); }
 .presence-ring svg { position: relative; }
 .presence-number, .presence-stage-number { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.045em; line-height: 1.05; }
@@ -647,6 +648,10 @@
 .presence-stage svg { color: var(--stage-color); }
 .presence-track { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 4px; background: var(--presence-line); }
 .presence-track span { display: block; height: 100%; background: var(--stage-color); transition: width .35s ease-out; }
+.presence-secondary { display: flex; flex-wrap: wrap; gap: 8px 16px; padding-bottom: 14px; }
+.presence-secondary > div { display: flex; align-items: center; gap: 12px; padding: 4px 10px; border: 1px solid var(--presence-line); border-radius: 8px; font-size: 12px; }
+.presence-secondary dt { display: flex; align-items: center; gap: 6px; color: var(--presence-muted); }
+.presence-secondary dd { font-variant-numeric: tabular-nums; font-weight: 600; }
 .presence-foot { display: flex; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid var(--presence-line); color: var(--presence-muted); font-size: 12px; }
 .presence-foot svg { flex: none; }
 @media (max-width: 950px) {

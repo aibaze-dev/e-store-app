@@ -1,6 +1,7 @@
 import { forStore, publicStore, checkoutRecord, purchaseContent } from './lib/landing_records';
 import { PRESENCE_WINDOW_MS } from '../shared/analytics.js';
 import { v } from 'convex/values';
+import { presencePage } from './schema';
 import { mutation, query, type QueryCtx } from './lib/functions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
 
@@ -27,7 +28,7 @@ async function liveStore(ctx: QueryCtx, subdomain: string) {
 
 // Public storefronts send their current page. Older clients used a checkout-only toggle.
 export const heartbeat = mutation({
-  args: { subdomain: v.string(), sessionId: v.string(), page: v.optional(v.union(v.literal('landing'), v.literal('checkout'))) },
+  args: { subdomain: v.string(), sessionId: v.string(), page: v.optional(presencePage) },
   handler: async (ctx, { subdomain, sessionId, page }) => {
     if (!/^[A-Za-z0-9-]{16,64}$/.test(sessionId)) return null;
     const store = (await checkoutRecord(ctx, subdomain))?.store;
@@ -58,7 +59,7 @@ export const checkoutVisitors = query({
     const store = await liveStore(ctx, subdomain);
     if (!store) return 0;
     const cutoff = Date.now() - PRESENCE_WINDOW_MS;
-    return (await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', cutoff)).filter(q => q.neq(q.field('page'), 'landing')).take(PRESENCE_LIMIT)).length;
+    return (await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', cutoff)).filter(q => q.or(q.eq(q.field('page'), 'checkout'), q.eq(q.field('page'), undefined))).take(PRESENCE_LIMIT)).length;
   },
 });
 

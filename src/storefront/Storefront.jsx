@@ -25,6 +25,7 @@ import ExitIntentModal, { ExitIntentPreview } from './ExitIntentModal.jsx';
 import CheckoutPayment, { CheckoutPaymentPreview, SessionPayment, stripeKey } from './CheckoutPayment.jsx';
 import DownsellModal from './DownsellModal.jsx';
 import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } from './CheckoutSignals.jsx';
+import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useQuizContact } from './useQuizContact.js';
 
@@ -46,6 +47,7 @@ function useAttempt() {
 const attemptArgs = attempt => ({ attemptId: attempt.id, ...(attempt.failed ? { retry: true } : {}) });
 
 function Landing({ view }) {
+  useStorePresence(view.subdomain, 'landing');
   useViewTracking(view.subdomain, 'landing', view.store.id);
   const navigate = useNavigate();
   useEffect(() => {
@@ -70,6 +72,7 @@ function Thumb({ src, name, className = 'size-16' }) {
 export function Checkout({ view, via }) {
   const location = useLocation();
   const origin=location.state?.origin || 'direct';
+  useStorePresence(view.subdomain, 'checkout');
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
 
   // The quiz already asked for name and email: the navigation brings them, the server keeps them on reload.
@@ -203,6 +206,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
 // The downsell: the main product with its bonuses and without extras, at the store's
 // discount. The amounts shown come from the server, which charges the same ones.
 function DownsellOffer({ view, via }) {
+  useStorePresence(view.subdomain, 'offer');
   const origin=useLocation().state?.origin || 'direct';
   useViewTracking(view.subdomain, 'checkout', view.store.id, origin);
   const quizContact = useQuizContact(view.subdomain);
@@ -291,6 +295,7 @@ export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy 
 }
 
 function ThankYou({ via, subdomain }) {
+  useStorePresence(subdomain, 'thanks');
   const [params] = useSearchParams();
   const sessionId = params.get('session_id') || '';
   const delivery = useQuery(api.storefront.getDelivery, sessionId ? { sessionId } : 'skip');
