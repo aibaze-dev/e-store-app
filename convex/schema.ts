@@ -206,8 +206,8 @@ export default defineSchema({
     .index('by_session', ['stripeCheckoutSessionId'])
     .index('by_payment_intent', ['stripePaymentIntentId']),
 
-  // One row per open checkout tab, refreshed while the tab is visible. Holds no personal data.
-  checkoutPresence: defineTable({ storeId: v.id('stores'), sessionId: v.string(), seenAt: v.number() })
+  // One row per storefront session. Rows from older clients represent checkout visits.
+  checkoutPresence: defineTable({ storeId: v.id('stores'), sessionId: v.string(), seenAt: v.number(), page: v.optional(v.union(v.literal('landing'), v.literal('checkout'))) })
     .index('by_store_session', ['storeId', 'sessionId'])
     .index('by_store_seen', ['storeId', 'seenAt']),
 

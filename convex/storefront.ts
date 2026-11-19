@@ -1,4 +1,5 @@
 import { forStore, publicStore, checkoutRecord, purchaseContent } from './lib/landing_records';
+import { PRESENCE_WINDOW_MS } from '../shared/analytics.js';
 import { v } from 'convex/values';
 import { mutation, query, type QueryCtx } from './lib/functions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
@@ -16,8 +17,6 @@ export const getLanding = query({
   },
 });
 
-// A visitor counts as present while their checkout tab reported in during this window.
-const PRESENCE_WINDOW_MS = 45_000;
 const PRESENCE_KEEP_MS = 600_000;
 const PRESENCE_LIMIT = 200;
 
@@ -26,23 +25,28 @@ async function liveStore(ctx: QueryCtx, subdomain: string) {
   return store && store.status === 'active' && store.checkout?.liveVisitors ? store : null;
 }
 
-// Called by each open checkout tab every few seconds. The count below is these reports
-// and nothing else: there is no base number, multiplier or minimum.
+// Public storefronts send their current page. Older clients used a checkout-only toggle.
 export const heartbeat = mutation({
-  args: { subdomain: v.string(), sessionId: v.string() },
-  handler: async (ctx, { subdomain, sessionId }) => {
+  args: { subdomain: v.string(), sessionId: v.string(), page: v.optional(v.union(v.literal('landing'), v.literal('checkout'))) },
+  handler: async (ctx, { subdomain, sessionId, page }) => {
     if (!/^[A-Za-z0-9-]{16,64}$/.test(sessionId)) return null;
-    const store = await liveStore(ctx, subdomain);
+    const store = (await checkoutRecord(ctx, subdomain))?.store;
+    if (!page && !store?.checkout?.liveVisitors) return null;
     if (!store) return null;
     const now = Date.now();
     const stale = await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).lt('seenAt', now - PRESENCE_KEEP_MS)).take(20);
     for (const row of stale) await ctx.db.delete(row._id);
     const row = await ctx.db.query('checkoutPresence').withIndex('by_store_session', q => q.eq('storeId', store._id).eq('sessionId', sessionId)).first();
-    if (row) await ctx.db.patch(row._id, { seenAt: now });
-    else {
-      const present = await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', now - PRESENCE_WINDOW_MS)).take(PRESENCE_LIMIT);
-      if (present.length < PRESENCE_LIMIT) await ctx.db.insert('checkoutPresence', { storeId: store._id, sessionId, seenAt: now });
+    const update = { seenAt: now, page: page ?? 'checkout' };
+    if (row) {
+      await ctx.db.patch(row._id, update);
+      return null;
     }
+    if (!page) {
+      const present = await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', now - PRESENCE_WINDOW_MS)).take(PRESENCE_LIMIT);
+      if (present.length >= PRESENCE_LIMIT) return null;
+    }
+    await ctx.db.insert('checkoutPresence', { storeId: store._id, sessionId, ...update });
     return null;
   },
 });
@@ -54,7 +58,7 @@ export const checkoutVisitors = query({
     const store = await liveStore(ctx, subdomain);
     if (!store) return 0;
     const cutoff = Date.now() - PRESENCE_WINDOW_MS;
-    return (await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', cutoff)).take(PRESENCE_LIMIT)).length;
+    return (await ctx.db.query('checkoutPresence').withIndex('by_store_seen', q => q.eq('storeId', store._id).gt('seenAt', cutoff)).filter(q => q.neq(q.field('page'), 'landing')).take(PRESENCE_LIMIT)).length;
   },
 });
 

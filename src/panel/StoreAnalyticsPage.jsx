@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useAction, useConvexAuth } from 'convex/react';
+import { useAction, useConvex, useConvexAuth, useConvexConnectionState } from 'convex/react';
 import { BarChart3, RefreshCw } from 'lucide-react';
 import AnalyticsCharts from './AnalyticsCharts.jsx';
 import { api } from '@/lib/api.js';
 import { errorText, formatDate } from '@/lib/format.js';
 import business from '@/config/businessData.json';
-import { dateKey, shiftDate, validRange } from '../../shared/analytics.js';
+import { dateKey, shiftDate, validRange, PRESENCE_REFRESH_MS, PRESENCE_WINDOW_MS } from '../../shared/analytics.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -17,6 +17,45 @@ const number = value => new Intl.NumberFormat(business.locale).format(value);
 function presetRange(days) {
   const to = dateKey(Date.now(), business.timeZone);
   return { from: shiftDate(to, 1 - days), to };
+}
+
+function LiveSessions({ storeId }) {
+  const client = useConvex();
+  const { isWebSocketConnected } = useConvexConnectionState();
+  const [counts, setCounts] = useState(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    if (!isWebSocketConnected) return;
+    let mounted = true;
+    let pending = false;
+    const refresh = async () => {
+      if (document.hidden || pending) return;
+      pending = true;
+      try {
+        const result = await client.query(api.analytics.liveSessions, { storeId, sample: Date.now() });
+        if (mounted) { setCounts(result); setError(false); }
+      } catch {
+        if (mounted) { setCounts(null); setError(true); }
+      } finally { pending = false; }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, PRESENCE_REFRESH_MS);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [client, storeId, isWebSocketConnected]);
+  return <section className="dashboard-card space-y-3 p-5" aria-labelledby="live-sessions-title">
+    <h2 id="live-sessions-title" className="font-semibold">Sesiones activas ahora</h2>
+    <p className="text-sm text-muted-foreground">Sesiones que enviaron actividad desde una pestaña visible en los últimos {PRESENCE_WINDOW_MS / 1000} segundos.</p>
+    {!isWebSocketConnected ? <p role="status" className="text-sm text-muted-foreground">Esperando conexión…</p> : error ? <ErrorAlert>No se pudo actualizar el conteo en vivo.</ErrorAlert> : counts ? <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {[['En la tienda', counts.total], ['En la landing o el quiz', counts.landing], ['En el checkout', counts.checkout]].map(([label, value]) => <div key={label}>
+        <dt className="text-sm text-muted-foreground">{label}</dt><dd className="text-2xl font-semibold tabular-nums">{number(value)}</dd>
+      </div>)}
+    </dl> : <p role="status" className="text-sm text-muted-foreground">Cargando actividad…</p>}
+  </section>;
 }
 
 export function AnalyticsResults({ data }) {
@@ -86,6 +125,7 @@ export default function StoreAnalyticsPage() {
   if (!store) return <EmptyState title="Seleccioná una tienda para ver sus analíticas" />;
   return <div className="space-y-6">
     <div className="space-y-2"><p className="flex items-center gap-2 text-xs font-semibold tracking-wider text-primary uppercase"><BarChart3 className="size-4" aria-hidden="true" />{store.name}</p><h1 className="text-3xl font-semibold tracking-tight">Analíticas</h1><p className="text-sm leading-7 text-muted-foreground">Cuánta gente vino, hasta dónde llegó y cuántas compras se pagaron. Fechas en {business.timeZone}.</p></div>
+    {isAuthenticated && <LiveSessions key={store._id} storeId={store._id} />}
     <form className="dashboard-card space-y-4 p-5" onSubmit={event => { event.preventDefault(); if (valid) { setRange(draft); setRefresh(value => value + 1); } }}>
       <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Field label="Período">{props => <NativeSelect {...props} value={preset} onChange={event => {

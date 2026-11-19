@@ -32,6 +32,31 @@ async function campaign() {
 const rows = t => t.run(ctx => ctx.db.query('pageViews').collect());
 const record = (t, page = 'landing', eventId = crypto.randomUUID()) => t.mutation(api.analytics.recordView, { subdomain: 'analytics', page, eventId });
 
+describe('live storefront analytics', () => {
+  it('counts active sessions by their latest page, separately from visit history and public counters', async () => {
+    const { t, admin, store, storeId } = await campaign();
+    const other = await admin.mutation(api.stores.create, { ...store, name: 'Other' });
+    const sessionId = crypto.randomUUID();
+    const beat = (page, id = sessionId) => t.mutation(api.storefront.heartbeat, { subdomain: 'analytics', sessionId: id, page });
+    const count = () => admin.query(api.analytics.liveSessions, { storeId, sample: Date.now() });
+    await beat('landing');
+    await beat('landing');
+    expect(await count()).toEqual({ total: 1, landing: 1, checkout: 0 });
+    await beat('checkout');
+    await beat('landing', crypto.randomUUID());
+    expect(await count()).toEqual({ total: 2, landing: 1, checkout: 1 });
+    expect(await rows(t)).toHaveLength(0);
+    expect((await admin.query(api.analytics.liveSessions, { storeId: other, sample: 0 })).total).toBe(0);
+    await expect(t.query(api.analytics.liveSessions, { storeId, sample: 0 })).rejects.toThrow();
+    await t.run(async ctx => {
+      for (const row of await ctx.db.query('checkoutPresence').collect()) {
+        await ctx.db.patch(row._id, { seenAt: Date.now() - 46_000 });
+      }
+    });
+    expect(await count()).toEqual({ total: 0, landing: 0, checkout: 0 });
+  });
+});
+
 describe('minimal visit history', () => {
   it('records distinct events, deduplicates retries and only persists a store-scoped IP hash', async () => {
     const { t, storeId } = await campaign();

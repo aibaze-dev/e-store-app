@@ -1,10 +1,10 @@
 import { checkoutRecord, forStore } from './lib/landing_records';
 import { ConvexError, v } from 'convex/values';
 import { makeFunctionReference, paginationOptsValidator } from 'convex/server';
-import { action, internalQuery, mutation } from './lib/functions';
+import { action, internalQuery, mutation, query } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { hashIp, requestIp } from './lib/analytics_ip';
-import { createReport, dateKey, validRange } from '../shared/analytics';
+import { createReport, dateKey, validRange, PRESENCE_WINDOW_MS } from '../shared/analytics';
 import business from '../src/config/businessData.json';
 
 export const recordView = mutation({
@@ -27,6 +27,19 @@ export const recordView = mutation({
     const day = dateKey(now, business.timeZone);
     await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId, origin:origin ?? (page==='landing'?'classic':'direct') });
     return { status: 'recorded' as const, day };
+  },
+});
+
+// A new sample key also refreshes the query after all visitors stop sending heartbeats.
+export const liveSessions = query({
+  args: { storeId: v.id('stores'), sample: v.number() },
+  handler: async (ctx, { storeId }) => {
+    await requireAdmin(ctx);
+    const cutoff = Date.now() - PRESENCE_WINDOW_MS;
+    const active = await ctx.db.query('checkoutPresence')
+      .withIndex('by_store_seen', q => q.eq('storeId', storeId).gt('seenAt', cutoff)).collect();
+    const landing = active.filter(row => row.page === 'landing').length;
+    return { total: active.length, landing, checkout: active.length - landing };
   },
 });
 

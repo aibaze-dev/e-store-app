@@ -1,3 +1,4 @@
+import { useStorePresence } from './useStorePresence.js';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -83,6 +84,7 @@ export function QuizPreview({ quiz, view, startAt }) {
 
 export default function Quiz({ subdomain, view }) {
   const config = useQuery(api.quizzes.publicConfig, { subdomain });
+  useStorePresence(config ? subdomain : null, 'landing');
   const start = useMutation(api.quizzes.start), save = useMutation(api.quizzes.saveAnswer), arrival = useMutation(api.quizzes.checkoutArrival), recordView = useMutation(api.analytics.recordView);
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [retry, setRetry] = useState(0);
   const pending = useRef(null);
