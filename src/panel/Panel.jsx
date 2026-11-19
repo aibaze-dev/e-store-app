@@ -17,6 +17,7 @@ import { InternalTheme, ThemeToggle } from '@/components/InternalTheme.jsx';
 import { EmptyState, ErrorAlert, PageSkeleton } from '@/components/Field.jsx';
 import { StoreWorkspaceContext } from './StoreWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
+import ArtifactsPage from './ArtifactsPage.jsx';
 import ProductFormPage from './ProductFormPage.jsx';
 import StoresPage from './StoresPage.jsx';
 import StoreFormPage from './StoreFormPage.jsx';
@@ -102,7 +103,7 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
   const location = useLocation();
   const basePath = selected ? storePath(selected._id) : '/panel';
   const section = SECTIONS.find(item => location.pathname === `${basePath}${item.path ? `/${item.path}` : ''}`);
-  const title = location.pathname === '/panel/tiendas' ? 'Todas las tiendas' : location.pathname === '/panel/tiendas/nueva' ? 'Nueva tienda' : location.pathname.includes('/catalogo') || location.pathname.startsWith('/panel/productos') ? 'Catálogo compartido' : section?.label || 'Tu tienda';
+  const title = location.pathname === '/panel/artefactos' ? 'Artefactos' : location.pathname === '/panel/tiendas' ? 'Todas las tiendas' : location.pathname === '/panel/tiendas/nueva' ? 'Nueva tienda' : location.pathname.includes('/catalogo') || location.pathname.startsWith('/panel/productos') ? 'Catálogo compartido' : section?.label || 'Tu tienda';
   const closeMenu = () => {
     setMobileOpen(false);
     if (mobileOpen) mobileToggleRef.current?.focus();
@@ -125,6 +126,7 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
             <h2 id="nav-shared" className="workspace-nav-label">Recursos compartidos</h2>
             <NavLink to={selected ? `${basePath}/catalogo` : '/panel/productos'} onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><Library className="size-[18px]" aria-hidden="true" />Catálogo de ebooks</NavLink>
             <NavLink end to="/panel/tiendas" onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><LayoutGrid className="size-[18px]" aria-hidden="true" />Todas las tiendas</NavLink>
+            <NavLink to="/panel/artefactos" onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><Sparkles className="size-[18px]" aria-hidden="true" />Artefactos</NavLink>
           </section>
         </nav>
         <div className="workspace-sidebar-footer"><span className="workspace-avatar">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{user.name || 'Mi espacio'}</span><span className="block truncate text-xs text-muted-foreground">{user.email}</span></span></div>
@@ -179,6 +181,7 @@ function Workspace({ user }) {
         <Route path="tiendas/:storeId/catalogo/nuevo" element={<ProductFormPage />} />
         <Route path="tiendas/:storeId/catalogo/:productId" element={<ProductFormPage />} />
         <Route path="productos" element={<ProductsPage />} />
+        <Route path="artefactos" element={<ArtifactsPage />} />
         <Route path="productos/nuevo" element={<ProductFormPage />} />
         <Route path="productos/:productId" element={<ProductFormPage />} />
         <Route path="cobros" element={selected ? <Navigate to={`${basePath}/cobros`} replace /> : <EmptyState title="Primero creá una tienda" />} />

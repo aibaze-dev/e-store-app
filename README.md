@@ -1,4 +1,4 @@
-# Base de proyectos Aibaze · React + Convex
+# Base de proyectos Ateneo · React + Convex
 
 Guía para agentes de IA: [AGENTS.md](AGENTS.md), con el mapa de configuración, reglas que conservar, variables de entorno y verificaciones.
 
@@ -7,6 +7,10 @@ Una base sin módulos de negocio, con frontend Vite, Better Auth y hosting está
 El formulario Empresa y marca del generador permite adjuntar un logo PNG, JPG o WebP de hasta 5 MB. Se optimiza conservando proporciones y transparencia y se incluye como `public/company-logo.svg` (imagen PNG embebida, sin servicios externos). `src/config/brandData.json` usa `logoUrl: "/company-logo.svg"`. Para cambiarlo después, reemplazar el recurso o editar esa ruta. Nunca poner credenciales en este JSON.
 
 ## Desarrollo
+
+### Artefactos públicos
+
+El catálogo global `/panel/artefactos` permite abrir herramientas y copiar sus enlaces públicos `/a/:slug`. Se mantienen manualmente en código, con metadatos separados de los componentes lazy y estilos limitados a cada herramienta. El primer recurso es **Prompt Builder**, en `/a/prompt-builder`: un wizard en inglés que construye prompts con plantillas y reglas locales, sin IA. El segundo recurso es **Meeting Prep**, en `/a/meeting-prep`: preparación de reuniones con tarjeta editable, impresión y ensayo de 60 segundos, sin IA ni persistencia. No hay creador de artefactos ni edición del catálogo desde la UI. Ver [cómo agregar un artefacto](src/artifacts/README.md).
 
 La interfaz incluye un login responsive con shadcn/ui, Tailwind CSS 4 y Montserrat local. Los componentes reutilizables están en `src/components/ui`; `components.json` permite agregar más con el CLI de shadcn. Las reglas de marca, espaciado, formularios, estados y accesibilidad están en [STYLE_GUIDE.md](STYLE_GUIDE.md).
 
@@ -42,7 +46,7 @@ Verificación del 18/11/2026: el sitio `https://capable-gnu-944.convex.site/` de
 
 El componente oficial `@convex-dev/static-hosting` construye Vite, despliega Convex y sube `dist`. La app queda en `https://<deployment>.convex.site`. El router registra `/api/auth/*` antes del catch-all del sitio. No agregar `httpPrefix` al componente: duplicaría el prefijo de auth. Las nuevas HTTP actions deben declarar explícitamente su ruta `/api/...`. Las queries/mutations del cliente usan la URL `.convex.cloud`.
 
-El workflow `.github/workflows/deploy.yml` publica automáticamente backend y sitio de Convex con cada push a la rama registrada. El job del sitio espera el backend y ejecuta `static-hosting deploy --skip-convex` en segundo plano; el editor no espera esa publicación ni requiere un botón. Ambos jobs usan `CONVEX_DEPLOY_KEY` de GitHub Secrets. Mantener esta clave fuera del frontend y del repositorio.
+GitHub Actions está pausado en el código: el workflow se conserva en `.github/workflows-disabled/deploy.yml`, fuera de la carpeta que ejecuta GitHub. No hay workflows activos. Al subir este cambio, el repositorio deja de ofrecer también el lanzamiento manual de ese workflow. Los despliegues se realizan desde la máquina local con los comandos anteriores; ver [pausa y reactivación de Actions](.github/README.md). Mantener `CONVEX_DEPLOY_KEY` fuera del frontend y del repositorio.
 
 El generador puede usar esta carpeta directamente: no hace falta publicarla antes en GitHub. Si querés usarla como template remoto, subí el contenido a un repo, marcá **Template repository** (manteniendo esta base vacía) y configurá su URL en `GITHUB_TEMPLATE_URL` de la API.
 
@@ -67,7 +71,9 @@ El registro email/contraseña está abierto por defecto, sin verificación de em
 
 En React, usar `useConvexAuth()` para esperar la autenticación de Convex antes de ejecutar queries privadas (`useQuery(ref, isAuthenticated ? {} : 'skip')`). La sesión de Better Auth por sí sola no confirma que Convex esté conectado.
 
-Se admiten el sitio propio, `http://localhost:5173`, `http://127.0.0.1:5173` y orígenes exactos de `BETTER_AUTH_TRUSTED_ORIGINS` (separados por coma). El portal registra únicamente la URL del preview actual y su vencimiento mediante `AIBAZE_AUTH_PREVIEW_ORIGIN` y `AIBAZE_AUTH_PREVIEW_EXPIRES_AT`. No se confía globalmente en dominios de Vercel, E2B ni Convex. Para otros puertos locales o dominios propios, configurar el origen exacto en Convex.
+Se admiten el sitio propio, `http://localhost:5173`, `http://127.0.0.1:5173` y orígenes exactos de `BETTER_AUTH_TRUSTED_ORIGINS` (separados por coma). El portal registra únicamente la URL del preview actual y su vencimiento mediante `ATENEO_AUTH_PREVIEW_ORIGIN` y `ATENEO_AUTH_PREVIEW_EXPIRES_AT`. No se confía globalmente en dominios de Vercel, E2B ni Convex. Para otros puertos locales o dominios propios, configurar el origen exacto en Convex.
+
+La identidad está centralizada en `src/config/brandData.json` como Ateneo. El prefijo de almacenamiento del cliente de autenticación es `ateneo-<siteUrl>`; al actualizar desde la versión anterior puede ser necesario iniciar sesión nuevamente. Las integraciones de previews deben configurar los nombres `ATENEO_AUTH_PREVIEW_ORIGIN` y `ATENEO_AUTH_PREVIEW_EXPIRES_AT` en Convex antes de usar previews temporales. Este cambio no modifica variables del backend desplegado ni credenciales de usuarios.
 
 Para un deployment de desarrollo creado manualmente, configurar allí `BETTER_AUTH_SECRET` (generado aleatoriamente) y `SITE_URL=http://localhost:5173` antes de usar auth. `CONVEX_SITE_URL` lo proporciona Convex. El generador realiza este paso automáticamente para el deployment del proyecto.
 

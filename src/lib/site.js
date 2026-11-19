@@ -14,3 +14,7 @@ export function landingUrls(subdomain) {
   const site = base();
   return { path: `${site.origin}/l/${subdomain}`, host: `${site.protocol}//${subdomain}.${site.host}` };
 }
+
+export function artifactUrl(slug) {
+  return `${base().origin}/a/${encodeURIComponent(slug)}`;
+}

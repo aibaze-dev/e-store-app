@@ -1,0 +1,21 @@
+# Prompt Builder
+
+Public route: `/a/prompt-builder`. UI, examples, and generated instructions are in English.
+
+The interface is a category-first wizard with eight steps: category, task, context, audience, desired outcome, reference material, constraints, and delivery preferences. Categories cover email, writing, research, planning, analysis, and general tasks. Only the task is required; optional questions can be skipped. Back navigation preserves answers. Complete examples are explicitly loaded by the visitor.
+
+`builder.js` holds the category templates, examples, delivery options, and deterministic `buildPrompt(form)` function. It preserves the user's text, omits empty optional sections, adds task-specific guidance, and requests clarification for essential missing information. It does not rewrite vague input semantically, translate supplied text, browse links, or invent missing facts. The completeness checklist only indicates which fields have text; it does not grade quality.
+
+The final prompt is editable and copyable. Clipboard failures select the output for manual copying. Editing answers never silently replaces manual output edits; rebuilding asks for confirmation. Visitors can view their existing prompt without rebuilding. Reset and example replacement also ask before clearing work and leave saved history intact.
+
+No AI SDK, API calls, backend writes, or analytics are used by this tool. At the user's explicit request, completed prompts are persisted in localStorage under `ateneo-prompt-builder-history-v1`. This is a browser-local personal history, with no account or device synchronization. Unfinished answers are not saved. Clearing the site's browser data also clears this history. The application shell retains its existing providers; the tool itself does not use auth or Convex. Styles are scoped to `.artifact-prompt-builder`; the confirmation dialog carries the same root class because it renders in a portal.
+
+`history.js` stores a versioned list of entries with ID, creation/update timestamps, the generated prompt, and a snapshot of its original form answers. Each build/rebuild creates a new entry; editing the result and choosing **Save changes** updates that entry without duplicating it. **Saved prompts** restores the exact saved output and answers, including manual edits. Deletion asks for confirmation and removes only that entry. Resetting the wizard never deletes history.
+
+History mutations reread the latest persisted list and storage events refresh other tabs. Unreadable or unsupported history is not silently overwritten. Quota or access failures leave the current prompt available to copy and show a retry/save option instead of claiming it was saved. Storage failure and data validation are covered by `test/prompt-history.test.js`.
+
+Run `pnpm test` for the pure builder and artifact registry checks, and `pnpm build` for the production chunks. Browser QA should cover category selection, task validation, optional skips, back navigation, preferences, edited output protection, reset cancellation, clipboard behavior, and responsive layouts. No deployment is implied by these local checks.
+
+Validated locally on 2026-11-19: 234 tests passed and the production build completed (the existing large-bundle warning remains). Browser checks covered public access, category-first navigation, blank-task validation, retained answers when going back, optional skips, preferences reflected in output, copying, full examples, cancellation of a rebuild preserving manual edits, viewing the existing prompt, and confirmed reset. Layouts were checked at 1280 px and 390 px without horizontal overflow. The final browser error log was empty. No production deployment or authenticated catalog session was tested.
+
+Local history addition, 2026-11-19: 245 tests and the production build passed. Browser checks verified automatic save, saving manual edits without duplicates, reopening after reload, canceling deletion, confirmed deletion surviving reload, and a 390 px history view without horizontal overflow. The temporary QA prompt was deleted through the interface. No deployment was performed.

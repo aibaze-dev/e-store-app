@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes, useParams } from 'react-router-dom'
 import AccessPage from './pages/AccessPage.jsx';
 import Panel from './panel/Panel.jsx';
 import Storefront from './storefront/Storefront.jsx';
+import ArtifactPage from './artifacts/ArtifactPage.jsx';
 import { resolveSubdomain } from './lib/site.js';
 import { Button } from './components/ui/button';
 import { InternalThemeProvider } from './components/InternalTheme.jsx';
@@ -28,6 +29,7 @@ export default function App() {
       : <Routes>
         <Route path="/" element={<AccessPage />} />
         <Route path="/panel/*" element={<Panel />} />
+        <Route path="/a/:slug" element={<ArtifactPage />} />
         <Route path="/l/:subdomain/*" element={<PathStorefront />} />
         <Route path="*" element={<NotFound />} />
       </Routes>}

@@ -1,4 +1,4 @@
-# Proyecto base — Aibaze
+# Proyecto base — Ateneo
 
 Preparar la base general existente con su autenticación, sin generación con IA ni módulos comerciales adicionales.
 

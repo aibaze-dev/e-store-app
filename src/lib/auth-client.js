@@ -6,5 +6,5 @@ const siteUrl = import.meta.env.VITE_CONVEX_SITE_URL ||
 
 export const authClient = createAuthClient({
   baseURL: siteUrl,
-  plugins: [convexClient(), crossDomainClient({ storagePrefix: `aibaze-${siteUrl}` })],
+  plugins: [convexClient(), crossDomainClient({ storagePrefix: `ateneo-${siteUrl}` })],
 });

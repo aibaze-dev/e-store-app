@@ -1,7 +1,8 @@
 name: Convex backend and site
-run-name: 'Aibaze ${{ inputs.requestId || github.sha }}'
-# DESACTIVADO: el sitio se publica solo con `pnpm deploy` desde la máquina local, que tiene
-# VITE_STRIPE_PUBLISHABLE_KEY. Para reactivarlo, descomentá `push` y quitá `if: false` del job deploy.
+run-name: 'Ateneo ${{ inputs.requestId || github.sha }}'
+# ARCHIVADO: GitHub no ejecuta workflows fuera de .github/workflows/.
+# Los despliegues se realizan manualmente desde la máquina local.
+# Ver .github/README.md antes de reactivar este archivo.
 on:
   # push:
   #   branches: ["main"]
@@ -57,7 +58,7 @@ jobs:
             const { execFileSync } = require('node:child_process');
             const git = (...args) => execFileSync('git', args, { maxBuffer: 25 * 1024 * 1024 });
             const message = git('log', '-1', '--format=%B').toString();
-            const previous = message.match(/^Aibaze-Backend-Unchanged: ([a-f0-9]{40})$/m)?.[1];
+            const previous = message.match(/^Ateneo-Backend-Unchanged: ([a-f0-9]{40})$/m)?.[1];
             if (!previous) return;
             try {
               if (git('rev-parse', `${context.sha}^`).toString().trim() !== previous) return;

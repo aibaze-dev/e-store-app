@@ -69,17 +69,17 @@ describe('project authentication', () => {
   });
 
   it('trusts only the exact active preview and expires that trust', () => {
-    const env = { SITE_URL: origin, AIBAZE_AUTH_PREVIEW_ORIGIN: 'https://preview.vercel.run', AIBAZE_AUTH_PREVIEW_EXPIRES_AT: String(Date.now() + 60000) };
-    expect(authOrigins(env)).toContain(env.AIBAZE_AUTH_PREVIEW_ORIGIN);
+    const env = { SITE_URL: origin, ATENEO_AUTH_PREVIEW_ORIGIN: 'https://preview.vercel.run', ATENEO_AUTH_PREVIEW_EXPIRES_AT: String(Date.now() + 60000) };
+    expect(authOrigins(env)).toContain(env.ATENEO_AUTH_PREVIEW_ORIGIN);
     expect(authOrigins(env)).not.toContain('https://other.vercel.run');
-    expect(authOrigins({ ...env, AIBAZE_AUTH_PREVIEW_EXPIRES_AT: '1' })).not.toContain(env.AIBAZE_AUTH_PREVIEW_ORIGIN);
+    expect(authOrigins({ ...env, ATENEO_AUTH_PREVIEW_EXPIRES_AT: '1' })).not.toContain(env.ATENEO_AUTH_PREVIEW_ORIGIN);
     expect(() => authOrigins({ SITE_URL: 'https://example.com/path' })).toThrow();
   });
 
   it('allows browser preflight/login from the active preview and rejects it after expiry', async () => {
     const preview = 'https://preview.vercel.run';
-    vi.stubEnv('AIBAZE_AUTH_PREVIEW_ORIGIN', preview);
-    vi.stubEnv('AIBAZE_AUTH_PREVIEW_EXPIRES_AT', String(Date.now() + 60000));
+    vi.stubEnv('ATENEO_AUTH_PREVIEW_ORIGIN', preview);
+    vi.stubEnv('ATENEO_AUTH_PREVIEW_EXPIRES_AT', String(Date.now() + 60000));
     const t = backend();
     const preflight = () => t.fetch('/api/auth/sign-in/email', { method: 'OPTIONS', headers: {
       Origin: preview, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type,better-auth-cookie',
@@ -88,7 +88,7 @@ describe('project authentication', () => {
     const signup = await post(t, 'sign-up/email', { ...credentials, name: 'Preview user' }, { Origin: preview });
     expect(signup.status).toBe(200);
     expect(signup.headers.get('access-control-allow-origin')).toBe(preview);
-    vi.stubEnv('AIBAZE_AUTH_PREVIEW_EXPIRES_AT', '1');
+    vi.stubEnv('ATENEO_AUTH_PREVIEW_EXPIRES_AT', '1');
     expect((await preflight()).headers.get('access-control-allow-origin')).not.toBe(preview);
     expect((await post(t, 'sign-in/email', credentials, { Origin: preview })).status).toBe(403);
   });
