@@ -1,6 +1,7 @@
 import { query } from './lib/functions';
 import { v } from 'convex/values';
 import { requireAdmin } from './lib/permissions';
+import { liveDeliveries } from './lib/deliveries';
 
 // "Cobros y entregas" in the panel: the latest orders with their charge and links.
 export const list = query({
@@ -29,7 +30,7 @@ export const list = query({
         items: order.items.map(item => ({ name: item.name, role: item.role, price: item.price })),
         paidAt: transaction?.paidAt ?? null,
         stripePaymentIntentId: transaction?.stripePaymentIntentId ?? '',
-        deliveries: transaction?.deliveries ?? [],
+        deliveries: await liveDeliveries(ctx, order, transaction?.deliveries ?? []),
         charged: transaction?.charged ?? null,
         reviewReason: transaction?.reviewReason ?? null,
         email: transaction?.email ? { status: transaction.email.status, error: transaction.email.error ?? '' } : null,

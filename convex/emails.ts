@@ -2,6 +2,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery, type Id, type MutationCtx } from './lib/functions';
 import { adminEmails } from './lib/admin_emails';
+import { liveDeliveries } from './lib/deliveries';
 import { escapeHtml, resendSettings, safeUrl, sendEmail, type EmailMessage } from './lib/resend';
 import { emailStatus } from './schema';
 import brand from '../src/config/brandData.json';
@@ -39,7 +40,7 @@ export const context = internalQuery({
       currency: order.currency,
       total: order.total,
       items: order.items.map(item => ({ name: item.name, price: item.price })),
-      deliveries: transaction.deliveries,
+      deliveries: await liveDeliveries(ctx, order, transaction.deliveries),
       charged: transaction.charged ?? null,
       reviewReason: transaction.reviewReason ?? 'amount',
       paymentIntentId: transaction.stripePaymentIntentId ?? '',

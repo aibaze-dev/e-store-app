@@ -4,6 +4,7 @@ import { v } from 'convex/values';
 import { presencePage } from './schema';
 import { mutation, query, type QueryCtx } from './lib/functions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
+import { liveDeliveries } from './lib/deliveries';
 
 // Public functions: no session required, so they only return what a visitor may see.
 
@@ -78,11 +79,12 @@ export const getDelivery = query({
     // Same published palette and brand as the landing, so the thank-you page matches it.
     const content = store ? await purchaseContent(ctx, store) : null;
 
-    let deliveries = paid ? transaction.deliveries : [];
+    let deliveries = paid ? await liveDeliveries(ctx, order, transaction.deliveries) : [];
     if (paid && order.parentOrderId) {
       const parentId = order.parentOrderId;
+      const parentOrder = await ctx.db.get(parentId);
       const parent = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', parentId)).first();
-      if (parent?.status === 'paid') deliveries = [...parent.deliveries, ...deliveries];
+      if (parentOrder && parent?.status === 'paid') deliveries = [...await liveDeliveries(ctx, parentOrder, parent.deliveries), ...deliveries];
     }
 
     let postPurchaseOffer = null;

@@ -354,6 +354,21 @@ describe('stripe webhook and delivery', () => {
     expect(await t.query(api.storefront.getDelivery, { sessionId: '' })).toBeNull();
   });
 
+  it('delivers the current links of an edited product to past buyers, keeping the sold names', async () => {
+    const { t, admin, ids } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    await admin.mutation(api.products.update, { id: ids.main, ...product('Renombrado', 'nuevo') });
+
+    const paid = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
+    expect(paid.deliveries.map(link => link.url)).toEqual(['https://files.example.com/nuevo.pdf', 'https://files.example.com/bonus.pdf']);
+    expect(paid.deliveries[0].productName).toBe('Ebook principal');
+    expect(paid.items[0].name).toBe('Ebook principal');
+    const [order] = await admin.query(api.orders.list, {});
+    expect(order.deliveries[0].url).toBe('https://files.example.com/nuevo.pdf');
+  });
+
   it('rejects unsigned, wrongly signed and stale events without changing the order', async () => {
     const { t } = await campaign();
     mockStripe();
