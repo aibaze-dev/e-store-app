@@ -4,6 +4,8 @@ El catálogo global vive en `/panel/artefactos`, bajo los permisos del panel. La
 
 ## Agregar una herramienta
 
+También está disponible [Test Your AI Knowledge](ai-knowledge/README.md), en `/a/ai-knowledge`: tests por día y globales basados en el ebook Master Claude in 5 Days, con selección variable, puntaje y referencias de repaso por página.
+
 1. Crear `<slug>/index.jsx` dentro de esta carpeta, con un componente React exportado por defecto. Sus imágenes, componentes y estilos pueden vivir en la misma carpeta.
 2. Agregar en `shared/artifact-registry.js` (en la raíz del proyecto; `src/artifacts/registry.js` lo reexporta) un objeto `{ slug, name, description, coverUrl? }`. Es metadato público versionado; no importar componentes ni CSS desde ese archivo.
 3. Importar `lazy` desde React en `components.js` y agregar la entrada correspondiente:

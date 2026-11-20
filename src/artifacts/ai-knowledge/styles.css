@@ -1,0 +1,176 @@
+.artifact-ai-knowledge {
+  --ak-paper: #faf8f4; --ak-surface: #fff; --ak-ink: #202b36; --ak-muted: #606973; --ak-line: #deded6;
+  --ak-orange: #b84521; --ak-orange-hover: #963719; --ak-soft: #fff0e6; --ak-navy: #182b3c; --ak-green: #246347;
+  --background: var(--ak-paper); --foreground: var(--ak-ink); --muted-foreground: var(--ak-muted); --border: var(--ak-line); --ring: var(--ak-orange);
+  background: var(--ak-paper); color: var(--ak-ink); color-scheme: light; font-family: 'Montserrat Variable', sans-serif; line-height: 1.6;
+}
+.artifact-ai-knowledge .ak-app { min-height: 100svh; }
+.artifact-ai-knowledge h1[tabindex="-1"]:focus { outline: none; }
+.artifact-ai-knowledge .ak-header { max-width: 1280px; margin: auto; padding: 24px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--ak-line); }
+.artifact-ai-knowledge .ak-brand { display: flex; align-items: center; gap: 12px; font-weight: 650; }
+.artifact-ai-knowledge .ak-brand-icon { display: grid; place-items: center; width: 36px; height: 36px; background: var(--ak-navy); color: white; border-radius: 10px; }
+.artifact-ai-knowledge .ak-brand-icon svg { width: 21px; height: 21px; }
+.artifact-ai-knowledge .ak-header-divider { height: 20px; width: 1px; background: var(--ak-line); margin: 0 4px; }
+.artifact-ai-knowledge .ak-header-label { font-size: 13px; font-weight: 450; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-main { max-width: 1184px; padding: 56px 40px 64px; margin: auto; }
+.artifact-ai-knowledge .ak-eyebrow { font-size: 11px; font-weight: 750; letter-spacing: .13em; color: var(--ak-orange); text-transform: uppercase; }
+.artifact-ai-knowledge .ak-intro { padding-bottom: 36px; }
+.artifact-ai-knowledge .ak-intro h1 { font-size: clamp(34px, 4.3vw, 56px); line-height: 1.13; font-weight: 600; letter-spacing: -.045em; margin: 18px 0; }
+.artifact-ai-knowledge .ak-intro h1 span { color: var(--ak-orange); }
+.artifact-ai-knowledge .ak-intro > p:not(.ak-eyebrow) { max-width: 650px; font-size: 17px; color: var(--ak-muted); }
+
+
+
+.artifact-ai-knowledge .ak-global-card { background: var(--ak-navy); color: white; border-radius: 20px; padding: 32px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+
+.artifact-ai-knowledge .ak-global-card h2 { font-size: 27px; font-weight: 600; letter-spacing: -.035em; margin: 6px 0; }
+.artifact-ai-knowledge .ak-global-card p { max-width: 590px; font-size: 14px; color: #d6dfe7; }
+.artifact-ai-knowledge .ak-card-meta { display: block; margin-top: 16px; color: #d6dfe7; font-size: 12px; }
+.artifact-ai-knowledge .ak-primary { min-height: 48px; height: auto; padding: 12px 20px; background: var(--ak-orange); color: white; border: 1px solid transparent; border-radius: 9px; white-space: normal; }
+.artifact-ai-knowledge .ak-primary:hover { background: var(--ak-orange-hover); }
+.artifact-ai-knowledge .ak-global-card .ak-primary { background: #ffceab; color: #382116; }
+.artifact-ai-knowledge .ak-global-card .ak-primary:hover { background: #ffe0c9; }
+.artifact-ai-knowledge .ak-secondary { min-height: 48px; height: auto; white-space: normal; background: var(--ak-surface); color: var(--ak-ink); border-color: var(--ak-line); }
+.artifact-ai-knowledge .ak-secondary:hover, .artifact-ai-knowledge .ak-plain:hover { background: var(--ak-soft); color: var(--ak-ink); }
+.artifact-ai-knowledge .ak-plain { color: var(--ak-muted); background: transparent; min-height: 44px; height: auto; white-space: normal; }
+
+.artifact-ai-knowledge .ak-section-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; align-items: baseline; margin-bottom: 20px; }
+.artifact-ai-knowledge .ak-section-heading h2 { font-size: 21px; font-weight: 600; letter-spacing: -.025em; }
+.artifact-ai-knowledge .ak-section-heading > span { color: var(--ak-muted); font-size: 12px; }
+
+
+
+.artifact-ai-knowledge .ak-day-number { color: var(--ak-orange); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+
+
+
+
+.artifact-ai-knowledge .ak-footnote { font-size: 12px; line-height: 1.8; color: var(--ak-muted); margin: 28px 0 0; max-width: 800px; }
+.artifact-ai-knowledge .ak-book-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--ak-orange); font-size: 13px; font-weight: 650; text-decoration: underline; text-underline-offset: 4px; }
+.artifact-ai-knowledge .ak-book-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.artifact-ai-knowledge .ak-exam { max-width: 900px; padding-top: 28px; }
+.artifact-ai-knowledge .ak-exam-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; font-size: 12px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-exam-toolbar .ak-plain { padding-left: 0; }
+.artifact-ai-knowledge .ak-question-panel { padding: 36px 40px; border: 1px solid var(--ak-line); border-radius: 20px; background: var(--ak-surface); }
+.artifact-ai-knowledge .ak-progress-label { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--ak-muted); margin-bottom: 10px; }
+.artifact-ai-knowledge .ak-progress-label > span:first-child { font-weight: 700; letter-spacing: .09em; }
+.artifact-ai-knowledge .ak-progress { width: 100%; display: block; height: 5px; border: 0; border-radius: 8px; overflow: hidden; background: #e8e7e1; accent-color: var(--ak-orange); }
+.artifact-ai-knowledge .ak-progress::-webkit-progress-bar { background: #e8e7e1; }
+.artifact-ai-knowledge .ak-progress::-webkit-progress-value { background: var(--ak-orange); border-radius: 8px; }
+.artifact-ai-knowledge .ak-progress::-moz-progress-bar { background: var(--ak-orange); }
+.artifact-ai-knowledge .ak-question-topic { margin-top: 32px; font-size: 12px; color: var(--ak-orange); font-weight: 600; }
+.artifact-ai-knowledge .ak-question-topic span { padding: 0 8px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-question-panel h1 { font-size: clamp(23px, 2.6vw, 32px); line-height: 1.35; font-weight: 550; letter-spacing: -.03em; margin: 12px 0; scroll-margin-top: 24px; }
+.artifact-ai-knowledge .ak-question-hint { font-size: 13px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-options { margin: 28px 0; display: grid; gap: 12px; min-width: 0; }
+.artifact-ai-knowledge .ak-option { position: relative; display: flex; align-items: center; gap: 12px; border: 1px solid var(--ak-line); padding: 16px; border-radius: 10px; cursor: pointer; font-size: 14px; line-height: 1.6; }
+.artifact-ai-knowledge .ak-option:hover { background: var(--ak-paper); border-color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.artifact-ai-knowledge .ak-option-letter { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--ak-line); border-radius: 6px; font-size: 12px; font-weight: 650; flex-shrink: 0; }
+.artifact-ai-knowledge .ak-option-check { margin-left: auto; flex-shrink: 0; width: 18px; height: 18px; opacity: 0; }
+.artifact-ai-knowledge .ak-option.ak-selected { border-color: var(--ak-orange); background: var(--ak-soft); }
+.artifact-ai-knowledge .ak-selected .ak-option-letter { color: white; background: var(--ak-orange); border-color: var(--ak-orange); }
+.artifact-ai-knowledge .ak-selected .ak-option-check { opacity: 1; color: var(--ak-orange); }
+.artifact-ai-knowledge .ak-option:focus-within, .artifact-ai-knowledge a:focus-visible, .artifact-ai-knowledge summary:focus-visible { outline: 3px solid var(--ak-orange); outline-offset: 4px; }
+.artifact-ai-knowledge .ak-question-actions { display: flex; justify-content: space-between; gap: 16px; align-items: center; border-top: 1px solid var(--ak-line); padding-top: 24px; }
+.artifact-ai-knowledge .ak-results { max-width: 960px; }
+.artifact-ai-knowledge .ak-results-top h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.2; font-weight: 600; letter-spacing: -.04em; margin: 14px 0; }
+.artifact-ai-knowledge .ak-results-top > p:last-child { color: var(--ak-muted); max-width: 650px; }
+.artifact-ai-knowledge .ak-score-card { display: grid; grid-template-columns: 1fr 1.5fr; margin-top: 32px; border: 1px solid var(--ak-line); border-radius: 20px; overflow: hidden; background: var(--ak-surface); }
+.artifact-ai-knowledge .ak-score-number { background: var(--ak-navy); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 24px; }
+.artifact-ai-knowledge .ak-score-number > strong { font-size: 76px; letter-spacing: -.065em; font-weight: 550; line-height: 1.2; }
+.artifact-ai-knowledge .ak-score-number strong span { font-size: 32px; color: #ffceab; padding-left: 4px; }
+.artifact-ai-knowledge .ak-score-number p { font-size: 14px; color: #d6dfe7; }
+.artifact-ai-knowledge .ak-breakdown { padding: 28px; }
+.artifact-ai-knowledge .ak-breakdown h2 { font-size: 15px; font-weight: 650; margin-bottom: 20px; }
+.artifact-ai-knowledge .ak-breakdown-row + .ak-breakdown-row { margin-top: 14px; }
+.artifact-ai-knowledge .ak-breakdown-row > div { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; margin-bottom: 6px; }
+.artifact-ai-knowledge .ak-result-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 44px; }
+.artifact-ai-knowledge .ak-review-note { color: var(--ak-muted); font-size: 13px; margin: -8px 0 24px; }
+.artifact-ai-knowledge .ak-review-card { border: 1px solid var(--ak-line); border-radius: 16px; background: var(--ak-surface); padding: 28px; margin-top: 16px; }
+.artifact-ai-knowledge .ak-review-card h3 { font-size: 18px; font-weight: 600; line-height: 1.5; margin: 8px 0 20px; }
+.artifact-ai-knowledge .ak-answer-wrong, .artifact-ai-knowledge .ak-answer-right { display: flex; align-items: start; gap: 12px; padding: 14px 16px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+.artifact-ai-knowledge .ak-answer-wrong { background: #fff2ef; color: #873c30; }
+.artifact-ai-knowledge .ak-answer-right { background: #eef6ef; color: var(--ak-green); }
+.artifact-ai-knowledge .ak-answer-wrong svg, .artifact-ai-knowledge .ak-answer-right svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 3px; }
+.artifact-ai-knowledge .ak-answer-wrong strong, .artifact-ai-knowledge .ak-answer-right strong { display: block; margin-bottom: 3px; }
+.artifact-ai-knowledge .ak-explanation { font-size: 14px; margin: 20px 0 8px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-perfect { display: flex; gap: 16px; padding: 24px; color: var(--ak-green); background: #eef6ef; border-radius: 12px; }
+.artifact-ai-knowledge .ak-perfect svg { flex-shrink: 0; }
+.artifact-ai-knowledge .ak-correct-review { margin-top: 28px; border-top: 1px solid var(--ak-line); }
+.artifact-ai-knowledge .ak-correct-review summary { padding: 20px 0; font-weight: 600; font-size: 14px; cursor: pointer; }
+.artifact-ai-knowledge .ak-correct-review article { padding: 20px 0; border-top: 1px solid var(--ak-line); font-size: 14px; }
+.artifact-ai-knowledge .ak-correct-review h3 { font-weight: 650; margin-bottom: 12px; }
+.artifact-ai-knowledge .ak-correct-review p { margin-bottom: 8px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: end; }
+.artifact-ai-knowledge .ak-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 1000px) {
+
+  .artifact-ai-knowledge .ak-global-card { align-items: start; }
+}
+@media (max-width: 700px) {
+  .artifact-ai-knowledge .ak-header { padding: 16px 20px; }
+  .artifact-ai-knowledge .ak-header-divider, .artifact-ai-knowledge .ak-header-label { display: none; }
+  .artifact-ai-knowledge .ak-main { padding: 32px 20px 40px; }
+  .artifact-ai-knowledge .ak-intro > p:not(.ak-eyebrow) { font-size: 15px; }
+
+  .artifact-ai-knowledge .ak-global-card { flex-direction: column; padding: 24px; gap: 20px; }
+  .artifact-ai-knowledge .ak-global-card h2 { font-size: 24px; }
+  .artifact-ai-knowledge .ak-global-card .ak-primary { width: 100%; }
+
+
+  .artifact-ai-knowledge .ak-exam-toolbar { margin-bottom: 16px; }
+  .artifact-ai-knowledge .ak-question-panel { padding: 24px 18px; }
+  .artifact-ai-knowledge .ak-question-topic { margin-top: 24px; }
+  .artifact-ai-knowledge .ak-option { padding: 14px 12px; gap: 10px; }
+  .artifact-ai-knowledge .ak-option-check { display: none; }
+  .artifact-ai-knowledge .ak-question-actions { gap: 8px; }
+  .artifact-ai-knowledge .ak-question-actions .ak-primary { padding: 12px; }
+  .artifact-ai-knowledge .ak-score-card { grid-template-columns: 1fr; }
+  .artifact-ai-knowledge .ak-score-number { padding: 24px; }
+  .artifact-ai-knowledge .ak-review-card { padding: 22px 18px; }
+}
+@media (max-width: 430px) {
+
+
+
+  .artifact-ai-knowledge .ak-result-actions > button { width: 100%; }
+
+}
+@media (prefers-reduced-motion: reduce) {
+
+}
+
+.artifact-ai-knowledge .ak-picker {
+  display: grid;
+  grid-template-columns: minmax(240px, .78fr) minmax(0, 1.4fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: stretch;
+}
+.artifact-ai-knowledge .ak-picker .ak-global-card {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: clamp(24px, 3vw, 40px);
+}
+.artifact-ai-knowledge .ak-global-card > svg { color: #ffceab; }
+.artifact-ai-knowledge .ak-global-card .ak-card-meta { margin: 0 0 12px; }
+.artifact-ai-knowledge .ak-daily .ak-section-heading { margin-bottom: 10px; }
+.artifact-ai-knowledge .ak-day-row {
+  width: 100%; display: grid; grid-template-columns: 48px 1fr auto;
+  align-items: center; gap: 12px; text-align: left; padding: 13px 8px;
+  border-top: 1px solid var(--ak-line); cursor: pointer;
+}
+.artifact-ai-knowledge .ak-day-row:last-child { border-bottom: 1px solid var(--ak-line); }
+.artifact-ai-knowledge .ak-day-row:hover { background: var(--ak-soft); }
+.artifact-ai-knowledge .ak-day-row:focus-visible { outline: 2px solid var(--ak-orange); outline-offset: 1px; }
+.artifact-ai-knowledge .ak-day-row strong { display: block; font-size: 17px; font-weight: 650; }
+.artifact-ai-knowledge .ak-day-row small { display: block; font-size: 13px; color: var(--ak-muted); }
+.artifact-ai-knowledge .ak-day-row > svg { color: var(--ak-orange); }
+@media (max-width: 700px) {
+  .artifact-ai-knowledge .ak-picker { grid-template-columns: 1fr; }
+  .artifact-ai-knowledge .ak-picker .ak-global-card { gap: 14px; }
+  .artifact-ai-knowledge .ak-global-card > svg { display: none; }
+  .artifact-ai-knowledge .ak-global-card > div:last-child { width: 100%; }
+}
