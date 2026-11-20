@@ -62,11 +62,12 @@ function Head({ section, tone = '', icon: Icon, align = '' }) {
   </div>;
 }
 
-function Price({ offer, money, savings, labels, tone = '' }) {
+function Price({ main, money, labels, tone = '' }) {
+  const discounted = main.compareAtPrice > main.price;
   return <div className={`cl-price ${tone}`}>
-    {offer.main.compareAtPrice > offer.main.price && <del>{money(offer.main.compareAtPrice)}</del>}
-    <strong>{money(offer.main.price)}</strong>
-    {savings > 0 && <span className="cl-save">{formatLandingText(labels.savings, { importe: money(savings) })}</span>}
+    {discounted && <del>{money(main.compareAtPrice)}</del>}
+    <strong>{money(main.price)}</strong>
+    {discounted && <span className="cl-save">{formatLandingText(labels.savings, { importe: money(main.compareAtPrice - main.price) })}</span>}
   </div>;
 }
 
@@ -226,7 +227,7 @@ export default function ClassicLanding({ view, onCta }) {
           {hero.subtitle && <p>{rich(hero.subtitle)}</p>}
         </div>
         <div className="cl-masthead-offer">
-          <Price labels={labels} offer={offer} money={money} savings={totals.savings} />
+          <Price labels={labels} main={offer.main} money={money} />
           <button type="button" className="cl-btn is-white" onClick={go} disabled={!go}>{hero.headerCtaText || hero.ctaText || 'Buy now'}<ArrowRight aria-hidden="true" /></button>
         </div>
       </div></header>
@@ -242,7 +243,7 @@ export default function ClassicLanding({ view, onCta }) {
         {(proof.rating > 0 || hero.ratingText) && <p className="cl-rating">{proof.rating > 0 && <span className="cl-stars" aria-hidden="true">★★★★★</span>}
           <span>{[proof.rating > 0 && number(proof.rating), proof.rating > 0 && proof.customers > 0 && `${number(proof.customers)} ${labels.customers}`, hero.ratingText].filter(Boolean).join(' · ')}</span></p>}
         {content.activity.salesCount && <p className="cl-sales"><ShoppingBag aria-hidden="true" />{formatLandingText(content.activity.salesText, { cantidad: simulatedSales })}</p>}
-        <Price labels={labels} offer={offer} money={money} savings={totals.savings} tone="is-big" />
+        <Price labels={labels} main={offer.main} money={money} tone="is-big" />
         {cta(hero.ctaText, 'is-big')}
         {trustText && <p className="cl-trust">{trustText}</p>}
         {(hero.noteTitle || hero.note) && <p className="cl-note"><Check aria-hidden="true" /><span>{hero.noteTitle && <strong>{hero.noteTitle} </strong>}{rich(hero.note)}</span></p>}

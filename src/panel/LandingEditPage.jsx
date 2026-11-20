@@ -253,7 +253,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('hero', 'noteTitle', 'Aclaración: pregunta (opcional)', { maxLength: 120, placeholder: '¿Necesito pagar algo aparte?' })}
           {field('hero', 'note', 'Aclaración: respuesta', { multiline: true, maxLength: 240 })}
           {field('hero', 'footnote', 'Nota de formato (opcional)', { maxLength: 160, placeholder: 'Guía 100% digital · incluye versión para imprimir', hint: 'Se repite al pie del cierre.' })}
-          <p className="text-xs leading-6 text-muted-foreground">El precio, el precio tachado y el ahorro se toman de la oferta de la tienda.</p>
+          <p className="text-xs leading-6 text-muted-foreground">El precio de venta se configura en la oferta de la tienda. El precio tachado sale del precio normal del producto principal o, en tiendas anteriores, de la oferta.</p>
           {labels('cover')}
         </Section>
         <Section id="introduction" attention={checks.introduction} description="La pregunta y los párrafos que siguen a la portada" hidden={off('introduction')}>

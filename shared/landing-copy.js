@@ -46,7 +46,7 @@ export function formatLandingText(template, values) {
 // Visible landing labels, grouped into the form section where they appear.
 // Defaults preserve existing publications; an explicitly empty label stays empty.
 export const LANDING_LABEL_FIELDS = {
-  savings: { section: 'cover', label: 'Texto del ahorro', value: 'You save {importe}', hint: 'Usá {importe} para mostrar el ahorro calculado.' },
+  savings: { section: 'cover', label: 'Texto del ahorro', value: 'You save {importe}', hint: 'Usá {importe} para mostrar la diferencia entre el precio tachado y el precio de venta del producto principal.' },
   access: { section: 'cover', label: 'Texto de acceso inmediato', value: 'Instant access' },
   payment: { section: 'cover', label: 'Texto de pago seguro', value: 'Secure checkout' },
   guarantee: { section: 'cover', label: 'Texto de garantía automática', value: '{dias}-day guarantee', hint: 'Usá {dias}. Estos textos se usan si la línea debajo del botón está vacía.' },
@@ -59,7 +59,7 @@ export const LANDING_LABEL_FIELDS = {
   satisfaction: { section: 'socialProof', label: 'Etiqueta de satisfacción', value: 'Satisfaction' },
   verified: { section: 'socialProof', label: 'Sello de compra verificada', value: 'Verified purchase' },
   allAdded: { section: 'combo', label: 'Botón cuando ya se agregaron todos los extras', value: 'All items added' },
-  comboSavings: { section: 'combo', label: 'Texto del ahorro del combo', value: 'You save {importe}', hint: 'Usá {importe} para mostrar el ahorro calculado.' },
+  comboSavings: { section: 'combo', label: 'Texto del ahorro del combo', value: 'You save {importe}', hint: 'Usá {importe} para sumar los descuentos del producto principal y de los extras seleccionados al valor de los bonos incluidos.' },
   total: { section: 'combo', label: 'Etiqueta del total a pagar', value: 'Total' },
   rights: { section: 'identity', label: 'Texto de derechos del pie de página', value: 'All rights reserved.' },
   terms: { section: 'identity', label: 'Texto del enlace de términos', value: 'Terms and conditions' },
