@@ -145,13 +145,13 @@ export default function PromptBuilder() {
 
   return <div className="pb-app" lang="en">
     <header className="pb-topbar">
-      <div className="pb-brand"><span className="pb-brand-mark"><Braces aria-hidden="true" /></span><span>{brand.shortName}<span className="pb-brand-divider">/</span><span className="pb-brand-subtitle">PROMPT BUILDER</span></span></div>
+      <div className="pb-brand"><span className="pb-brand-mark"><Braces aria-hidden="true" /></span><span>{brand.artifactBrandName}<span className="pb-brand-divider">/</span><span className="pb-brand-subtitle">PROMPT BUILDER</span></span></div>
       <div className="pb-header-actions"><Button type="button" variant="ghost" className="pb-history-toggle" onClick={() => { refreshHistory(); setShowHistory(value => !value); }}><History aria-hidden="true" />{showHistory ? 'Back to builder' : `Saved prompts (${history.length})`}</Button></div>
     </header>
     {storageError && <div className="pb-storage-error" role="alert"><p>{storageError}</p><Button type="button" variant="outline" onClick={refreshHistory}>Retry history</Button></div>}
 
     {showHistory ? <main className="pb-history-page">
-      <div className="pb-history-heading"><div><p className="pb-eyebrow">YOUR PERSONAL PROMPT LIBRARY</p><h1 ref={headingRef} tabIndex={-1}>Saved prompts</h1><p>Stored in this browser, ready when you need them.</p></div><Button type="button" className="pb-primary" onClick={reset}>New prompt</Button></div>
+      <div className="pb-history-heading"><div><p className="pb-eyebrow">YOUR PERSONAL PROMPT LIBRARY</p><h1 ref={headingRef} tabIndex={-1}>Saved prompts</h1><p>Stored in this browser, ready when you need them.</p></div><Button type="button" onClick={reset}>New prompt</Button></div>
       {history.length === 0 ? <div className="pb-history-empty"><History aria-hidden="true" /><h2>{storageError ? 'History is unavailable' : 'Your next good prompt belongs here.'}</h2><p>{storageError ? 'Try reading your history again. Existing data has not been replaced.' : 'Build a prompt and it will be saved automatically. You can reopen or delete it here.'}</p></div> : <ul className="pb-history-list">{history.map(entry => <li key={entry.id} className="pb-history-item"><div className="pb-history-item-copy"><p className="pb-history-meta">{taskFor(entry.form.category).label} · <time dateTime={new Date(entry.updatedAt).toISOString()}>{new Date(entry.updatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</time></p><h2>{entry.form.task}</h2><p className="pb-history-excerpt">{entry.output}</p></div><div className="pb-history-item-actions"><Button type="button" variant="outline" onClick={() => openSaved(entry)}>Open prompt</Button><Button type="button" variant="ghost" aria-label={`Delete prompt: ${entry.form.task}`} onClick={() => removeSaved(entry)}><Trash2 aria-hidden="true" />Delete</Button></div></li>)}</ul>}
       <p className="pb-honesty">History is local to this browser and website. It is not synced to an account or other devices. Clearing this site’s browser data also removes saved prompts.</p>
     </main> : !isResult ? <form className="pb-wizard" onSubmit={advance} noValidate onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.requestSubmit(); } }}>
@@ -175,7 +175,7 @@ export default function PromptBuilder() {
 
         {step === LAST_STEP && <div className="pb-preferences">{[['tone', 'Tone', TONES], ['format', 'Format', FORMATS], ['length', 'Detail', LENGTHS]].map(([name, label, options]) => <div className="pb-field" key={name}><Label htmlFor={`pb-${name}`}>{label}</Label><div className="pb-select-wrap"><select id={`pb-${name}`} value={form[name]} onChange={event => update({ [name]: event.target.value })}>{options.map(option => <option key={option}>{option}</option>)}</select><ChevronDown aria-hidden="true" /></div></div>)}</div>}
 
-        {step > 0 && <div className="pb-next-row"><Button type="submit" className="pb-primary">{step === LAST_STEP ? <><Braces aria-hidden="true" />{generatedFrom ? 'Rebuild my prompt' : 'Build my prompt'}</> : 'Continue'}{step < LAST_STEP && <Check aria-hidden="true" />}</Button>{optional && !form[question.key].trim() ? <Button type="button" variant="ghost" className="pb-skip" onClick={() => { setError(''); setStep(step + 1); }}>Skip this question</Button> : <span className="pb-keyboard">or press ⌘ / Ctrl + Enter</span>}</div>}
+        {step > 0 && <div className="pb-next-row"><Button type="submit">{step === LAST_STEP ? <><Braces aria-hidden="true" />{generatedFrom ? 'Rebuild my prompt' : 'Build my prompt'}</> : 'Continue'}{step < LAST_STEP && <Check aria-hidden="true" />}</Button>{optional && !form[question.key].trim() ? <Button type="button" variant="ghost" className="pb-skip" onClick={() => { setError(''); setStep(step + 1); }}>Skip this question</Button> : <span className="pb-keyboard">or press ⌘ / Ctrl + Enter</span>}</div>}
         {generatedFrom && <Button type="button" variant="ghost" className="pb-return-prompt" onClick={() => setStep(RESULT_STEP)}>View existing prompt</Button>}
         {step === 0 && <p className="pb-category-note">A few guided questions. One prompt you can actually use.</p>}
       </main>
@@ -191,7 +191,7 @@ export default function PromptBuilder() {
         <Label className="pb-sr-only" htmlFor="pb-output">Your editable prompt</Label>
         <textarea id="pb-output" ref={outputRef} className="pb-output" value={output} spellCheck={false} aria-describedby="pb-output-help" onChange={event => { setOutput(event.target.value); setEdited(true); setCopyState('idle'); }} />
         {changed && <p className="pb-result-notice" role="status">Your answers changed. Go back and rebuild to include them.</p>}
-        <div className="pb-result-footer"><span id="pb-output-help">{edited ? 'Manually edited. Rebuilding replaces your edits.' : 'Review the details before you use it.'}</span><Button type="button" className="pb-primary" disabled={!output.trim() || copyState === 'copying'} onClick={copy}>{copyState === 'copied' ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}{copyState === 'copied' ? 'Copied!' : copyState === 'copying' ? 'Copying…' : 'Copy prompt'}</Button></div>
+        <div className="pb-result-footer"><span id="pb-output-help">{edited ? 'Manually edited. Rebuilding replaces your edits.' : 'Review the details before you use it.'}</span><Button type="button" disabled={!output.trim() || copyState === 'copying'} onClick={copy}>{copyState === 'copied' ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}{copyState === 'copied' ? 'Copied!' : copyState === 'copying' ? 'Copying…' : 'Copy prompt'}</Button></div>
         <p className={`pb-copy-message${copyState === 'failed' ? ' pb-copy-failed' : ''}`} role="status">{copyState === 'failed' ? 'Could not copy automatically. Your prompt is selected: press Ctrl+C or ⌘C, or use your device’s Copy menu.' : copyState === 'copied' ? 'Prompt copied to your clipboard.' : ''}</p>
       </section>
       <div className="pb-save-row"><span role="status">{isSaved ? 'Saved in this browser' : 'Unsaved changes'}</span>{!isSaved && <Button type="button" variant="outline" onClick={saveCurrent}><Save aria-hidden="true" />{activeEntry && history.some(entry => entry.id === activeEntry.id) ? 'Save changes' : 'Save prompt'}</Button>}</div>
@@ -201,14 +201,14 @@ export default function PromptBuilder() {
     </main>}
 
     <Dialog open={showExamples} onOpenChange={setShowExamples}>
-      <DialogContent className="artifact-prompt-builder pb-examples-dialog" lang="en" closeLabel="Close examples">
+      <DialogContent className="artifact-theme artifact-prompt-builder pb-examples-dialog" lang="en" closeLabel="Close examples">
         <DialogTitle>{preset.label} examples</DialogTitle>
         <DialogDescription>Pick a complete starting point, then make it yours. Each example fills in the task, context, audience, outcome, references, and constraints with sample answers.</DialogDescription>
         <div className="pb-example-options">{EXAMPLES[preset.id].map(example => <button key={example.id} type="button" className="pb-example-option" aria-label={`Use example: ${example.title}`} onClick={() => loadExample(example)}><strong>{example.title}</strong><span>{example.answers.task}</span><span className="pb-example-use">Use this example</span></button>)}</div>
       </DialogContent>
     </Dialog>
     <Dialog open={!!confirmation} onOpenChange={open => { if (!open) setConfirmation(null); }}>
-      <DialogContent className="artifact-prompt-builder pb-confirm-dialog" lang="en" closeLabel="Close" onOpenAutoFocus={event => { event.preventDefault(); cancelRef.current?.focus(); }}>
+      <DialogContent className="artifact-theme artifact-prompt-builder pb-confirm-dialog" lang="en" closeLabel="Close" onOpenAutoFocus={event => { event.preventDefault(); cancelRef.current?.focus(); }}>
         <DialogTitle>{confirmation?.title}</DialogTitle><DialogDescription>{confirmation?.description}</DialogDescription>
         <div className="pb-confirm-actions"><Button ref={cancelRef} type="button" variant="outline" onClick={() => setConfirmation(null)}>Cancel</Button><Button type="button" onClick={() => { const action = confirmation.action; setConfirmation(null); action(); }}>{confirmation?.label}</Button></div>
       </DialogContent>

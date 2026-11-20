@@ -34,7 +34,7 @@ Los slugs son únicos y cumplen `^[a-z0-9]+(?:-[a-z0-9]+)*$`. Conservarlos despu
 
 El CSS importado desde un chunk lazy permanece global después de visitar una herramienta. Revisar también la navegación de vuelta al panel y entre herramientas. La raíz limita los estilos particulares; no constituye aislamiento mediante iframe o Shadow DOM y los estilos base de la aplicación siguen presentes.
 
-No envolver herramientas en `InternalTheme`, ni leer la preferencia del panel para definir su apariencia. El proveedor global comparte estado pero no aplica el modo oscuro. Cada herramienta define su presentación bajo su propia raíz.
+No envolver herramientas en `InternalTheme`, ni leer la preferencia del panel para definir su apariencia. El proveedor global comparte estado pero no aplica el modo oscuro. La clase compartida `.artifact-theme` aplica la paleta y los botones de `theme.css` tanto en la página como en cada `DialogContent` renderizado en un portal. El nombre de marca de estas herramientas se configura con `artifactBrandName` en `src/config/brandData.json`.
 
 ## Enlaces, títulos y datos
 

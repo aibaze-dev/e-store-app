@@ -71,7 +71,7 @@ export default function AIKnowledge() {
   const roundLabel = practice ? 'Missed-question practice' : modeLabel(mode);
 
   return <div className="ak-app" lang="en">
-    <header className="ak-header"><span className="ak-brand"><span className="ak-brand-icon"><GraduationCap aria-hidden="true" /></span>{brand.shortName}<span className="ak-header-divider" /><span className="ak-header-label">Learning tools</span></span><BookLink page={5}>The ebook</BookLink></header>
+    <header className="ak-header"><span className="ak-brand"><span className="ak-brand-icon"><GraduationCap aria-hidden="true" /></span>{brand.artifactBrandName}<span className="ak-header-divider" /><span className="ak-header-label">Learning tools</span></span><BookLink page={5}>The ebook</BookLink></header>
     <main className={`ak-main ak-${screen}`}>
       {screen === 'choose' && <>
         <section className="ak-intro">
@@ -81,7 +81,7 @@ export default function AIKnowledge() {
         </section>
         <div className="ak-picker">
           <section className="ak-global-card" aria-labelledby="ak-global-title">
-            <Layers aria-hidden="true" size={34} />
+            <div className="ak-cover-art" aria-hidden="true"><Layers strokeWidth={1.35} /></div>
             <div>
               <h2 id="ak-global-title">Global test</h2>
               <p>Two questions from each chapter, from the foundations to your first working tool.</p>
@@ -123,7 +123,7 @@ export default function AIKnowledge() {
           {missed.length > 0 && <Button className="ak-primary" onClick={practiceMissed}>
             <RotateCcw aria-hidden="true" />Practice missed questions ({missed.length})
           </Button>}
-          <Button variant="outline" className="ak-secondary" onClick={() => start(mode)}>New {mode === 'global' ? 'global' : `Day ${mode}`} test</Button>
+          <Button variant={missed.length ? "outline" : "default"} className={missed.length ? "ak-secondary" : "ak-primary"} onClick={() => start(mode)}>New {mode === 'global' ? 'global' : `Day ${mode}`} test</Button>
           <Button variant="ghost" className="ak-plain" onClick={() => setScreen('choose')}>Choose another test</Button>
         </div>
         <section className="ak-review" aria-labelledby="ak-review-heading"><div className="ak-section-heading"><h2 id="ak-review-heading">{missed.length ? 'Your personal review list' : 'Nothing to revisit this time'}</h2><span>{missed.length} {missed.length === 1 ? 'question' : 'questions'} to revisit</span></div>
@@ -134,6 +134,6 @@ export default function AIKnowledge() {
       </>}
     </main>
 
-    <Dialog open={confirmExit} onOpenChange={setConfirmExit}><DialogContent className="artifact-ai-knowledge ak-dialog" lang="en" closeLabel="Keep taking the test"><DialogTitle>Leave this test?</DialogTitle><DialogDescription>Your answers in this attempt will be cleared. You can start a fresh test whenever you’re ready.</DialogDescription><div className="ak-dialog-actions"><Button variant="outline" className="ak-secondary" onClick={() => setConfirmExit(false)}>Keep going</Button><Button className="ak-primary" onClick={() => { setConfirmExit(false); setScreen('choose'); setAnswers({}); }}>Leave test</Button></div></DialogContent></Dialog>
+    <Dialog open={confirmExit} onOpenChange={setConfirmExit}><DialogContent className="artifact-theme artifact-ai-knowledge ak-dialog" lang="en" closeLabel="Keep taking the test"><DialogTitle>Leave this test?</DialogTitle><DialogDescription>Your answers in this attempt will be cleared. You can start a fresh test whenever you’re ready.</DialogDescription><div className="ak-dialog-actions"><Button variant="outline" className="ak-secondary" onClick={() => setConfirmExit(false)}>Keep going</Button><Button className="ak-primary" onClick={() => { setConfirmExit(false); setScreen('choose'); setAnswers({}); }}>Leave test</Button></div></DialogContent></Dialog>
   </div>;
 }

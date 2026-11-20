@@ -1,0 +1,80 @@
+/* Both the public page and its portaled dialogs carry this class. */
+.artifact-theme {
+  color-scheme: dark;
+  --background: #101012;
+  --card: #1c1b1e;
+  --foreground: #fff;
+  --muted-foreground: #bcb8b6;
+  --border: #39363a;
+  --input: #726962;
+  --artifact-orange: #f56b20;
+  --artifact-amber: #ff9e3d;
+  --primary: #cf490a;
+  --primary-foreground: #fff;
+  --accent: #35251f;
+  --accent-foreground: #fff;
+  --ring: #ffab73;
+  --artifact-error: #ffb4ab;
+  --artifact-success: #a1dbc2;
+  --artifact-success-bg: #1c3029;
+  --artifact-glow: color-mix(in srgb, var(--artifact-orange) 43%, transparent);
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.artifact-theme.min-h-svh {
+  background-image: radial-gradient(ellipse 85% 420px at 12% 0, #f56b200b, transparent);
+}
+
+.artifact-theme[data-slot='dialog-content'] {
+  background-color: var(--card);
+  border-color: var(--border);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px #0008;
+}
+
+/* Keep the brightest orange on the rim and halo so the white label stays legible. */
+.artifact-theme [data-slot='button'][data-variant='default'] {
+  min-height: 56px;
+  max-width: 100%;
+  height: auto;
+  padding: 14px 25px;
+  border: 1px solid color-mix(in srgb, var(--artifact-amber) 72%, var(--primary));
+  border-radius: 14px;
+  background: linear-gradient(115deg, #e6590c, var(--primary) 65%, #b83c08);
+  color: var(--primary-foreground);
+  box-shadow: inset 0 1px 0 #ffffff38, 0 0 10px #ff701a33, 0 6px 25px var(--artifact-glow);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+@media (hover: hover) {
+  .artifact-theme [data-slot='button'][data-variant='default']:hover:enabled {
+    box-shadow: inset 0 1px 0 #ffffff54, 0 4px 14px var(--artifact-glow), 0 6px 32px var(--artifact-glow);
+    transform: translateY(-1px);
+  }
+}
+
+.artifact-theme [data-slot='button'][data-variant='default']:active:enabled { transform: translateY(1px); }
+.artifact-theme [data-slot='button'][data-variant='default']:disabled {
+  background: var(--card);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+  opacity: .7;
+  box-shadow: none;
+}
+.artifact-theme :is(button, a, summary, select, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .artifact-theme [data-slot='button'][data-variant='default'] { transition: none; }
+  .artifact-theme [data-slot='button'][data-variant='default']:is(:hover, :active):enabled { transform: none; }
+}
