@@ -23,7 +23,7 @@ Si el generador ya preparó el proyecto, podés copiar `.env.example` a `.env.lo
 
 Para un backend de desarrollo separado, Convex configura el deployment de desarrollo y `.env.local`. En otra terminal, ejecutar `pnpm dev`.
 
-El frontend usa `VITE_CONVEX_URL` para queries/mutations y `VITE_CONVEX_SITE_URL` para auth (si falta, se deriva de la URL `.convex.cloud`). La pantalla inicial incluye registro, login y logout reemplazables; `convex/schema.ts` sigue vacío. Better Auth guarda usuarios y sesiones en su componente. El generador implementa datos persistentes, validación, permisos e integraciones según el brief. Cada proyecto tiene su propia configuración de proveedores; las operaciones que requieran credenciales pendientes permanecen bloqueadas y documentadas. El sitio se publica en Internet y el acceso a sus datos se controla en el backend.
+El frontend usa `VITE_CONVEX_URL` para queries/mutations y `VITE_CONVEX_SITE_URL` para auth (si falta, se deriva de la URL `.convex.cloud`). La pantalla inicial incluye login y logout (el registro está cerrado, ver «Autenticación y permisos»); `convex/schema.ts` sigue vacío. Better Auth guarda usuarios y sesiones en su componente. El generador implementa datos persistentes, validación, permisos e integraciones según el brief. Cada proyecto tiene su propia configuración de proveedores; las operaciones que requieran credenciales pendientes permanecen bloqueadas y documentadas. El sitio se publica en Internet y el acceso a sus datos se controla en el backend.
 
 ## Publicación
 
@@ -67,7 +67,7 @@ El generador puede usar esta carpeta directamente: no hace falta publicarla ante
 
 La plataforma genera un `BETTER_AUTH_SECRET` de 32 bytes por proyecto, lo conserva cifrado y lo sincroniza con Convex junto con `SITE_URL` antes del primer deploy. Los reintentos reutilizan el mismo secreto. El secreto y la deploy key no se entregan al frontend ni al sandbox.
 
-El registro email/contraseña está abierto por defecto, sin verificación de email y sin otorgar roles. Adaptar el registro al producto (`disableSignUp`, invitaciones o aprobación). Cada query/mutation privada debe llamar `requireUser(ctx)` desde `convex/auth.ts` y comprobar propiedad/roles en el servidor. El ID autenticado viene de `user._id`, nunca de un argumento enviado por el navegador. `auth:getCurrentUser` demuestra una query privada. No hay administradores ni datos de ejemplo precargados.
+El registro email/contraseña está cerrado (`disableSignUp` en `convex/auth.ts`): hay un único usuario interno y los compradores no tienen cuenta. Solo se abre con `AUTH_SIGNUP_ENABLED=true` en Convex, sin verificación de email y sin otorgar roles; el acceso al panel sigue dependiendo de `ADMIN_EMAILS`. La contraseña se cambia desde el ícono de llave al pie del sidebar del panel (`src/panel/ChangePasswordDialog.jsx`): pide la actual, exige 12 caracteres o más en la nueva y cierra las sesiones de los otros dispositivos. Cada query/mutation privada debe llamar `requireUser(ctx)` desde `convex/auth.ts` y comprobar propiedad/roles en el servidor. El ID autenticado viene de `user._id`, nunca de un argumento enviado por el navegador. `auth:getCurrentUser` demuestra una query privada. No hay administradores ni datos de ejemplo precargados.
 
 En React, usar `useConvexAuth()` para esperar la autenticación de Convex antes de ejecutar queries privadas (`useQuery(ref, isAuthenticated ? {} : 'skip')`). La sesión de Better Auth por sí sola no confirma que Convex esté conectado.
 
@@ -102,7 +102,8 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 
 | Variable | Uso |
 | --- | --- |
-| `ADMIN_EMAILS` | Emails con acceso al panel, separados por coma. El registro no verifica el correo: registrá primero tu cuenta y después cargá esta variable. |
+| `ADMIN_EMAILS` | Emails con acceso al panel, separados por coma. Cada email necesita una cuenta existente (ver `AUTH_SIGNUP_ENABLED`). |
+| `AUTH_SIGNUP_ENABLED` | Sin definir, el registro está cerrado en el servidor y la pantalla solo ofrece login. Para crear una cuenta nueva, ponerla en `true`, llamar a `POST /api/auth/sign-up/email` y volver a borrarla. Mientras está en `true` el registro queda abierto a cualquiera y no verifica el correo. |
 | `STRIPE_SECRET_KEY` | Clave secreta de Stripe. Sin ella no se puede iniciar un pago. |
 | `STRIPE_WEBHOOK_SECRET` | Secreto del webhook `https://<deployment>.convex.site/api/stripe/webhook`, con los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` y `charge.refunded`. |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Clave publicable, en el entorno del build del frontend. |

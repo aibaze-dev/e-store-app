@@ -17,7 +17,14 @@ export function createAuth(ctx: GenericCtx<GenericDataModel>) {
     database: authComponent.adapter(ctx),
     trustedOrigins: () => authOrigins(process.env),
     session: { cookieCache: { enabled: false } },
-    emailAndPassword: { enabled: true, requireEmailVerification: false, minPasswordLength: 8 },
+    // Sign-up is closed: the only account is the internal admin. Set AUTH_SIGNUP_ENABLED=true in
+    // Convex only while creating a new account, then remove it.
+    emailAndPassword: {
+      enabled: true,
+      disableSignUp: process.env.AUTH_SIGNUP_ENABLED !== 'true',
+      requireEmailVerification: false,
+      minPasswordLength: 8,
+    },
     plugins: [crossDomain({ siteUrl: process.env.SITE_URL! }), convex({ authConfig })],
   });
 }

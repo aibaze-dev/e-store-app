@@ -15,7 +15,6 @@ const currentUser = makeFunctionReference('auth:getCurrentUser');
 export default function AuthPanel({ headingAs = 'h2' }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const user = useQuery(currentUser, isAuthenticated ? {} : 'skip');
-  const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,11 +31,9 @@ export default function AuthPanel({ headingAs = 'h2' }) {
     setBusy(true); setError('');
     const fields = new FormData(event.currentTarget);
     try {
-      const credentials = { email: fields.get('email').trim(), password: fields.get('password') };
-      const result = register
-        ? await authClient.signUp.email({ ...credentials, name: fields.get('name').trim() })
-        : await authClient.signIn.email(credentials);
-      if (result.error) setError(register ? 'No se pudo crear la cuenta. Revisá los datos o intentá iniciar sesión.' : 'No se pudo iniciar sesión. Revisá tu email y contraseña.');
+      // Sign-up is closed on the server (convex/auth.ts), so this screen only logs in.
+      const result = await authClient.signIn.email({ email: fields.get('email').trim(), password: fields.get('password') });
+      if (result.error) setError('No se pudo iniciar sesión. Revisá tu email y contraseña.');
     } catch { setError('No se pudo conectar. Volvé a intentar.'); }
     finally { pending.current = false; setBusy(false); }
   }
@@ -87,15 +84,11 @@ export default function AuthPanel({ headingAs = 'h2' }) {
   return <Card className="auth-panel gap-7 border-0 bg-transparent py-0 shadow-none" aria-labelledby={`${id}-title`}>
     <CardHeader className="gap-3 px-0">
       <span className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-card text-primary shadow-xs"><LockKeyhole size={22} strokeWidth={1.7} aria-hidden="true" /></span>
-      <CardTitle as={headingAs} id={`${id}-title`} className="text-[30px] font-semibold leading-tight tracking-tight sm:text-[32px]">{register ? 'Creá tu cuenta.' : 'Qué bueno verte.'}</CardTitle>
-      <CardDescription className="text-sm leading-7">{register ? 'Un primer paso para empezar a construir.' : 'Ingresá tus datos para continuar en tu espacio.'}</CardDescription>
+      <CardTitle as={headingAs} id={`${id}-title`} className="text-[30px] font-semibold leading-tight tracking-tight sm:text-[32px]">Qué bueno verte.</CardTitle>
+      <CardDescription className="text-sm leading-7">Ingresá tus datos para continuar en tu espacio.</CardDescription>
     </CardHeader>
     <CardContent className="px-0">
-      <form key={register ? 'register' : 'login'} onSubmit={submit} className="space-y-5" aria-busy={busy} aria-describedby={error ? `${id}-error` : undefined}>
-        {register && <div className="space-y-2.5">
-          <Label htmlFor={`${id}-name`}>Nombre completo</Label>
-          <Input id={`${id}-name`} name="name" autoComplete="name" placeholder="Tu nombre" required maxLength={120} disabled={busy} className="h-12 bg-card px-3.5" />
-        </div>}
+      <form onSubmit={submit} className="space-y-5" aria-busy={busy} aria-describedby={error ? `${id}-error` : undefined}>
         <div className="space-y-2.5">
           <Label htmlFor={`${id}-email`}>Email</Label>
           <div className="relative">
@@ -106,24 +99,17 @@ export default function AuthPanel({ headingAs = 'h2' }) {
         <div className="space-y-2.5">
           <Label htmlFor={`${id}-password`}>Contraseña</Label>
           <div className="relative">
-            <Input id={`${id}-password`} name="password" type={showPassword ? 'text' : 'password'} autoComplete={register ? 'new-password' : 'current-password'} placeholder={register ? 'Creá una contraseña' : 'Tu contraseña'} minLength={8} maxLength={128} required disabled={busy} className="h-12 bg-card pr-12 pl-3.5" aria-describedby={register ? `${id}-password-hint` : undefined} />
+            <Input id={`${id}-password`} name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Tu contraseña" maxLength={128} required disabled={busy} className="h-12 bg-card pr-12 pl-3.5" />
             <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 right-0.5 size-11 -translate-y-1/2 text-muted-foreground" disabled={busy} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword} aria-controls={`${id}-password`}>
               {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
             </Button>
           </div>
-          {register && <p id={`${id}-password-hint`} className="text-xs leading-5 text-muted-foreground">Usá entre 8 y 128 caracteres.</p>}
         </div>
         {errorMessage}
         <Button type="submit" disabled={busy} className="h-12 w-full gap-3 text-sm" size="lg">
-          {busy ? <><LoaderCircle className="animate-spin" aria-hidden="true" />{register ? 'Creando tu cuenta…' : 'Ingresando…'}</> : <>{register ? 'Crear mi cuenta' : 'Iniciar sesión'}<ArrowRight aria-hidden="true" /></>}
+          {busy ? <><LoaderCircle className="animate-spin" aria-hidden="true" />Ingresando…</> : <>Iniciar sesión<ArrowRight aria-hidden="true" /></>}
         </Button>
       </form>
-      <div className="mt-7 flex flex-wrap items-center justify-center gap-x-1 border-t pt-6 text-xs text-muted-foreground">
-        <span>{register ? '¿Ya tenés una cuenta?' : '¿Primera vez por acá?'}</span>
-        <Button variant="link" className="h-11 px-1 text-xs font-semibold" type="button" disabled={busy} onClick={() => { setRegister(!register); setShowPassword(false); setError(''); }}>
-          {register ? 'Iniciá sesión' : 'Creá tu cuenta'}
-        </Button>
-      </div>
     </CardContent>
   </Card>;
 }

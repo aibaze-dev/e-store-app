@@ -51,6 +51,41 @@ describe('project authentication', () => {
     await expect(authenticated.query(api.auth.getCurrentUser, {})).rejects.toThrow();
   });
 
+  it('rejects sign-up unless AUTH_SIGNUP_ENABLED is true, while existing accounts still log in', async () => {
+    const t = backend();
+    await post(t, 'sign-up/email', { ...credentials, name: 'Member' });
+    vi.stubEnv('AUTH_SIGNUP_ENABLED', '');
+    const blocked = await post(t, 'sign-up/email', { ...credentials, email: 'intruder@example.com', name: 'Intruder' });
+    expect(blocked.ok).toBe(false);
+    expect((await post(t, 'sign-in/email', { ...credentials, email: 'intruder@example.com' })).status).toBe(401);
+    expect((await post(t, 'sign-in/email', credentials)).status).toBe(200);
+  });
+
+  it('changes the password only with the current one and revokes the other sessions', async () => {
+    const t = backend();
+    await post(t, 'sign-up/email', { ...credentials, name: 'Member' });
+    vi.stubEnv('AUTH_SIGNUP_ENABLED', '');
+    const sessionHeaders = async password => {
+      const cookie = (await post(t, 'sign-in/email', { ...credentials, password })).headers.get('set-better-auth-cookie');
+      const token = cookie.match(/(?:^|,\s*)([^=;,]*session_token)=([^;]+)/);
+      return { 'Better-Auth-Cookie': `${token[1]}=${decodeURIComponent(token[2])}` };
+    };
+    const laptop = await sessionHeaders(credentials.password);
+    const phone = await sessionHeaders(credentials.password);
+    const newPassword = 'a-much-longer-passphrase-2026';
+    expect((await post(t, 'change-password', { currentPassword: 'wrong-password', newPassword }, laptop)).status).toBe(400);
+    expect((await post(t, 'change-password', { currentPassword: credentials.password, newPassword }, { 'Better-Auth-Cookie': '' })).status).toBe(401);
+    const changed = await post(t, 'change-password', { currentPassword: credentials.password, newPassword, revokeOtherSessions: true }, laptop);
+    expect(changed.status).toBe(200);
+    const session = headers => t.fetch('/api/auth/get-session', { headers: { Origin: origin, ...headers } }).then(response => response.json());
+    expect(await session(phone)).toBeNull();
+    // Every session is replaced; the browser that changed it keeps working with the rotated cookie.
+    const rotated = changed.headers.get('set-better-auth-cookie').match(/(?:^|,\s*)([^=;,]*session_token)=([^;]+)/);
+    expect((await session({ 'Better-Auth-Cookie': `${rotated[1]}=${decodeURIComponent(rotated[2])}` })).user.email).toBe(credentials.email);
+    expect((await post(t, 'sign-in/email', credentials)).status).toBe(401);
+    expect((await post(t, 'sign-in/email', { ...credentials, password: newPassword })).status).toBe(200);
+  });
+
   it('rejects Convex token requests without a session', async () => {
     const t = backend();
     const response = await t.fetch('/api/auth/convex/token', {

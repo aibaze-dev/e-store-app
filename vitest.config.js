@@ -19,6 +19,8 @@ export default defineConfig({
       CONVEX_SITE_URL: 'https://auth-test.convex.site',
       SITE_URL: 'https://auth-test.convex.site',
       BETTER_AUTH_SECRET: 'test-only-secret-with-at-least-thirty-two-characters',
+      // Fixtures create accounts through the real sign-up route; production keeps it closed.
+      AUTH_SIGNUP_ENABLED: 'true',
     },
   },
 });

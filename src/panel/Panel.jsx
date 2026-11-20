@@ -26,6 +26,7 @@ import LandingPreviewPage from './LandingPreviewPage.jsx';
 import OrdersPage from './OrdersPage.jsx';
 import StoreDashboardPage from './StoreDashboardPage.jsx';
 import StoreCheckoutPage from './StoreCheckoutPage.jsx';
+import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 const StoreAnalyticsPage = lazy(() => import('./StoreAnalyticsPage.jsx'));
 
 const NAV_GROUPS = [
@@ -129,7 +130,7 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
             <NavLink to="/panel/artefactos" onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><Sparkles className="size-[18px]" aria-hidden="true" />Artefactos</NavLink>
           </section>
         </nav>
-        <div className="workspace-sidebar-footer"><span className="workspace-avatar">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{user.name || 'Mi espacio'}</span><span className="block truncate text-xs text-muted-foreground">{user.email}</span></span></div>
+        <div className="workspace-sidebar-footer"><span className="workspace-avatar">{(user.name || user.email || 'A').slice(0, 1).toUpperCase()}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{user.name || 'Mi espacio'}</span><span className="block truncate text-xs text-muted-foreground">{user.email}</span></span><ChangePasswordDialog /></div>
       </aside>
       <div className="workspace-main">
         <header className="workspace-header">
