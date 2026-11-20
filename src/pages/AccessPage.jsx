@@ -1,6 +1,7 @@
 import { ArrowUpRight, Layers3, Orbit, Sparkles } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { useConvexAuth, useQuery } from 'convex/react';
+import { useEffect, useState } from 'react';
+import { useAction, useConvexAuth, useQuery } from 'convex/react';
 import AuthPanel from '../components/AuthPanel.jsx';
 import brand from '../config/brandData.json';
 import { api } from '../lib/api.js';
@@ -9,7 +10,16 @@ import { InternalTheme, ThemeToggle } from '../components/InternalTheme.jsx';
 export default function AccessPage() {
   const { isAuthenticated } = useConvexAuth();
   const user = useQuery(api.auth.getCurrentUser, isAuthenticated ? {} : 'skip');
+  const checkAccess = useAction(api.access.check);
+  const [allowed, setAllowed] = useState(null);
+  useEffect(() => {
+    let live = true;
+    checkAccess({}).then(result => live && setAllowed(result === true), () => live && setAllowed(false));
+    return () => { live = false; };
+  }, [checkAccess]);
   if (user?.isAdmin) return <Navigate to="/panel" replace />;
+  // Outside ADMIN_ALLOWED_IPS the root stays empty. The server also refuses sign-in there.
+  if (!allowed) return null;
 
   return <InternalTheme><main className="auth-layout">
     <aside className="auth-story" aria-label="Bienvenida">

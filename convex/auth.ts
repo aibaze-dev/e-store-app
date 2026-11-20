@@ -6,6 +6,9 @@ import { components } from './_generated/api';
 import authConfig from './auth.config';
 import { authOrigins } from './lib/auth_origins';
 import { isAdminEmail } from './lib/admin_emails';
+import { adminIpAllowed } from './lib/admin_ip';
+import { clientIp } from './lib/request_ip';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 
 export const authComponent = createClient(components.betterAuth);
 
@@ -26,6 +29,17 @@ export function createAuth(ctx: GenericCtx<GenericDataModel>) {
       minPasswordLength: 8,
     },
     plugins: [crossDomain({ siteUrl: process.env.SITE_URL! }), convex({ authConfig })],
+    // Sign-in and sign-up answer 404 outside ADMIN_ALLOWED_IPS, as if the route did not exist.
+    // Sessions already open keep working from anywhere.
+    hooks: {
+      before: createAuthMiddleware(async request => {
+        if (!/^\/sign-(in|up)\//.test(request.path)) return;
+        if (!(await adminIpAllowed(ctx))) {
+          console.warn(`Sign-in blocked for IP ${await clientIp(ctx)}`);
+          throw new APIError('NOT_FOUND');
+        }
+      }),
+    },
   });
 }
 

@@ -103,6 +103,7 @@ Configuración pendiente (variables de Convex, salvo la indicada):
 | Variable | Uso |
 | --- | --- |
 | `ADMIN_EMAILS` | Emails con acceso al panel, separados por coma. Cada email necesita una cuenta existente (ver `AUTH_SIGNUP_ENABLED`). |
+| `ADMIN_ALLOWED_IPS` | IPs o rangos CIDR (IPv4 o IPv6) separados por coma que ven el login en la raíz del dominio. Desde cualquier otra IP la raíz queda en blanco y `/api/auth/sign-in/*` y `/api/auth/sign-up/*` responden 404, aunque la contraseña sea correcta. Las sesiones ya abiertas siguen funcionando desde cualquier IP. Sin definir, no hay restricción. Si tu conexión usa IPv6 con direcciones temporales, agregá el prefijo `/64` y no una dirección suelta. Las IPs rechazadas quedan en los logs de Convex («Login hidden for IP …»), y ahí podés ver cuál agregar si cambia la tuya. |
 | `AUTH_SIGNUP_ENABLED` | Sin definir, el registro está cerrado en el servidor y la pantalla solo ofrece login. Para crear una cuenta nueva, ponerla en `true`, llamar a `POST /api/auth/sign-up/email` y volver a borrarla. Mientras está en `true` el registro queda abierto a cualquiera y no verifica el correo. |
 | `STRIPE_SECRET_KEY` | Clave secreta de Stripe. Sin ella no se puede iniciar un pago. |
 | `STRIPE_WEBHOOK_SECRET` | Secreto del webhook `https://<deployment>.convex.site/api/stripe/webhook`, con los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` y `charge.refunded`. |
