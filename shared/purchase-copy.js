@@ -81,6 +81,16 @@ export const POST_LABEL_FIELDS = {
     "label": "Descarga en curso",
     "value": "Downloading…"
   },
+  "webBadge": {
+    "group": "access",
+    "label": "Etiqueta de accesos web (artefactos y links)",
+    "value": "Web portal"
+  },
+  "openSite": {
+    "group": "access",
+    "label": "Botón de accesos web",
+    "value": "Visit site"
+  },
   "seeLinks": {
     "group": "access",
     "label": "Botón para ver todos los accesos",
@@ -250,6 +260,31 @@ export const POST_LABEL_FIELDS = {
     "group": "footer",
     "label": "Nombre del menú legal",
     "value": "Legal information"
+  },
+  "emailSubject": {
+    "group": "email",
+    "label": "Asunto del email",
+    "value": "Your access to {tienda}"
+  },
+  "emailPreheader": {
+    "group": "email",
+    "label": "Texto de vista previa en la bandeja",
+    "value": "Your payment is confirmed. Here are your access links and your order summary."
+  },
+  "emailGreeting": {
+    "group": "email",
+    "label": "Saludo",
+    "value": "Hi {nombre},"
+  },
+  "emailIntro": {
+    "group": "email",
+    "label": "Mensaje de bienvenida",
+    "value": "Your payment is confirmed. Thank you for choosing {tienda}."
+  },
+  "emailKeep": {
+    "group": "email",
+    "label": "Nota final",
+    "value": "Keep this email: it’s the easiest way to get back to your access links."
   }
 };
 export const BACK_POPUP_FIELDS = {
@@ -307,7 +342,7 @@ export const BACK_POPUP_FIELDS = {
   }
 };
 export const POST_LABEL_DEFAULTS = Object.fromEntries(Object.entries(POST_LABEL_FIELDS).map(([key, field]) => [key, field.value]));
-export const POST_LABEL_GROUPS = { confirmation: 'Confirmación de compra', access: 'Links y entrega', offer: 'Textos adicionales de la oferta', video: 'Video', states: 'Estados de la compra', footer: 'Pie y enlaces legales' };
+export const POST_LABEL_GROUPS = { confirmation: 'Confirmación de compra', access: 'Links y entrega', offer: 'Textos adicionales de la oferta', video: 'Video', states: 'Estados de la compra', footer: 'Pie y enlaces legales', email: 'Email de compra' };
 export const POST_OPTION_FIELDS = { showCover: 'Mostrar portada de la oferta', showDiscount: 'Mostrar etiqueta de ahorro', showTrust: 'Mostrar sellos de confianza', showPaymentNote: 'Mostrar aclaración de cobro separado' };
 export const POPUP_OPTION_FIELDS = { landingExit: 'Mostrar popup al salir de la landing', backLanding: 'Mostrar oferta al volver atrás en la landing', backCheckout: 'Mostrar oferta al volver atrás en el checkout', postEnabled: 'Mostrar ofertas post-compra', postOnLoad: 'Abrir post-compra al confirmar la compra', postOnReturn: 'Reabrir post-compra al volver a la pestaña', postOnExit: 'Reabrir post-compra al salir con el mouse', postDownsell: 'Mostrar segunda oferta con descuento', postFinal: 'Mostrar última oportunidad' };
 export const POST_OPTION_DEFAULTS = Object.fromEntries(Object.keys(POST_OPTION_FIELDS).map(key => [key, true]));

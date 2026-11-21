@@ -500,7 +500,9 @@ describe('purchase emails through Resend', () => {
     const [{ headers, body }] = resend.emails;
     expect(headers.Authorization).toBe('Bearer re_test_only');
     expect(headers['Idempotency-Key']).toMatch(/^paid-/);
-    expect(body).toMatchObject({ from: 'Tienda <ventas@example.com>', to: ['buyer@example.com'], subject: 'Tus accesos de Campaña inversión' });
+    expect(body).toMatchObject({ from: 'Tienda <ventas@example.com>', to: ['buyer@example.com'], subject: 'Your access to Campaña inversión' });
+    // Same design and texts as the thank-you page.
+    for (const text of ['Thank you for your purchase!', 'Your access links', 'Order summary', 'Total paid', 'Download']) expect(body.html).toContain(text);
     for (const url of ['main.pdf', 'bonus.pdf', 'upsellA.pdf']) {
       expect(body.html).toContain(`https://files.example.com/${url}`);
       expect(body.text).toContain(`https://files.example.com/${url}`);

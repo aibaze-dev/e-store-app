@@ -121,3 +121,38 @@ describe('thank-you delivery order', async () => {
     expect(groupDeliveries([])).toEqual([]);
   });
 });
+
+describe('delivery email', async () => {
+  const { deliveryEmail } = await import('../convex/emails.ts');
+  const base = {
+    status: 'paid', email: { status: 'pending', attempts: 0 }, storeName: 'Ateneo', buyer: { email: 'a@example.com', name: '' },
+    currency: 'USD', total: 2700, charged: null, reviewReason: 'amount', paymentIntentId: '',
+    items: [{ name: 'Bonus site', role: 'bonus', price: 0 }, { name: 'Ebook', role: 'main', price: 2000 }, { name: 'Extra', role: 'upsell', price: 700 }],
+    deliveries: [
+      { productName: 'Bonus site', title: 'Prompt builder', url: 'https://site.example.com/a/prompt-builder', kind: 'link', role: 'bonus' },
+      { productName: 'Ebook', title: 'PDF', url: 'https://files.example.com/book.pdf', kind: 'file', role: 'main', coverUrl: 'https://files.example.com/cover.jpg' },
+      { productName: 'Extra', title: 'Workbook', url: 'https://files.example.com/extra.pdf', kind: 'file', role: 'upsell' },
+    ],
+  };
+  it('orders the library like the page and names web deliverables as a site', () => {
+    const { html, text, subject } = deliveryEmail(base);
+    expect(subject).toBe('Your access to Ateneo');
+    expect(html.indexOf('Ebook')).toBeLessThan(html.indexOf('Bonus site'));
+    expect(html.indexOf('Bonus site')).toBeLessThan(html.indexOf('Workbook'));
+    expect(html).toContain('https://files.example.com/cover.jpg');
+    expect(html).toContain('Web portal');
+    expect(html).toContain('Visit site');
+    expect(text).toContain('Bonus site · Prompt builder (Free) [Web portal]: https://site.example.com/a/prompt-builder');
+    expect(text).toContain('Total paid: $27.00');
+    expect(text).toMatch(/^Thank you for your purchase!\n\nHi,\nYour payment is confirmed/);
+    expect(text.indexOf('Ebook: $20.00')).toBeLessThan(text.indexOf('Bonus site: Free'));
+  });
+  it('uses the store texts and color, and escapes buyer data', () => {
+    const { html, subject } = deliveryEmail({ ...base, buyer: { email: 'a@example.com', name: '<b>Ana</b>' }, presentation: { accentColor: '#2f6fed', postLabels: { emailSubject: 'Tus accesos de {tienda}', paidTitle: '¡Gracias por tu compra!' } } });
+    expect(subject).toBe('Tus accesos de Ateneo');
+    expect(html).toContain('¡Gracias por tu compra!');
+    expect(html).toContain('&lt;b&gt;Ana&lt;/b&gt;');
+    expect(html).not.toContain('<b>Ana</b>');
+    expect(html.toLowerCase()).toContain('#2f6fed');
+  });
+});

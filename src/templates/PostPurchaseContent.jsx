@@ -8,7 +8,7 @@ import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import './thank-you.css';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, BookOpen, Check, Download, ExternalLink, Gift, LoaderCircle, PlusCircle, Receipt, Star, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, BookOpen, Check, Download, ExternalLink, Gift, Globe, LoaderCircle, PlusCircle, Receipt, Star, X } from 'lucide-react';
 import { groupDeliveries } from '@/storefront/delivery-groups.js';
 import { downloadFile, isDownloadable } from '@/storefront/download.js';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
@@ -67,35 +67,37 @@ const GROUP_LOOK = {
 };
 
 // Product cover when there is one, the group icon otherwise.
-function DeliveryThumb({ link, group }) {
+function DeliveryThumb({ link, group, web }) {
   const [failed, setFailed] = useState(false);
-  const Icon = group === 'bonus' ? Gift : group === 'extras' ? PlusCircle : BookOpen;
+  const Icon = web ? Globe : group === 'bonus' ? Gift : group === 'extras' ? PlusCircle : BookOpen;
   if (link.coverUrl && !failed) return <span className="thanks-thumb is-cover" aria-hidden="true"><img src={link.coverUrl} alt="" onError={() => setFailed(true)} /></span>;
   return <span className="thanks-thumb" aria-hidden="true"><Icon /></span>;
 }
 
 // «Open» always, and «Download» first when the deliverable is a file.
-function DeliveryActions({ link, preview, labels }) {
-  const downloadable = preview ? link.kind !== 'link' : isDownloadable(link);
+// Files: «Download» and «Open». Pages (artifacts, external links): one «Visit site» button.
+function DeliveryActions({ link, preview, labels, downloadable }) {
   const secondary = downloadable ? ' is-secondary' : '';
+  const openLabel = downloadable ? labels.open : labels.openSite;
   if (preview) return <div className="purchase-actions">
     {downloadable && <span className="purchase-open is-disabled" aria-disabled="true"><Download aria-hidden="true" />{labels.download}</span>}
-    <span className={`purchase-open is-disabled${secondary}`} aria-disabled="true">{labels.open}<ExternalLink aria-hidden="true" /></span>
+    <span className={`purchase-open is-disabled${secondary}`} aria-disabled="true">{openLabel}<ExternalLink aria-hidden="true" /></span>
   </div>;
   return <div className="purchase-actions">
     {downloadable && <DownloadButton link={link} labels={labels} />}
-    <a className={`purchase-open${secondary}`} href={link.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>
+    <a className={`purchase-open${secondary}`} href={link.url} target="_blank" rel="noreferrer">{openLabel}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>
   </div>;
 }
 
 function DeliveryItem({ link, group, preview, labels, order }) {
-  return <li className={`thanks-row is-${group}`} style={{ '--i': order }}>
-    <DeliveryThumb link={link} group={group} />
+  const downloadable = preview ? link.kind !== 'link' : isDownloadable(link);
+  return <li className={`thanks-row is-${group}${downloadable ? '' : ' is-web'}`} style={{ '--i': order }}>
+    <DeliveryThumb link={link} group={group} web={!downloadable} />
     <div className="thanks-row-text">
-      <strong>{link.productName}{group === 'bonus' && labels.free && <span className="purchase-free">{labels.free}</span>}</strong>
+      <strong>{link.productName}{group === 'bonus' && labels.free && <span className="purchase-free">{labels.free}</span>}{!downloadable && labels.webBadge && <span className="purchase-web"><Globe aria-hidden="true" />{labels.webBadge}</span>}</strong>
       {link.title && link.title !== link.productName && <p>{link.title}</p>}
     </div>
-    <DeliveryActions link={link} preview={preview} labels={labels} />
+    <DeliveryActions link={link} preview={preview} labels={labels} downloadable={downloadable} />
   </li>;
 }
 
@@ -126,13 +128,13 @@ export function DeliveryLinks({ deliveries, preview = false, labels = postLabels
 
 // The main product as a 3D book: its cover, or a designed cover with its name.
 // `target` marks it as the place where the celebration's book lands.
-export function ProductBook({ name = '', coverUrl = '', target = false }) {
+export function ProductBook({ name = '', coverUrl = '', target = false, web = false }) {
   const [failed, setFailed] = useState(false);
   return <div className="thanks-book" aria-hidden="true" {...(target ? { 'data-celebration-target': 'book' } : {})}>
     <div className="thanks-book-body">
       {coverUrl && !failed
         ? <img src={coverUrl} alt="" onError={() => setFailed(true)} />
-        : <span className="thanks-book-cover"><BookOpen /><strong>{name}</strong><i /></span>}
+        : <span className="thanks-book-cover">{web ? <Globe /> : <BookOpen />}<strong>{name}</strong><i /></span>}
       <span className="thanks-book-shine" />
     </div>
     <span className="thanks-book-seal"><Check /></span>
@@ -150,12 +152,14 @@ function ThanksHero({ eyebrow, title, subtitle, main, preview, labels }) {
         {subtitle && <p>{subtitle}</p>}
         <div className="thanks-hero-actions">
           {main && !preview && isDownloadable(main) && <DownloadButton link={main} labels={labels} className="thanks-hero-primary" />}
-          {main && !preview && !isDownloadable(main) && <a className="thanks-hero-primary" href={main.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {main.productName}</span><ExternalLink aria-hidden="true" /></a>}
-          {main && preview && <span className="thanks-hero-primary is-disabled" aria-disabled="true"><Download aria-hidden="true" />{main.kind === 'link' ? labels.open : labels.download}</span>}
+          {main && !preview && !isDownloadable(main) && <a className="thanks-hero-primary" href={main.url} target="_blank" rel="noreferrer">{labels.openSite}<span className="sr-only"> {main.productName}</span><ExternalLink aria-hidden="true" /></a>}
+          {main && preview && (main.kind === 'link'
+            ? <span className="thanks-hero-primary is-disabled" aria-disabled="true">{labels.openSite}<ExternalLink aria-hidden="true" /></span>
+            : <span className="thanks-hero-primary is-disabled" aria-disabled="true"><Download aria-hidden="true" />{labels.download}</span>)}
           <a className="thanks-hero-secondary" href="#accesos" onClick={event => { event.preventDefault(); document.getElementById('accesos')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{labels.seeLinks}<ArrowDown aria-hidden="true" /></a>
         </div>
       </div>
-      {main && <div className="thanks-hero-art"><span className="thanks-hero-halo" /><ProductBook name={main.productName} coverUrl={main.coverUrl} target={!preview} /></div>}
+      {main && <div className="thanks-hero-art"><span className="thanks-hero-halo" /><ProductBook name={main.productName} coverUrl={main.coverUrl} target={!preview} web={preview ? main.kind === 'link' : !isDownloadable(main)} /></div>}
     </div>
   </header>;
 }

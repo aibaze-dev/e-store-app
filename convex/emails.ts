@@ -5,8 +5,13 @@ import { adminEmails } from './lib/admin_emails';
 import { liveDeliveries } from './lib/deliveries';
 import { escapeHtml, resendSettings, safeUrl, sendEmail, type EmailMessage } from './lib/resend';
 import { emailStatus } from './schema';
+import { purchaseContent } from './lib/landing_records';
 import brand from '../src/config/brandData.json';
 import { classicTheme } from '../shared/classic-design.js';
+import { postLabels, purchaseText } from '../shared/purchase-copy.js';
+import { groupDeliveries } from '../src/storefront/delivery-groups.js';
+import { isDownloadable } from '../src/storefront/download.js';
+import { storefrontMoney } from '../src/lib/storefront-money.js';
 
 // Transactional emails sent after a verified Stripe event:
 // - paid: the buyer receives their delivery links.
@@ -32,14 +37,23 @@ export const context = internalQuery({
     const order = transaction && await ctx.db.get(transaction.orderId);
     if (!transaction || !order) return null;
     const store = await ctx.db.get(order.storeId);
+    // The same texts, color and legal links as the thank-you page.
+    const content = store ? await purchaseContent(ctx, store) : null;
     return {
       status: transaction.status,
       email: transaction.email ?? null,
       storeName: store?.name ?? '',
+      presentation: {
+        postLabels: content?.postLabels ?? {},
+        accentColor: content?.style?.accentColor ?? '',
+        brandName: content?.footer?.brandName ?? '',
+        termsUrl: content?.footer?.termsUrl ?? '',
+        privacyUrl: content?.footer?.privacyUrl ?? '',
+      },
       buyer: order.buyer ?? null,
       currency: order.currency,
       total: order.total,
-      items: order.items.map(item => ({ name: item.name, price: item.price })),
+      items: order.items.map(item => ({ name: item.name, role: item.role, price: item.price })),
       deliveries: await liveDeliveries(ctx, order, transaction.deliveries),
       charged: transaction.charged ?? null,
       reviewReason: transaction.reviewReason ?? 'amount',
@@ -56,9 +70,12 @@ export const record = internalMutation({
   },
 });
 
+type Delivery = { productName: string; title: string; url: string; kind?: 'file' | 'link'; coverUrl?: string; role?: string };
+type Presentation = { postLabels?: Record<string, string>; accentColor?: string; brandName?: string; termsUrl?: string; privacyUrl?: string };
 type Context = {
   status: string; email: { status: string; attempts: number } | null; storeName: string; buyer: { email: string; name: string } | null;
-  currency: string; total: number; items: { name: string; price: number }[]; deliveries: { productName: string; title: string; url: string }[];
+  presentation?: Presentation;
+  currency: string; total: number; items: { name: string; role?: string; price: number }[]; deliveries: Delivery[];
   charged: { amount: number; currency: string } | null; reviewReason: 'amount' | 'duplicate' | 'late'; paymentIntentId: string;
 };
 
@@ -120,35 +137,176 @@ const layout = (title: string, body: string, label: string, preheader: string) =
 <!--[if mso]></td></tr></table><![endif]-->
 </td></tr></table></body></html>`;
 
-function itemsTable(data: Context) {
-  const rows = data.items.map(item => `<tr><th scope="row" style="padding:12px 12px 12px 0;border-bottom:1px solid ${colors.line};font-weight:normal;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-wrap:break-word">${escapeHtml(item.name)}</th><td style="width:104px;padding:12px 0;border-bottom:1px solid ${colors.line};text-align:right;vertical-align:top;color:${item.price > 0 ? colors.ink : colors.muted}">${item.price > 0 ? escapeHtml(money(item.price, data.currency)) : 'Incluido'}</td></tr>`).join('');
-  return `<table aria-label="Detalle de tu compra" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.6">${rows}<tr><th scope="row" style="padding:20px 0 0;text-align:left;font-size:16px">Total</th><td style="padding:20px 0 0;text-align:right;font-weight:bold;font-size:18px;color:${colors.action}">${escapeHtml(money(data.total, data.currency))}</td></tr></table>`;
+// ---------------------------------------------------------------------------------------
+// Delivery email: the thank-you page in email form. Orange hero with the product cover, the
+// buyer's library (main product, free bonuses, added products) and a receipt. Tables and
+// inline styles only; gradients and rounded corners degrade to solid colors in Outlook.
+
+const hex = (value: string) => (/^#[0-9a-f]{6}$/i.test(value) ? value : '#f56b20');
+// Mixes `color` toward `other`: amount 0 keeps the color, 1 gives `other`.
+function mix(color: string, other: string, amount: number) {
+  const a = hex(color); const b = hex(other);
+  return '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - amount) + parseInt(b.slice(i, i + 2), 16) * amount).toString(16).padStart(2, '0')).join('');
+}
+
+function palette(accentColor = '') {
+  // Same rule as the page: the store's accent, or the landing's default when it has none.
+  const theme = classicTheme(accentColor);
+  const accent = theme['--sales-accent'];
+  return {
+    accent, action: theme['--classic-action'], onAction: theme['--classic-on-action'],
+    heroStart: theme['--classic-banner-start'], heroMid: theme['--classic-banner-mid'], heroEnd: theme['--classic-cta-end'], heroText: theme['--classic-cta-text'],
+    pill: mix(theme['--classic-banner-mid'], '#ffffff', .2), pillLine: mix(theme['--classic-banner-mid'], '#ffffff', .42), heroSoftText: mix(theme['--classic-cta-text'], theme['--classic-banner-mid'], .08),
+    cream: '#fffaf5', paper: '#ffffff', soft: '#fff5eb', peach: mix(accent, '#ffffff', .91), peachLine: mix(accent, '#f0e3d7', .76),
+    kicker: mix(accent, '#ffffff', .89), ink: '#30251f', muted: '#71635a', line: '#f0e3d7', night: '#27170e', nightEnd: '#743407',
+  };
+}
+
+const FONT = "'Nunito Sans','Segoe UI',Helvetica,Arial,sans-serif";
+const GROUP_GLYPH: Record<string, string> = { main: '&#9733;', bonus: '&#127873;', extras: '+' };
+const THUMB_GLYPH: Record<string, string> = { main: '&#128214;', bonus: '&#127873;', extras: '&#10010;', web: '&#127760;' };
+
+function button(href: string, label: string, c: ReturnType<typeof palette>, variant: 'solid' | 'outline' | 'white', size: 'lg' | 'md' = 'md') {
+  const pad = size === 'lg' ? '16px 32px' : '11px 20px';
+  const font = size === 'lg' ? 16 : 14;
+  const look = variant === 'white' ? { bg: '#ffffff', fg: c.action, border: '#ffffff' } : variant === 'solid' ? { bg: c.action, fg: c.onAction, border: c.action } : { bg: '#ffffff', fg: c.action, border: c.peachLine };
+  const gradient = variant === 'solid' ? `background-image:linear-gradient(135deg,${c.heroStart},${c.heroEnd});` : '';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate"><tr><td align="center" bgcolor="${look.bg}" style="border-radius:12px;${gradient}mso-padding-alt:${pad}"><a href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:${pad};border:1px solid ${look.border};border-radius:12px;font-family:${FONT};font-size:${font}px;line-height:20px;font-weight:800;text-decoration:none;color:${look.fg};mso-padding-alt:0">${label}</a></td></tr></table>`;
+}
+
+// The cover as a book: the product image, or a designed dark cover with its name.
+function cover(link: Delivery | undefined, name: string, c: ReturnType<typeof palette>, width: number) {
+  const height = Math.round(width * 1.386);
+  if (link?.coverUrl && safeUrl(link.coverUrl)) {
+    return `<img src="${escapeHtml(link.coverUrl)}" width="${width}" alt="${escapeHtml(name)}" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;border-radius:4px 10px 10px 4px;box-shadow:10px 14px 28px rgba(42,18,5,.35)">`;
+  }
+  return `<table role="presentation" width="${width}" cellpadding="0" cellspacing="0" style="width:${width}px;border-collapse:separate"><tr><td width="${width}" height="${height}" valign="bottom" bgcolor="${c.night}" style="height:${height}px;padding:0 16px 18px 20px;border-radius:4px 10px 10px 4px;background-image:linear-gradient(160deg,${c.night},${c.nightEnd});box-shadow:10px 14px 28px rgba(42,18,5,.35);text-align:left">
+<div style="font-size:${width > 100 ? 26 : 18}px;line-height:1;margin-bottom:${width > 100 ? 14 : 8}px">&#128214;</div>
+<div style="font-family:${FONT};font-size:${width > 100 ? 17 : 11}px;line-height:1.15;font-weight:900;color:#ffffff;overflow-wrap:anywhere">${escapeHtml(name)}</div>
+<div style="width:40px;height:3px;margin-top:${width > 100 ? 14 : 8}px;background:${c.accent};font-size:0;line-height:0">&nbsp;</div></td></tr></table>`;
+}
+
+function deliveryRow(link: Delivery, group: string, labels: Record<string, string>, c: ReturnType<typeof palette>, first: boolean) {
+  const main = group === 'main';
+  const file = isDownloadable(link);
+  const thumbWidth = main ? 64 : 48;
+  const glyph = file ? THUMB_GLYPH[group] ?? THUMB_GLYPH.main : THUMB_GLYPH.web;
+  const thumb = link.coverUrl && safeUrl(link.coverUrl)
+    ? cover(link, link.productName, c, thumbWidth)
+    : `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="${thumbWidth}" height="${thumbWidth}" align="center" bgcolor="${main ? '#ffffff' : c.soft}" style="width:${thumbWidth}px;height:${thumbWidth}px;border-radius:14px;font-size:${main ? 28 : 22}px;line-height:1">${glyph}</td></tr></table>`;
+  const free = group === 'bonus' && labels.free ? ` <span style="display:inline-block;padding:2px 8px;border-radius:99px;background:${c.kicker};color:${c.action};font-size:10px;line-height:16px;font-weight:800;letter-spacing:1px;text-transform:uppercase;vertical-align:2px">${escapeHtml(labels.free)}</span>` : '';
+  // Pages (artifacts, external links) are named as a site, so nobody waits for a file.
+  const web = !file && labels.webBadge ? ` <span style="display:inline-block;padding:2px 8px;border:1px solid ${c.peachLine};border-radius:99px;background:#ffffff;color:${c.action};font-size:10px;line-height:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;vertical-align:2px">&#127760; ${escapeHtml(labels.webBadge)}</span>` : '';
+  const action = button(link.url, file ? `&#8595;&nbsp; ${escapeHtml(labels.download)}` : `${escapeHtml(labels.openSite)} &nbsp;&#8599;`, c, 'solid');
+  const inner = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>
+<td width="${thumbWidth}" valign="top" style="width:${thumbWidth}px">${thumb}</td>
+<td valign="top" style="padding-left:16px;font-family:${FONT};overflow-wrap:anywhere;word-wrap:break-word">
+<div style="font-size:${main ? 18 : 16}px;line-height:1.3;font-weight:800;color:${c.ink}">${escapeHtml(link.productName)}${free}${web}</div>
+${link.title && link.title !== link.productName ? `<div style="margin-top:3px;font-size:13px;line-height:1.5;color:${c.muted}">${escapeHtml(link.title)}</div>` : ''}
+<div style="margin-top:12px">${action}</div></td></tr></table>`;
+  if (main) return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;margin-top:4px"><tr><td bgcolor="${c.peach}" style="padding:16px;border:1px solid ${c.peachLine};border-radius:16px;background-image:linear-gradient(120deg,${c.peach},${c.cream})">${inner}</td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr><td style="padding:14px 0;${first ? '' : `border-top:1px solid ${c.line};`}">${inner}</td></tr></table>`;
+}
+
+function library(links: Delivery[], labels: Record<string, string>, c: ReturnType<typeof palette>) {
+  const groups = groupDeliveries(links) as { key: string; links: Delivery[] }[];
+  const titles: Record<string, string> = { main: labels.groupMain, bonus: labels.groupBonus, extras: labels.groupExtras };
+  if (groups.length === 0) return `<p style="margin:20px 0 0;padding:20px;border:1px dashed ${c.line};border-radius:14px;background:${c.soft};font-family:${FONT};font-size:15px;line-height:1.6;text-align:center;color:${c.ink}">${escapeHtml(labels.emptyLinks)}</p>`;
+  return groups.map(({ key, links: rows }) => {
+    const group = key === 'all' ? 'main' : key;
+    const title = titles[key];
+    const heading = title ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px;border-collapse:separate"><tr>
+<td width="28" height="28" align="center" bgcolor="${c.soft}" style="width:28px;height:28px;border-radius:9px;font-size:13px;line-height:1;color:${c.action};font-weight:800">${GROUP_GLYPH[key] ?? '&#9733;'}</td>
+<td style="padding-left:10px;font-family:${FONT};font-size:12px;line-height:1;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:${c.muted}">${escapeHtml(title)}</td>
+<td style="padding-left:8px"><span style="display:inline-block;min-width:8px;padding:3px 8px;border-radius:99px;background:${c.soft};font-family:${FONT};font-size:12px;line-height:16px;font-weight:800;color:${c.action}">${rows.length}</span></td></tr></table>` : '<div style="height:20px;line-height:20px;font-size:0">&nbsp;</div>';
+    return heading + rows.map((link, index) => deliveryRow(link, group, labels, c, index === 0)).join('');
+  }).join('');
+}
+
+const ROLE_ORDER: Record<string, number> = { main: 0, bonus: 1, upsell: 2, post_purchase: 3 };
+
+function receipt(data: Context, labels: Record<string, string>, c: ReturnType<typeof palette>) {
+  const price = (amount: number) => escapeHtml(storefrontMoney(amount, data.currency));
+  const items = [...data.items].sort((a, b) => (ROLE_ORDER[a.role ?? ''] ?? 9) - (ROLE_ORDER[b.role ?? ''] ?? 9));
+  const rows = items.map(item => `<tr><td style="padding:7px 12px 7px 0;font-family:${FONT};font-size:14px;line-height:1.4;color:${c.ink};overflow-wrap:anywhere;word-wrap:break-word">${escapeHtml(item.name)}</td>
+<td align="right" style="padding:7px 0;font-family:${FONT};white-space:nowrap;${item.price > 0 ? `font-size:14px;font-weight:800;color:${c.ink}` : `font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:${c.action}`}">${item.price > 0 ? price(item.price) : escapeHtml(labels.free)}</td></tr>`).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;margin-top:16px"><tr><td class="email-pad" bgcolor="${c.paper}" style="padding:28px 32px;border:1px solid ${c.line};border-radius:24px">
+<div style="margin:0 0 14px;font-family:${FONT};font-size:18px;line-height:1.3;font-weight:800;color:${c.ink}">&#129534;&nbsp; ${escapeHtml(labels.summaryTitle)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed"><col><col width="110">${rows}</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:16px;border-top:2px dashed ${c.line}"><tr>
+<td style="padding-top:18px;font-family:${FONT};font-size:14px;font-weight:700;color:${c.muted}">${escapeHtml(labels.summaryTotal)}</td>
+<td align="right" style="padding-top:14px;font-family:${FONT};font-size:28px;line-height:1;font-weight:900;letter-spacing:-.5px;color:${c.ink};white-space:nowrap">${price(data.total)}</td></tr></table>
+</td></tr></table>`;
 }
 
 export function deliveryEmail(data: Context): Omit<EmailMessage, 'from'> {
-  const store = data.storeName || 'tu compra';
-  const greeting = data.buyer?.name ? `Hola ${data.buyer.name},` : 'Hola,';
+  const presentation = data.presentation ?? {};
+  const labels = postLabels(presentation) as Record<string, string>;
+  const c = palette(presentation.accentColor);
+  const store = presentation.brandName || data.storeName || '';
+  const name = data.buyer?.name?.trim() ?? '';
+  // Without a name the greeting drops it: "Hi {nombre}," becomes "Hi,".
+  const greeting = purchaseText(labels, 'emailGreeting', { nombre: name }).replace(/\s+([,!.])/g, '$1').trim();
+  const intro = purchaseText(labels, 'emailIntro', { tienda: store }).replace(/\s+([,!.])/g, '$1');
+  const subject = purchaseText(labels, 'emailSubject', { tienda: store }).replace(/\s+$/, '');
+  const preheader = purchaseText(labels, 'emailPreheader', { tienda: store });
   const links = data.deliveries.filter(link => safeUrl(link.url));
-  const html = layout('¡Tu compra está lista!', `
-<p style="margin:0 0 8px;font-size:16px;line-height:1.7">${escapeHtml(greeting)}</p>
-<p style="margin:0 0 28px;font-size:16px;line-height:1.7;color:${colors.muted}">Tu pago se confirmó. Gracias por elegir ${escapeHtml(store)}.</p>
-<h2 style="margin:0 0 8px;font-size:20px;line-height:1.4">Tus accesos</h2>
-<p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:${colors.muted}">Todo lo que compraste, en un solo lugar. Abrí cada contenido desde su botón.</p>
-${links.map(link => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;table-layout:fixed;border-collapse:separate"><tr><td bgcolor="${colors.soft}" style="padding:20px;border:1px solid ${colors.line};border-radius:10px;overflow-wrap:anywhere;word-wrap:break-word">
-<h3 style="margin:0 0 6px;font-size:16px;line-height:1.5;color:${colors.ink}">${escapeHtml(link.productName)}</h3>
-${link.title !== link.productName ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${colors.muted}">${escapeHtml(link.title)}</p>` : ''}
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px"><tr><td align="center" bgcolor="${colors.action}" style="border-radius:6px;mso-padding-alt:14px 22px"><a href="${escapeHtml(link.url)}" aria-label="Abrir ${escapeHtml(link.productName)}: ${escapeHtml(link.title)}" style="display:inline-block;padding:14px 22px;border:1px solid ${colors.action};border-radius:6px;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;color:${colors.onAction};mso-padding-alt:0">Abrir acceso &rarr;</a></td></tr></table>
-</td></tr><tr><td height="12" style="height:12px;font-size:0;line-height:0">&nbsp;</td></tr></table>`).join('')}
-<h2 style="font-size:18px;line-height:1.4;margin:24px 0 8px">Detalle de tu compra</h2>${itemsTable(data)}
-<p style="font-size:13px;color:${colors.muted};line-height:1.7;margin:28px 0 0;padding-top:24px;border-top:1px solid ${colors.line}">Guardá este email: es la forma más simple de volver a tus accesos cuando los necesites.</p>`, store, 'Tu pago está confirmado. Encontrá acá los accesos y el detalle de tu compra.');
+  const ordered = (groupDeliveries(links) as { links: Delivery[] }[]).flatMap(group => group.links);
+  const main = ordered[0];
+  const mainName = main?.productName ?? data.items[0]?.name ?? '';
+  const mainAction = main ? button(main.url, isDownloadable(main) ? `&#8595;&nbsp; ${escapeHtml(labels.download)}` : `${escapeHtml(labels.openSite)} &nbsp;&#8599;`, c, 'white', 'lg') : '';
+  const year = new Date().getFullYear();
+  const legal = [presentation.termsUrl && safeUrl(presentation.termsUrl) ? `<a href="${escapeHtml(presentation.termsUrl)}" style="color:${c.muted};text-decoration:underline">${escapeHtml(labels.terms)}</a>` : '', presentation.privacyUrl && safeUrl(presentation.privacyUrl) ? `<a href="${escapeHtml(presentation.privacyUrl)}" style="color:${c.muted};text-decoration:underline">${escapeHtml(labels.privacy)}</a>` : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+  const html = `<!doctype html>
+<html lang="${/^[\x00-\x7F]*$/.test(labels.paidTitle) ? 'en' : 'es'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(subject)}</title>
+<style>@media only screen and (max-width:600px){.email-shell{padding:16px 10px!important}.email-pad{padding:26px 20px!important}.email-hero{padding:34px 20px 36px!important}.email-title{font-size:30px!important;line-height:1.08!important}}</style></head>
+<body style="margin:0;padding:0;background-color:${c.cream};font-family:${FONT};color:${c.ink};-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeHtml(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${c.cream}" style="width:100%;border-collapse:collapse"><tr><td class="email-shell" align="center" style="padding:32px 16px 40px">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;border-collapse:separate;table-layout:fixed">
+${store ? `<tr><td align="center" style="padding:0 0 16px;font-family:${FONT};font-size:12px;line-height:1;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${c.muted}">${escapeHtml(store)}</td></tr>` : ''}
+<tr><td class="email-hero" align="center" bgcolor="${c.heroMid}" style="padding:44px 36px 46px;border-radius:24px 24px 0 0;background-image:linear-gradient(125deg,${c.heroStart},${c.heroMid} 52%,${c.heroEnd});text-align:center;color:${c.heroText}">
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 28px"><tr><td>${cover(main, mainName, c, 150)}</td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;border-collapse:separate"><tr><td bgcolor="${c.pill}" style="padding:5px 14px 5px 5px;border:1px solid ${c.pillLine};border-radius:99px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="24" height="24" align="center" bgcolor="#ffffff" style="width:24px;height:24px;border-radius:12px;font-size:13px;line-height:24px;font-weight:900;color:${c.action}">&#10003;</td>
+<td style="padding-left:9px;font-family:${FONT};font-size:11px;line-height:1;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:${c.heroText}">${escapeHtml(labels.paidEyebrow)}</td></tr></table></td></tr></table>
+<h1 class="email-title" style="margin:20px 0 14px;font-family:${FONT};font-size:38px;line-height:1.05;font-weight:900;letter-spacing:-1px;color:${c.heroText}">${escapeHtml(labels.paidTitle)}</h1>
+<p style="margin:0 auto;max-width:440px;font-family:${FONT};font-size:16px;line-height:1.6;color:${c.heroSoftText}">${greeting ? `<strong style="color:${c.heroText}">${escapeHtml(greeting)}</strong><br>` : ''}${escapeHtml(intro)}</p>
+${mainAction ? `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:28px auto 0"><tr><td>${mainAction}</td></tr></table>` : ''}
+</td></tr>
+<tr><td class="email-pad" bgcolor="${c.paper}" style="padding:34px 32px 32px;border:1px solid ${c.line};border-top:0;border-radius:0 0 24px 24px;overflow-wrap:anywhere;word-wrap:break-word">
+${labels.linksEyebrow ? `<span style="display:inline-block;padding:4px 12px;border-radius:6px;background:${c.kicker};font-family:${FONT};font-size:11px;line-height:16px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:${c.action}">${escapeHtml(labels.linksEyebrow)}</span>` : ''}
+<h2 style="margin:12px 0 0;font-family:${FONT};font-size:28px;line-height:1.15;font-weight:850;letter-spacing:-.6px;color:${c.ink}">${escapeHtml(labels.linksTitle)}</h2>
+${labels.linksSubtitle ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:15px;line-height:1.6;color:${c.muted}">${escapeHtml(labels.linksSubtitle)}</p>` : ''}
+${library(links, labels, c)}
+</td></tr>
+<tr><td>${data.items.length ? receipt(data, labels, c) : ''}</td></tr>
+<tr><td align="center" style="padding:28px 24px 0;font-family:${FONT};font-size:13px;line-height:1.7;color:${c.muted}">
+${labels.emailKeep ? `<p style="margin:0 0 14px">${escapeHtml(labels.emailKeep)}</p>` : ''}
+<p style="margin:0">&copy; ${year} ${escapeHtml(store)}. ${escapeHtml(labels.rights)}</p>
+${legal ? `<p style="margin:6px 0 0">${legal}</p>` : ''}
+</td></tr></table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table></body></html>`;
+
+  const groups = groupDeliveries(links) as { key: string; links: Delivery[] }[];
+  const titles: Record<string, string> = { main: labels.groupMain, bonus: labels.groupBonus, extras: labels.groupExtras };
   const text = [
-    `${greeting} tu pago en ${store} se confirmó. Estos son tus accesos:`, '',
-    ...links.map(link => `- ${link.productName} · ${link.title}: ${link.url}`), '',
-    ...data.items.map(item => `${item.name}: ${item.price > 0 ? money(item.price, data.currency) : 'Incluido'}`),
-    `Total: ${money(data.total, data.currency)}`, '',
-    'Guardá este email: es la forma más simple de volver a tus links.',
+    labels.paidTitle, '',
+    ...(greeting ? [greeting] : []), intro, '',
+    labels.linksTitle.toUpperCase(),
+    ...groups.flatMap(group => [
+      ...(titles[group.key] ? ['', `${titles[group.key]}:`] : ['']),
+      ...group.links.map(link => `- ${link.productName}${link.title && link.title !== link.productName ? ` · ${link.title}` : ''}${group.key === 'bonus' ? ` (${labels.free})` : ''}${isDownloadable(link) ? '' : ` [${labels.webBadge}]`}: ${link.url}`),
+    ]),
+    '', labels.summaryTitle.toUpperCase(),
+    ...[...data.items].sort((a, b) => (ROLE_ORDER[a.role ?? ''] ?? 9) - (ROLE_ORDER[b.role ?? ''] ?? 9)).map(item => `${item.name}: ${item.price > 0 ? storefrontMoney(item.price, data.currency) : labels.free}`),
+    `${labels.summaryTotal}: ${storefrontMoney(data.total, data.currency)}`, '',
+    labels.emailKeep,
   ].join('\n');
-  return { to: data.buyer?.email ? [data.buyer.email] : [], subject: `Tus accesos de ${store}`, html, text };
+  return { to: data.buyer?.email ? [data.buyer.email] : [], subject, html, text };
 }
 
 export function reviewEmail(data: Context): Omit<EmailMessage, 'from'> {
