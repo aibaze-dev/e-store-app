@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'convex/react';
-import { ArrowRight, Check, Clock3 } from 'lucide-react';
+import { ArrowRight, Check, ClipboardList, Clock3, Mail, Wrench } from 'lucide-react';
 import { Field } from '@/components/Field.jsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,31 @@ function DeliveryClock({ firstLoad }) {
     <p>{remaining ? 'Ready by ' : 'Delivery window ended ' }
       <time dateTime={due.toISOString()}>{due.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</time>
     </p>
+  </section>;
+}
+
+function ProjectRoadmap({ submitted }) {
+  return <section className="brief-roadmap" aria-labelledby="roadmap-title">
+    <h2 id="roadmap-title">How you’ll get your app</h2>
+    <ol role="list">
+      <li>
+        <span className={`step-icon${submitted ? ' is-complete' : ''}`} aria-hidden="true">
+          {submitted ? <Check /> : <ClipboardList />}
+        </span>
+        <div>
+          <h3>{submitted ? 'Project brief received' : <a href="#brief-title">Send us your project brief</a>}</h3>
+          <p>{submitted ? 'Your answers are with our team.' : 'Tell us who it’s for, everything it needs to do, and any design details or examples you have in mind.'}</p>
+        </div>
+      </li>
+      <li>
+        <span className="step-icon" aria-hidden="true"><Wrench /></span>
+        <div><h3>We build your project</h3><p>Our team uses your brief to build your landing page or custom system.</p></div>
+      </li>
+      <li>
+        <span className="step-icon" aria-hidden="true"><Mail /></span>
+        <div><h3>Get your link by email</h3><p>By the deadline shown above, we’ll email you the link to your finished project and instructions for accessing it.</p></div>
+      </li>
+    </ol>
   </section>;
 }
 
@@ -118,6 +143,7 @@ export default function ProjectBrief({ name }) {
       <h1>{name}</h1>
       <p>Your landing page or custom system will be ready within 48 hours of purchase. Tell us what you need and we’ll contact you by email.</p>
       <DeliveryClock firstLoad={session.firstLoad} />
+      <ProjectRoadmap submitted={session.submitted} />
       {storageUnavailable && <p role="alert">Enable site storage for this page and reload to register your project and send your brief.</p>}
     </header>
     <section className="brief-panel" aria-labelledby="brief-title">
@@ -136,7 +162,7 @@ export default function ProjectBrief({ name }) {
             <Field label="What did you purchase?">{props => <NativeSelect {...props} name="product" defaultValue="" required>
               <option value="" disabled>Select your project type</option><option>Landing page</option><option>Custom system</option>
             </NativeSelect>}</Field>
-            <Field label="What should we build?" hint="Tell us who it’s for and the most important thing it should do.">{props =>
+            <Field label="What should we build?" hint="Include your goals, must-have features, and any reference links.">{props =>
               <Textarea {...props} name="brief" rows={3} maxLength={2000} required />}</Field>
           </fieldset>
           {error && <p role="alert" className="brief-error">{error}</p>}
