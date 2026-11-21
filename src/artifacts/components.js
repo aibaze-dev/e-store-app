@@ -3,6 +3,7 @@
 import { lazy } from 'react';
 
 export const artifactComponents = {
+  'project-brief': lazy(() => import('./project-brief/index.jsx')),
   'ai-knowledge': lazy(() => import('./ai-knowledge/index.jsx')),
   'prompt-builder': lazy(() => import('./prompt-builder/index.jsx')),
   'meeting-prep': lazy(() => import('./meeting-prep/index.jsx')),

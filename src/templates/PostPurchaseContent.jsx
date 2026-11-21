@@ -7,7 +7,8 @@ import { PageSkeleton } from '@/components/Field.jsx';
 import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, BookOpen, ExternalLink, LoaderCircle, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Download, ExternalLink, LoaderCircle, X } from 'lucide-react';
+import { downloadFile, isDownloadable } from '@/storefront/download.js';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
 import { classicTheme } from '../../shared/classic-design.js';
 import { Heading } from './ClassicLanding.jsx';
@@ -43,19 +44,46 @@ export function PurchaseSection({ soft = false, label, children }) {
   return <section className={`sales-section ${soft ? 'sales-soft' : ''}`} aria-label={label}><div className="sales-container sales-slim">{children}</div></section>;
 }
 
-// The links the buyer paid for. In the preview they are examples and cannot be opened.
+// Download of one file: busy while it is fetched, so a second click does not start another.
+function DownloadButton({ link, labels }) {
+  const [busy, setBusy] = useState(false);
+  async function onClick() {
+    if (busy) return;
+    setBusy(true);
+    try { await downloadFile(link.url, link.title || link.productName); } finally { setBusy(false); }
+  }
+  return <button type="button" className="purchase-open" onClick={onClick} disabled={busy} aria-busy={busy}>
+    {busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+    {busy ? labels.downloading : labels.download}<span className="sr-only"> {link.productName}: {link.title}</span>
+  </button>;
+}
+
+// The links the buyer paid for. Files get a download button besides «Open».
+// In the preview they are examples and cannot be opened.
 export function DeliveryLinks({ deliveries, preview = false, labels = postLabels() }) {
   return <PurchaseSection soft label={labels.linksTitle}>
     <Heading section={{ title: labels.linksTitle, subtitle: labels.linksSubtitle }} eyebrow={labels.linksEyebrow} />
     {deliveries.length === 0
       ? <p className="purchase-notice">{labels.emptyLinks}</p>
-      : <ul className="purchase-links">{deliveries.map((link, index) => <li key={index}>
-        <span className="purchase-link-icon" aria-hidden="true"><BookOpen /></span>
-        <div><strong>{link.productName}</strong>{link.title && <p>{link.title}</p>}</div>
-        {preview
-          ? <span className="purchase-open is-disabled" aria-disabled="true">{labels.open}<ExternalLink aria-hidden="true" /></span>
-          : <a className="purchase-open" href={link.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>}
-      </li>)}</ul>}
+      : <ul className="purchase-links">{deliveries.map((link, index) => {
+        const downloadable = preview ? link.kind !== 'link' : isDownloadable(link);
+        const secondary = downloadable ? ' is-secondary' : '';
+        return <li key={index}>
+          <span className="purchase-link-icon" aria-hidden="true"><BookOpen /></span>
+          <div><strong>{link.productName}</strong>{link.title && <p>{link.title}</p>}</div>
+          <div className="purchase-actions">
+            {preview
+              ? <>
+                {downloadable && <span className="purchase-open is-disabled" aria-disabled="true"><Download aria-hidden="true" />{labels.download}</span>}
+                <span className={`purchase-open is-disabled${secondary}`} aria-disabled="true">{labels.open}<ExternalLink aria-hidden="true" /></span>
+              </>
+              : <>
+                {downloadable && <DownloadButton link={link} labels={labels} />}
+                <a className={`purchase-open${secondary}`} href={link.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>
+              </>}
+          </div>
+        </li>;
+      })}</ul>}
   </PurchaseSection>;
 }
 

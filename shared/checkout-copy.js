@@ -301,7 +301,7 @@ export const checkoutText = (copy, key, values = {}) => formatLandingText(copy[k
 // Legacy store settings remain the fallback until a checkout draft is published.
 export function checkoutConfig(view = {}) {
   const content = view.content ?? {};
-  return upgradeNoticeDefaults({ ...CHECKOUT_DEFAULTS,
+  const copy = upgradeNoticeDefaults({ ...CHECKOUT_DEFAULTS,
     upsellTitle: view.checkout?.upsellTitle || CHECKOUT_DEFAULTS.upsellTitle,
     notifications: view.checkout?.notifications ?? content.activity?.notifications ?? true,
     purchaseText: content.activity?.purchaseText ?? CHECKOUT_DEFAULTS.purchaseText,
@@ -309,4 +309,7 @@ export function checkoutConfig(view = {}) {
     guaranteeFallback: content.guarantee?.title ?? CHECKOUT_DEFAULTS.guaranteeFallback,
     ...content.checkout,
   });
+  if (/^\s*surname\s*\*?\s*$/i.test(copy.nameLabel)) copy.nameLabel = CHECKOUT_DEFAULTS.nameLabel;
+  if (/^\s*(your )?surname\s*$/i.test(copy.namePlaceholder)) copy.namePlaceholder = CHECKOUT_DEFAULTS.namePlaceholder;
+  return copy;
 }

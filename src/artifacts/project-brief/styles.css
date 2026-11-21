@@ -1,0 +1,33 @@
+.artifact-project-brief .brief-layout {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 88px) clamp(20px, 4vw, 52px);
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  align-items: start;
+  gap: clamp(32px, 6vw, 80px);
+}
+.artifact-project-brief h1 {
+  margin: 0 0 20px;
+  font-size: clamp(44px, 6vw, 82px);
+  letter-spacing: -.055em;
+  line-height: .99;
+  font-weight: 700;
+}
+.artifact-project-brief .brief-intro > p,
+.artifact-project-brief .brief-panel p { color: var(--muted-foreground); }
+.artifact-project-brief .delivery-clock { border-top: 1px solid var(--border); margin-top: 32px; padding-top: 20px; }
+.artifact-project-brief .delivery-clock h2 { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.artifact-project-brief .delivery-clock svg { color: var(--artifact-amber); }
+.artifact-project-brief .digits { display: flex; gap: clamp(18px, 3vw, 40px); margin: 12px 0 16px; }
+.artifact-project-brief .digits strong { display: block; font-size: clamp(38px, 4.5vw, 60px); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.artifact-project-brief .digits span, .artifact-project-brief .delivery-clock p { font-size: 14px; color: var(--muted-foreground); }
+.artifact-project-brief .brief-panel { border: 1px solid var(--border); border-radius: 20px; background: var(--card); padding: clamp(20px, 3vw, 36px); }
+.artifact-project-brief .brief-panel h2 { font-size: 28px; line-height: 1.15; letter-spacing: -.035em; font-weight: 650; margin-bottom: 24px; }
+.artifact-project-brief fieldset { min-width: 0; display: grid; gap: 18px; }
+.artifact-project-brief .brief-panel button { width: 100%; margin-top: 24px; }
+.artifact-project-brief .brief-panel .brief-error { color: var(--artifact-error); margin-top: 16px; }
+.artifact-project-brief .received-icon { color: var(--artifact-success); margin-bottom: 16px; }
+@media (max-width: 740px) {
+  .artifact-project-brief .brief-layout { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+}

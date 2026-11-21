@@ -79,3 +79,27 @@ describe('editable popups and their preview map', () => {
     expect(exitIntentCopy({ ...view(), content }, 'landing', String)).toMatchObject({ title: 'Nuevo aviso', intro: 'Llevate Guía' });
   });
 });
+
+describe('thank-you downloads', async () => {
+  const { isDownloadable, downloadName } = await import('../src/storefront/download.js');
+  it('offers a download for files and keeps pages as links only', () => {
+    expect(isDownloadable({ kind: 'file', url: 'https://example.com/x' })).toBe(true);
+    expect(isDownloadable({ kind: 'link', url: 'https://example.com/book.pdf' })).toBe(false);
+    expect(isDownloadable({ url: 'https://happy-cat-123.convex.cloud/api/storage/abc-123' })).toBe(true);
+    expect(isDownloadable({ url: 'https://cdn.example.com/ebook.PDF?token=1' })).toBe(true);
+    expect(isDownloadable({ url: 'https://site.example.com/a/prompt-builder' })).toBe(false);
+    expect(isDownloadable({ url: 'not a url' })).toBe(false);
+  });
+  it('names the saved file after the deliverable with the right extension', () => {
+    expect(downloadName('Educación, Formación y Tecnología', 'application/pdf')).toBe('Educacion-Formacion-y-Tecnologia.pdf');
+    expect(downloadName('Guide', '', 'https://cdn.example.com/files/guide.EPUB')).toBe('Guide.epub');
+    expect(downloadName('book.pdf', 'application/pdf')).toBe('book.pdf');
+    expect(downloadName('', 'application/zip')).toBe('download.zip');
+  });
+  it('has default texts for the celebration and the download button', () => {
+    const labels = postLabels();
+    expect(labels.celebrationTitle).toBeTruthy();
+    expect(labels.celebrationText).toContain('{producto}');
+    expect(labels.download).toBeTruthy();
+  });
+});

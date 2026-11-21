@@ -3,6 +3,11 @@
 // Entry: { slug, name, description, coverUrl? }
 export const artifacts = [
   {
+    slug: 'project-brief',
+    name: 'Your Project Brief',
+    description: 'Share the details for your purchased landing page or custom system and see when it will be ready.',
+  },
+  {
     slug: 'ai-knowledge',
     name: 'Test Your AI Knowledge',
     description: 'Test what you learned in Master Claude in 5 Days. Choose a day or a fresh global test, get your score, and find the exact ebook pages to revisit.',

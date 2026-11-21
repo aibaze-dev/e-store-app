@@ -56,6 +56,14 @@ describe('Checkout confirmation', () => {
 });
 
 describe('editable checkout copy', () => {
+  it('corrects saved surname copy while preserving other custom name fields', () => {
+    const resolve = checkout => checkoutConfig({ content: { checkout } });
+    expect(resolve({ nameLabel: 'Surname *', namePlaceholder: 'Your surname' }))
+      .toMatchObject({ nameLabel: 'Name *', namePlaceholder: 'Your name' });
+    expect(resolve({ nameLabel: 'Surname', namePlaceholder: 'Ana' }))
+      .toMatchObject({ nameLabel: 'Name *', namePlaceholder: 'Ana' });
+    expect(resolve({ nameLabel: 'Nombre *' }).nameLabel).toBe('Nombre *');
+  });
   it('keeps legacy overrides through normalization and preserves edits during AI regeneration', () => {
     const view = { checkout: { upsellTitle: 'Extras', notifications: false }, content: normalizeContent({}) };
     expect(checkoutConfig(view)).toMatchObject({ upsellTitle: 'Extras', notifications: false });

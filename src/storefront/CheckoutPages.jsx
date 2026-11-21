@@ -4,6 +4,7 @@ import { readQuizToken } from './quiz-session.js';
 import { PurchaseResult, Video } from '@/templates/PostPurchaseContent.jsx';
 import { videoSource } from '../../shared/post-purchase.js';
 import PostPurchaseModal from './PostPurchaseModal.jsx';
+import PurchaseCelebration from './PurchaseCelebration.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAction, useQuery } from 'convex/react';
@@ -271,6 +272,12 @@ export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy 
   </div>;
 }
 
+// The celebration plays once per purchase: a reload of /gracias goes straight to the page.
+const celebratedKey = sessionId => `purchase-celebrated:${sessionId}`;
+function readCelebrated(sessionId) {
+  try { return Boolean(sessionId) && window.sessionStorage.getItem(celebratedKey(sessionId)) === '1'; } catch { return false; }
+}
+
 export function ThankYou({ via, subdomain }) {
   useStorePresence(subdomain, 'thanks');
   const [params] = useSearchParams();
@@ -278,11 +285,20 @@ export function ThankYou({ via, subdomain }) {
   const delivery = useQuery(api.storefront.getDelivery, sessionId ? { sessionId } : 'skip');
   // The store's look is only needed while the purchase loads or cannot be found.
   const context = useQuery(api.storefront.getCheckout, delivery?.presentation ? 'skip' : { subdomain });
+  const [celebrated, setCelebrated] = useState(() => readCelebrated(sessionId));
   useEffect(() => {
     if (delivery?.status === 'paid') trackPixelOnce(`purchase-${sessionId}`, delivery.metaPixelId, 'Purchase', { value: delivery.total / 100, currency: delivery.currency });
   }, [delivery, sessionId]);
+  function finishCelebration() {
+    try { window.sessionStorage.setItem(celebratedKey(sessionId), '1'); } catch { /* private mode: it may play again */ }
+    setCelebrated(true);
+  }
   const presentation = delivery?.presentation ?? { accentColor: context?.content?.style?.accentColor, ...context?.content?.footer, postLabels: context?.content?.postLabels };
+  const paid = delivery?.status === 'paid';
+  const product = delivery?.items?.find(item => item.role === 'main') ?? delivery?.items?.[0];
+  // The post-purchase modal mounts after the celebration, so it opens on a calm page.
   return <PurchaseResult status={sessionId && delivery === undefined ? 'loading' : delivery?.status ?? 'missing'} presentation={presentation} storeName={delivery?.storeName ?? context?.store?.name} emailed={delivery?.emailed} deliveries={delivery?.deliveries ?? []}>
-    {delivery?.status === 'paid' && delivery.postPurchaseOffer && <PostPurchaseModal offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} accentColor={presentation.accentColor} />}
+    {paid && !celebrated && <PurchaseCelebration productName={product?.name ?? ''} presentation={presentation} onDone={finishCelebration} />}
+    {paid && celebrated && delivery.postPurchaseOffer && <PostPurchaseModal offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} accentColor={presentation.accentColor} />}
   </PurchaseResult>;
 }

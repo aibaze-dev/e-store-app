@@ -21,6 +21,16 @@ export const POST_LABEL_FIELDS = {
     "label": "Mensaje sin envío por email",
     "value": "Your access links are below. Bookmark this page to find them again."
   },
+  "celebrationTitle": {
+    "group": "confirmation",
+    "label": "Título de la animación de felicitaciones",
+    "value": "Congratulations!"
+  },
+  "celebrationText": {
+    "group": "confirmation",
+    "label": "Texto de la animación de felicitaciones",
+    "value": "You just got {producto}"
+  },
   "linksTitle": {
     "group": "access",
     "label": "Título de accesos",
@@ -40,6 +50,16 @@ export const POST_LABEL_FIELDS = {
     "group": "access",
     "label": "Botón de acceso",
     "value": "Open"
+  },
+  "download": {
+    "group": "access",
+    "label": "Botón de descarga",
+    "value": "Download"
+  },
+  "downloading": {
+    "group": "access",
+    "label": "Descarga en curso",
+    "value": "Downloading…"
   },
   "emptyLinks": {
     "group": "access",
