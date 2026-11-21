@@ -280,6 +280,13 @@
 .purchase-video { display: grid; gap: 10px; width: 100%; min-width: 0; }
 .purchase-video h3 { text-align: center; }
 .purchase-video iframe, .purchase-video video { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; background: #000; box-shadow: 0 12px 26px #42240f1a; }
+.classic-offer-dialog .purchase-video :is(iframe, video):not(:fullscreen) {
+  justify-self: center;
+  width: min(100%, calc(65svh * var(--vsl-ratio)));
+  height: auto;
+  aspect-ratio: var(--vsl-ratio);
+  object-fit: contain;
+}
 .purchase-video a { justify-self: center; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--sales-muted); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
 .purchase-video a svg { width: 15px; height: 15px; }
 .purchase-free { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--sales-accent) 14%, white); color: var(--classic-action); font-size: 11px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; vertical-align: 2px; }

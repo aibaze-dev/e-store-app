@@ -978,7 +978,7 @@ describe('post-purchase landing content', () => {
     draft.backPopup = { modalTitle: 'Un precio para vos', cta: 'Comprar ahora' };
     draft.checkout = { paymentTitle: 'Tu medio de pago', paymentLocale: 'en' };
     draft.postPurchaseBenefits = { enabled: true, title: 'Tu siguiente paso', items: [{ title: 'Profundizá', description: 'Contenido adicional', icon: 'book' }] };
-    draft.postPurchaseVideo = { enabled: true, title: 'Presentación del curso', url: 'https://example-123.convex.cloud/api/storage/4e364f57-c5e6-4e8f-a3cb-0d97e097b5dc' };
+    draft.postPurchaseVideo = { enabled: true, format: 'reel', title: 'Presentación del curso', url: 'https://example-123.convex.cloud/api/storage/4e364f57-c5e6-4e8f-a3cb-0d97e097b5dc' };
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     const preview = await admin.query(api.landings.preview, { storeId });
     expect(preview.postPurchaseOffer.content.postPurchase.title).toBe('Continuá con el curso');

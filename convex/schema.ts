@@ -37,7 +37,10 @@ export const landingContent = v.object({
     finalTitle: v.optional(v.string()), finalText: v.optional(v.string()), finalCtaText: v.optional(v.string()),
   })),
   postPurchaseBenefits: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
-  postPurchaseVideo: v.optional(v.object({ enabled: v.boolean(), title: v.string(), url: v.string() })),
+  postPurchaseVideo: v.optional(v.object({
+    enabled: v.boolean(), title: v.string(), url: v.string(),
+    format: v.optional(v.union(v.literal('auto'), v.literal('reel'), v.literal('landscape'))),
+  })),
   hero: v.object({ title: v.string(), titleAccent: v.optional(v.string()), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()), headerCtaText: v.optional(v.string()), ratingText: v.optional(v.string()), trustText: v.optional(v.string()), noteTitle: v.optional(v.string()), footnote: v.optional(v.string()) }),
   introduction: v.optional(v.object({ ...storyFields, text: v.string(), badge: v.optional(v.string()) })),
   transformation: v.optional(v.object({ ...storyFields, ...storyImage })),

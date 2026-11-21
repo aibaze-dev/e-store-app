@@ -1,9 +1,9 @@
 import { popupJourney } from '../shared/popup-journey.js';
 import { postLabels, landingExitConfig, backPopupConfig } from '../shared/purchase-copy.js';
-import { initialFunnel, nextStage, afterDecline, claimReopen } from '../src/storefront/postPurchaseFunnel.js';
+import { initialFunnel, nextStage, afterDecline, claimReopen, funnelStore } from '../src/storefront/postPurchaseFunnel.js';
 import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
 import { exitIntentCopy } from '../src/storefront/exitIntent.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 
 describe('post-purchase presentation', () => {
@@ -40,6 +40,21 @@ describe('post-purchase presentation', () => {
 
 describe('editable popups and their preview map', () => {
   const offer = { name: 'Curso', price: 4700, downsellPrice: 3760, finalPrice: 3290, content: {} };
+  it('starts each reload at the initial offer even after all previous stages and reopens were used', () => {
+    const counts = { visibility: 1, mouse: 2 };
+    const storage = new Map([['post-offer:reload', JSON.stringify({ declined: ['offer', 'downsell', 'final'], reopens: counts })]]);
+    vi.stubGlobal('sessionStorage', { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) });
+    try {
+      for (let load = 0; load < 3; load++) {
+        const funnel = funnelStore.read('reload');
+        expect(nextStage(offer, funnel)).toBe('offer');
+        expect(funnel.reopens).toEqual(counts);
+        const declined = afterDecline(offer, funnel, 'offer', false);
+        expect(declined.stage).toBe('downsell');
+        funnelStore.write('reload', declined.funnel);
+      }
+    } finally { vi.unstubAllGlobals(); }
+  });
   const view = () => ({ content: normalizeContent({}), postPurchaseOffer: offer, downsell: { price: 2000, finalPrice: 1730 }, offer: { main: { name: 'Guía', price: 2700 }, bonuses: [], upsells: [] } });
   it('lists every modal even when unavailable, using actual configuration', () => {
     expect(popupJourney(view())).toHaveLength(7);

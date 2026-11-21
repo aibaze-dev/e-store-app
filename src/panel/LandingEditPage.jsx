@@ -412,6 +412,12 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         <Section id="postPurchaseBenefits" attention={checks.postPurchaseBenefits} description="Qué incluye el producto adicional">{toggle('postPurchaseBenefits')}{field('postPurchaseBenefits', 'title', 'Título de la sección', { maxLength: 120 })}{field('postPurchaseBenefits', 'subtitle', 'Subtítulo (opcional)', { maxLength: 400 })}{features('postPurchaseBenefits', 'beneficio post-compra', 6)}</Section>
         <Section id="postPurchaseVideo" attention={checks.postPurchaseVideo} description="Activá una presentación en video para esta oferta">
           <VideoField label="Video VSL" value={content.postPurchaseVideo.url} onChange={url => change('postPurchaseVideo', { url, ...(!url ? { enabled: false } : {}) })} disabled={Boolean(busy)} hint="Subí el video y activá el switch para mostrarlo." />
+          <Field label="Formato del video" hint="Automático usa las proporciones del archivo. También podés elegir el encuadre del modal.">{ids =>
+            <NativeSelect {...ids} value={content.postPurchaseVideo.format ?? 'auto'} disabled={Boolean(busy)} onChange={event => change('postPurchaseVideo', { format: event.target.value })}>
+              <option value="auto">Automático</option>
+              <option value="reel">Reel vertical (9:16)</option>
+              <option value="landscape">Horizontal (16:9)</option>
+            </NativeSelect>}</Field>
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><Switch aria-label="Mostrar video VSL en post-compra" checked={content.postPurchaseVideo.enabled} disabled={Boolean(busy) || !content.postPurchaseVideo.url.trim()} onCheckedChange={enabled => change('postPurchaseVideo', { enabled })} />Mostrar video VSL en post-compra</label>
           {field('postPurchaseVideo', 'title', 'Título del video (opcional)', { maxLength: 120 })}
           <p className="text-xs leading-6 text-muted-foreground">La IA conserva el archivo subido y el switch. Con el VSL apagado se muestra la portada del producto.</p>

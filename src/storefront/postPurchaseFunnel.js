@@ -4,7 +4,7 @@ import { popupOptions } from '../../shared/purchase-copy.js';
 // First opening: offer → (declined) downsell, when the store set one → (declined) closed.
 // Each later opening, after the buyer comes back to the tab or the mouse leaves the page,
 // continues from the next step not seen yet, up to the last discount. After declining the
-// last discount the modal never opens again.
+// last discount the modal stays closed until the page is loaded again.
 
 export const REOPEN_LIMITS = { visibility: 1, mouse: 2 };
 
@@ -36,19 +36,21 @@ export function claimReopen(offer, funnel, trigger) {
   return { ...funnel, reopens: { ...funnel.reopens, [trigger]: funnel.reopens[trigger] + 1 } };
 }
 
-// Per purchase, so a reload continues where the buyer was. Memory covers blocked storage.
+// Each page load starts at the initial offer. Only the tab-return and mouse
+// reopen counts carry across loads for this purchase, including from older records.
 const memory = new Map();
 const key = sessionId => `post-offer:${sessionId}`;
 export const funnelStore = {
   read(sessionId) {
+    const fresh = initialFunnel();
     try {
-      const saved = JSON.parse(sessionStorage.getItem(key(sessionId)) || 'null');
-      if (saved && Array.isArray(saved.declined) && saved.reopens) return { ...initialFunnel(), ...saved, reopens: { ...initialFunnel().reopens, ...saved.reopens } };
+      const counts = JSON.parse(sessionStorage.getItem(key(sessionId)) || 'null')?.reopens;
+      if (counts) return { ...fresh, reopens: { ...fresh.reopens, ...counts } };
     } catch { /* falls back to memory */ }
-    return memory.get(sessionId) ?? null;
+    return { ...fresh, reopens: { ...fresh.reopens, ...memory.get(sessionId) } };
   },
-  write(sessionId, funnel) {
-    memory.set(sessionId, funnel);
-    try { sessionStorage.setItem(key(sessionId), JSON.stringify(funnel)); } catch { /* memory already holds it */ }
+  write(sessionId, { reopens }) {
+    memory.set(sessionId, reopens);
+    try { sessionStorage.setItem(key(sessionId), JSON.stringify({ reopens })); } catch { /* memory already holds it */ }
   },
 };

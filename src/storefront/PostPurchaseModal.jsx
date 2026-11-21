@@ -11,16 +11,16 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { SessionPayment, stripeKey } from './CheckoutPayment.jsx';
 import { sessionEnded } from '../../shared/checkout-session.js';
 import { claimExitIntent, leftDocument } from './exitIntent.js';
-import { afterDecline, claimReopen, funnelStore, initialFunnel, nextStage } from './postPurchaseFunnel.js';
+import { afterDecline, claimReopen, funnelStore, nextStage } from './postPurchaseFunnel.js';
 
 // The post-purchase offer of the thank-you page, in a modal that opens on load.
 // Payment happens inside the same modal; the amounts are charged by the server.
 export default function PostPurchaseModal({ offer, currency, sessionId, via, accentColor }) {
   const labels = postLabels(offer.content);
   const start = useAction(api.checkout.startPostPurchase);
-  const [funnel, setFunnelState] = useState(() => funnelStore.read(sessionId) ?? initialFunnel());
-  const [stage, setStage] = useState(() => nextStage(offer, funnel));
-  const [open, setOpen] = useState(() => stage === 'offer');
+  const [funnel, setFunnelState] = useState(() => funnelStore.read(sessionId));
+  const [stage, setStage] = useState('offer');
+  const [open, setOpen] = useState(true);
   const [reopened, setReopened] = useState(false);
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);

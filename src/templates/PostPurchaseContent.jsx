@@ -184,14 +184,21 @@ export function OrderSummary({ order, labels }) {
 export function Video({ video, editKey = 'postPurchaseVideo', labels = postLabels(), preview = false, forceError = false }) {
   const edit = usePreviewSection();
   const [failed, setFailed] = useState(false);
+  const [nativeRatio, setNativeRatio] = useState(null);
   const source = videoSource(video.url);
   if (!video.enabled || !source) return null;
-  return <div {...edit(editKey)} className="purchase-video">
+  const format = video.format && video.format !== 'auto' ? video.format : source.format;
+  const ratio = format === 'reel' ? 9 / 16 : format === 'landscape' ? 16 / 9 : nativeRatio ?? 16 / 9;
+  function measureVideo(event) {
+    const { videoWidth, videoHeight } = event.currentTarget;
+    if (videoWidth && videoHeight) setNativeRatio(videoWidth / videoHeight);
+  }
+  return <div {...edit(editKey)} className="purchase-video" style={{ '--vsl-ratio': ratio }}>
     {video.title && <h3>{video.title}</h3>}
     {source.kind === 'embed'
       ? <iframe src={source.src} title={video.title || labels.videoTitle} allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       : failed || forceError ? <p role="status" className="purchase-notice">{labels.videoError}</p>
-        : <video src={source.src} controls playsInline preload="metadata" onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
+        : <video src={source.src} controls playsInline preload="metadata" onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
     <a onClick={event => { if (preview) event.preventDefault(); }} href={video.url} target="_blank" rel="noreferrer">{labels.videoOpen}<ExternalLink aria-hidden="true" /></a>
   </div>;
 }

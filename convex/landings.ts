@@ -110,7 +110,10 @@ export function cleanContent(content: typeof landingContent.type) {
       title: cleanText(post.postPurchaseBenefits.title, 'Título de beneficios post-compra', 120),
       items: features(post.postPurchaseBenefits.items, 'Beneficios post-compra', 6) as Array<{ title: string; description: string; icon: string }>,
     },
-    postPurchaseVideo: { enabled: post.postPurchaseVideo.enabled, title: cleanText(post.postPurchaseVideo.title, 'Título del video', 120), url: videoUrl },
+    postPurchaseVideo: {
+      enabled: post.postPurchaseVideo.enabled, title: cleanText(post.postPurchaseVideo.title, 'Título del video', 120), url: videoUrl,
+      ...(content.postPurchaseVideo?.format && { format: content.postPurchaseVideo.format }),
+    },
     hero: {
       eyebrow: cleanText(content.hero.eyebrow ?? '', 'Antetítulo principal', 120),
       secondaryImageUrl: cleanUrl(content.hero.secondaryImageUrl ?? '', 'Segunda imagen principal'),

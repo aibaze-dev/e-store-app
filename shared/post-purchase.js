@@ -62,7 +62,10 @@ export function videoSource(value) {
     const parts = url.pathname.split('/').filter(Boolean);
     if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com', 'youtu.be'].includes(host)) {
       const id = host === 'youtu.be' ? parts[0] : parts[0] === 'watch' ? url.searchParams.get('v') : ['embed', 'shorts', 'live'].includes(parts[0]) ? parts[1] : '';
-      return /^[a-zA-Z0-9_-]{11}$/.test(id || '') ? { kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}` } : null;
+      return /^[a-zA-Z0-9_-]{11}$/.test(id || '') ? {
+        kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}`,
+        ...(parts[0] === 'shorts' && { format: 'reel' }),
+      } : null;
     }
     if (['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'].includes(host)) {
       const id = host === 'player.vimeo.com' && parts[0] === 'video' ? parts[1] : parts[0];
