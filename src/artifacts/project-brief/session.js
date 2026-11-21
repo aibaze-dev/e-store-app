@@ -3,8 +3,17 @@ import { DELIVERY_WINDOW_MS, validProjectSession } from '../../../shared/project
 export const STORAGE_KEY = 'ateneo:project-brief:v1';
 const OPENING_RECEIPT = STORAGE_KEY + ':opening-receipt';
 
-function withLock(name, task) {
-  return globalThis.navigator?.locks ? navigator.locks.request(name, task) : Promise.resolve().then(task);
+async function withLock(name, task) {
+  let started = false;
+  try {
+    if (globalThis.navigator?.locks) return await navigator.locks.request(name, () => {
+      started = true;
+      return task();
+    });
+  } catch (error) {
+    if (started || error.name !== 'SecurityError') throw error;
+  }
+  return task();
 }
 
 // Two tabs opening the same fresh link must agree on firstLoad and requestId.

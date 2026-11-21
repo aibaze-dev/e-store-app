@@ -38,10 +38,13 @@ function DeliveryClock({ firstLoad }) {
   </section>;
 }
 
-export default function ProjectBrief() {
+export default function ProjectBrief({ name }) {
   const [session, setSession] = useState(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [readyId, setReadyId] = useState(null);
+  const [openingFailed, setOpeningFailed] = useState(false);
+  const [openingAttempt, setOpeningAttempt] = useState(0);
   const sending = useRef(false);
   const open = useAction(api.projectBrief.open);
   const submit = useAction(api.projectBrief.submit);
@@ -62,18 +65,30 @@ export default function ProjectBrief() {
   const firstLoad = session?.firstLoad;
   const requestId = session?.requestId;
   const submitted = session?.submitted;
+  const storageUnavailable = session?.storageUnavailable;
   useEffect(() => {
-    if (!requestId || submitted) return;
-    // A failed delivery keeps its key and is retried on reconnect or the next visit.
-    const notify = () => reportOpening({ firstLoad, requestId }, open).catch(() => {});
+    if (!requestId || submitted || storageUnavailable) return;
+    let active = true;
+    const notify = async () => {
+      setOpeningFailed(false);
+      try {
+        await reportOpening({ firstLoad, requestId }, open);
+        if (active) setReadyId(requestId);
+      } catch {
+        if (active) setOpeningFailed(true);
+      }
+    };
     notify();
     window.addEventListener('online', notify);
-    return () => window.removeEventListener('online', notify);
-  }, [firstLoad, requestId, submitted, open]);
+    return () => {
+      active = false;
+      window.removeEventListener('online', notify);
+    };
+  }, [firstLoad, requestId, submitted, storageUnavailable, open, openingAttempt]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (sending.current || session.submitted) return;
+    if (sending.current || session.submitted || readyId !== session.requestId) return;
     const form = event.currentTarget;
     const fields = Object.fromEntries(new FormData(form));
     for (const field of ['name', 'brief']) {
@@ -87,7 +102,6 @@ export default function ProjectBrief() {
     setPending(true);
     setError('');
     try {
-      await reportOpening(session, open);
       await submit({ ...fields, requestId: session.requestId, firstLoad: session.firstLoad });
       setSession(saveSession({ ...session, submitted: true }));
     } catch {
@@ -101,10 +115,10 @@ export default function ProjectBrief() {
   if (!session) return <main className="brief-layout" role="status">Loading your project…</main>;
   return <main className="brief-layout">
     <header className="brief-intro">
-      <h1>Your project<br />starts here.</h1>
+      <h1>{name}</h1>
       <p>Your landing page or custom system will be ready within 48 hours of purchase. Tell us what you need and we’ll contact you by email.</p>
       <DeliveryClock firstLoad={session.firstLoad} />
-      {session.storageUnavailable && <p role="status">Your browser couldn’t save your delivery timer. Keep this page open to track it.</p>}
+      {storageUnavailable && <p role="alert">Enable site storage for this page and reload to register your project and send your brief.</p>}
     </header>
     <section className="brief-panel" aria-labelledby="brief-title">
       {session.submitted ? <div role="status">
@@ -126,7 +140,11 @@ export default function ProjectBrief() {
               <Textarea {...props} name="brief" rows={3} maxLength={2000} required />}</Field>
           </fieldset>
           {error && <p role="alert" className="brief-error">{error}</p>}
-          <Button type="submit" disabled={pending}>{pending ? 'Sending…' : 'Send project brief'} <ArrowRight aria-hidden="true" /></Button>
+          {openingFailed && <>
+            <p role="alert" className="brief-error">We couldn’t connect your project. Retry the connection to send your brief.</p>
+            <Button type="button" variant="outline" onClick={() => setOpeningAttempt(attempt => attempt + 1)}>Retry connection</Button>
+          </>}
+          <Button type="submit" disabled={pending || readyId !== requestId}>{pending ? 'Sending…' : 'Send project brief'} <ArrowRight aria-hidden="true" /></Button>
         </form>
       </>}
     </section>

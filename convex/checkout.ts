@@ -66,7 +66,7 @@ async function openOrder(ctx: MutationCtx, input: {
   checkAttempt(input.attemptId);
   const existing = await ctx.db.query('orders').withIndex('by_attempt', q => q.eq('attemptId', input.attemptId)).first();
   if (existing) {
-    if (existing.storeId !== input.store._id || existing.parentOrderId !== input.parentOrderId || existing.quizSessionId !== input.quizSessionId || (existing.origin ?? 'direct') !== (input.origin ?? 'direct')) {
+    if (Boolean(existing.finalDownsell) !== Boolean(input.finalDownsell) || Boolean(existing.downsell) !== Boolean(input.downsell) || existing.storeId !== input.store._id || existing.parentOrderId !== input.parentOrderId || existing.quizSessionId !== input.quizSessionId || (existing.origin ?? 'direct') !== (input.origin ?? 'direct')) {
       fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
     }
     return await reopen(ctx, existing, input.landing.subdomain, input.retry);
@@ -107,8 +107,9 @@ function checkAttempt(attemptId: string) {
 }
 
 export const createOrder = internalMutation({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, origin, quizToken, retry, attribution },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, finalDownsell, origin, quizToken, retry, attribution },
   handler: async (ctx, args): Promise<OpenOrder> => {
+    if (args.finalDownsell && !args.downsell) fail('La última oferta requiere un descuento activo.');
     if (args.downsell && args.upsellProductIds.length > 0) fail('La oferta con descuento no incluye extras.');
     const record = await checkoutRecord(ctx,args.subdomain);
     if(!record) fail('Esta oferta no está disponible.');
@@ -119,7 +120,7 @@ export const createOrder = internalMutation({
     if(args.origin==='classic') {const classic=await forStore(ctx,store._id);if(!classic?.published)fail('Landing no publicada.');landing=classic;}
     if(session) {landing=(await ctx.db.get(session.landingId))!;await ctx.db.patch(session._id,{checkoutAt:session.checkoutAt ?? Date.now()});}
     return await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
+      store, landing, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
       // A quiz buyer whose browser lost the campaign keeps the one their quiz started with.
       attribution: cleanAttribution(args.attribution) ?? session?.attribution,
       build: async () => {
@@ -128,7 +129,7 @@ export const createOrder = internalMutation({
           ...store.offer.bonuses.map(bonus => bonus.productId),
           ...store.offer.upsells.map(upsell => upsell.productId),
         ]);
-        return args.downsell ? buildDownsellOrder(store, products) : buildInitialOrder(store, products, args.upsellProductIds);
+        return args.downsell ? buildDownsellOrder(store, products, args.finalDownsell) : buildInitialOrder(store, products, args.upsellProductIds);
       },
     });
   },
@@ -209,11 +210,11 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
 }
 
 export const start = action({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, origin, quizToken, retry, attribution, elements: v.optional(v.boolean()) },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, finalDownsell, origin, quizToken, retry, attribution, elements: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<{ clientSecret: string }> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createOrder, {
-      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry, attribution: args.attribution,
+      subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry, attribution: args.attribution,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },

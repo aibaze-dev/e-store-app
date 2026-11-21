@@ -1,4 +1,3 @@
-import { popupOptions } from '../../shared/purchase-copy.js';
 import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
@@ -9,7 +8,6 @@ import { plainText } from '../../shared/classic-design.js';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import { PageSkeleton } from '@/components/Field.jsx';
 import ExitIntentModal from './ExitIntentModal.jsx';
-import DownsellModal from './DownsellModal.jsx';
 import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useEarlyLanding } from './early-landing.js';
@@ -47,8 +45,7 @@ function Landing({ view }) {
   // The popup's button does what the landing's own button does, and the checkout takes the focus.
   return <>
     <Template view={view} onCta={selected => navigate('checkout', { state: { origin: 'classic', selected } })} />
-    {popupOptions(view.content).landingExit && <ExitIntentModal view={view} step="landing" onCta={() => navigate('checkout', { state: { focusHeading: true, origin:'classic' } })} />}
-    {view.downsell && popupOptions(view.content).backLanding && <DownsellModal view={view} step="landing" onAccept={() => navigate('oferta', {state:{origin:'classic'}})} />}
+    <ExitIntentModal view={view} step="landing" onCta={() => navigate('checkout', { state: { focusHeading: true, origin:'classic' } })} />
   </>;
 }
 

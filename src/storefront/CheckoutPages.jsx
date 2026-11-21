@@ -1,4 +1,4 @@
-import { postLabels, popupOptions, backPopupConfig, purchaseText } from '../../shared/purchase-copy.js';
+import { postLabels, backPopupConfig, purchaseText } from '../../shared/purchase-copy.js';
 import { checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
 import { readQuizToken } from './quiz-session.js';
 import { PurchaseResult, Video } from '@/templates/PostPurchaseContent.jsx';
@@ -18,9 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ErrorAlert } from '@/components/Field.jsx';
-import ExitIntentModal, { ExitIntentPreview } from './ExitIntentModal.jsx';
+import ExitIntentModal from './ExitIntentModal.jsx';
 import CheckoutPayment, { CheckoutPaymentPreview, SessionPayment, stripeKey } from './CheckoutPayment.jsx';
-import DownsellModal from './DownsellModal.jsx';
+import PostPurchaseOfferCard from '@/templates/PostPurchaseOfferCard.jsx';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } from './CheckoutSignals.jsx';
 import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
@@ -92,7 +93,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
     };
   }, [location.key, view.subdomain, focusHeading]);
   // Sends the visitor back to the step they were on; it never starts the payment.
-  const exitIntent = <ExitIntentModal view={view} step="checkout" onCta={() => {
+  const exitIntent = <ExitIntentModal view={view} step="checkout" disabled={busy} onOffer={view.downsell ? () => navigate('../oferta', { state: { origin } }) : undefined} onCta={() => {
     const target = payRef.current && !payRef.current.disabled ? payRef.current : headingRef.current;
     target?.scrollIntoView({ block: 'center' });
     target?.focus();
@@ -176,8 +177,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
       {content.footer.privacyUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.privacyUrl} target="_blank" rel="noreferrer">{copy.privacy}</a>}
       {content.footer.termsUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.termsUrl} target="_blank" rel="noreferrer">{copy.terms}</a>}
     </nav>}
-    {preview ? previewState === 'exit' && <ExitIntentPreview view={view} /> : copy.showExit && exitIntent}
-    {!preview && view.downsell && popupOptions(view.content).backCheckout && <DownsellModal view={view} step="checkout" onAccept={() => navigate('../oferta', {state:{origin}})} />}
+    {!preview && exitIntent}
   </div>;
 }
 
@@ -196,13 +196,13 @@ export function DownsellOffer({ view, via }) {
   const { offer, store, downsell } = view;
   useEffect(() => { document.title = offer.main.name; }, [offer.main.name]);
 
-  async function pay() {
+  async function pay(final) {
     if (busy) return;
     setBusy(true); setError('');
-    const attempt = attemptFor('downsell');
+    const attempt = attemptFor(final ? 'final' : 'downsell');
     try {
-      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, elements: true, origin, ...attributionArgs(view.subdomain), ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
-      trackPixel(store.metaPixelId, 'InitiateCheckout', { value: downsell.price / 100, currency: store.currency });
+      const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, finalDownsell: final, elements: true, origin, ...attributionArgs(view.subdomain), ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
+      trackPixel(store.metaPixelId, 'InitiateCheckout', { value: (final ? downsell.finalPrice : downsell.price) / 100, currency: store.currency });
       setClientSecret(result.clientSecret);
     } catch (failure) { attempt.failed = true; setError(postLabels(view.content).startError); }
     finally { setBusy(false); }
@@ -211,15 +211,39 @@ export function DownsellOffer({ view, via }) {
   return <DownsellOfferView view={view} origin={origin} clientSecret={clientSecret} busy={busy} error={error} onPay={pay} initialBuyer={quizContact ?? undefined} />;
 }
 
-export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy = false, error = '', onPay, initialBuyer, preview = false }) {
+export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy = false, error = '', onPay, initialBuyer, preview = false, previewFinal = false }) {
   const { offer, store, downsell } = view;
   const copy = backPopupConfig(view);
   const checkout = checkoutConfig(view);
   const labels = postLabels(view.content);
   const money = amount => formatMoney(amount, store.currency);
   const { timeLeft } = useSimulatedCheckoutSignals(`${view.subdomain}:oferta`, { preview });
+  const navigate = useNavigate();
   const [accepted, setAccepted] = useState(false);
+  const [finalOpen, setFinalOpen] = useState(previewFinal);
+  const [useFinal, setUseFinal] = useState(false);
   if (!downsell) return <p className="p-6">Activá el descuento del producto principal para ver esta oferta. No se inventa un precio en la vista previa.</p>;
+  const price = useFinal ? downsell.finalPrice : downsell.price;
+  const percent = useFinal ? downsell.finalPercent : downsell.percent;
+  const canImprove = downsell.finalPrice < downsell.price;
+  const leave = () => {
+    setFinalOpen(false);
+    if (!preview) navigate(origin === 'quiz' ? '../quiz/resultado' : '..');
+  };
+  function accept(final) {
+    setUseFinal(final);
+    setFinalOpen(false);
+    if (preview) setAccepted(true);
+    else onPay(final);
+  }
+  const finalCard = <PostPurchaseOfferCard
+    offer={{ ...offer.main, finalPrice: downsell.finalPrice, finalPercent: downsell.finalPercent,
+      content: { postOptions: { showPaymentNote: false }, postPurchase: {
+        finalText: `Your discount goes from ${downsell.percent}% to ${downsell.finalPercent}% on ${offer.main.name}.`,
+      } } }}
+    currency={store.currency} stage="final" preview={preview} canPurchase={preview || Boolean(stripeKey)}
+    Title={preview ? undefined : DialogTitle} Description={preview ? undefined : DialogDescription}
+    onAccept={() => accept(true)} onDecline={leave} />;
   return <div className="min-h-screen bg-muted/40 break-words">
     <header className="border-b bg-card"><div className="mx-auto flex max-w-xl items-center gap-2 px-5 py-4 text-sm font-semibold sm:px-6">
       <LockKeyhole className="size-4 text-primary" aria-hidden="true" />{checkout.secure}
@@ -240,8 +264,8 @@ export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy 
               <h2 className="leading-snug font-semibold">{offer.main.name}</h2>
               <p className="flex flex-wrap items-baseline gap-x-2">
                 <del className="text-sm text-muted-foreground">{money(offer.main.price)}</del>
-                <strong className="text-xl text-primary">{money(downsell.price)}</strong>
-                <span className="text-sm font-semibold text-primary">{purchaseText(copy, 'savings', { porcentaje: downsell.percent })}</span>
+                <strong className="text-xl text-primary">{money(price)}</strong>
+                <span className="text-sm font-semibold text-primary">{purchaseText(copy, 'savings', { porcentaje: percent })}</span>
               </p>
               {(offer.main.shortDescription || offer.main.description) && <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{offer.main.shortDescription || offer.main.description}</p>}
             </div>
@@ -252,23 +276,29 @@ export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy 
               <span className="min-w-0 flex-1 truncate">{bonus.name}</span>{bonus.referenceValue > 0 && <del className="whitespace-nowrap">{money(bonus.referenceValue)}</del>}<Badge>{checkout.free}</Badge>
             </li>)}</ul>
           </div>}
+          {(clientSecret || accepted) && <p role="status" className="text-sm font-semibold checkout-positive">Promo code applied · ATENEO_DISC</p>}
           <dl className="space-y-2 border-t pt-4 text-sm">
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{copy.subtotal}</dt><dd>{money(offer.main.price)}</dd></div>
-            <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{copy.discount}</dt><dd className="font-semibold text-primary">-{money(offer.main.price - downsell.price)}</dd></div>
-            <div className="flex items-end justify-between gap-4"><dt className="text-muted-foreground">{checkout.total}</dt><dd className="text-2xl font-semibold">{money(downsell.price)}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{copy.discount}</dt><dd className="font-semibold text-primary">-{money(offer.main.price - price)}</dd></div>
+            <div className="flex items-end justify-between gap-4"><dt className="text-muted-foreground">{checkout.total}</dt><dd className="text-2xl font-semibold">{money(price)}</dd></div>
           </dl>
         </div>
       </section>
-      {preview && accepted ? <CheckoutPaymentPreview copy={checkout} totalLabel={money(downsell.price)} /> : clientSecret ? <SessionPayment copy={checkout} clientSecret={clientSecret} total={downsell.price} currency={store.currency} totalLabel={money(downsell.price)} askContact initialBuyer={initialBuyer} /> : <div className="space-y-3">
+      {preview && accepted ? <CheckoutPaymentPreview copy={checkout} totalLabel={money(price)} /> : clientSecret ? <SessionPayment copy={checkout} clientSecret={clientSecret} total={price} currency={store.currency} totalLabel={money(price)} askContact initialBuyer={initialBuyer} /> : <div className="space-y-3">
         {!preview && !stripeKey && <Alert><AlertDescription>{checkout.unavailable}</AlertDescription></Alert>}
         <ErrorAlert>{error}</ErrorAlert>
-        <Button size="lg" className="h-auto min-h-14 w-full whitespace-normal py-3 text-base" onClick={preview ? () => setAccepted(true) : onPay} disabled={busy || (!preview && !stripeKey)}>
+        <Button size="lg" className="h-auto min-h-14 w-full whitespace-normal py-3 text-base" onClick={() => accept(useFinal)} disabled={busy || (!preview && !stripeKey)}>
           {busy && <LoaderCircle className="animate-spin" aria-hidden="true" />}{busy ? labels.preparing : copy.cta}
         </Button>
-        <Button asChild variant="ghost" className="w-full"><Link onClick={event => { if (preview) event.preventDefault(); }} to={origin==='quiz'?'../quiz/resultado':'..'}>{copy.declineText}</Link></Button>
+        <Button type="button" variant="ghost" className="w-full" disabled={busy} onClick={canImprove && !useFinal ? () => setFinalOpen(true) : leave}>I’m not ready yet</Button>
       </div>}
       <p className="flex justify-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="size-3.5" aria-hidden="true" />{checkout.secure}</p>
     </main>
+    {finalOpen && canImprove && (preview
+      ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"><section role="dialog" aria-label="Final offer" className="grid max-h-full w-full max-w-md gap-5 overflow-y-auto rounded-xl bg-card p-6">{finalCard}</section></div>
+      : <Dialog open onOpenChange={next => { if (!next) leave(); }}>
+          <DialogContent closeLabel={copy.close}>{finalCard}</DialogContent>
+        </Dialog>)}
   </div>;
 }
 
@@ -277,28 +307,37 @@ const celebratedKey = sessionId => `purchase-celebrated:${sessionId}`;
 function readCelebrated(sessionId) {
   try { return Boolean(sessionId) && window.sessionStorage.getItem(celebratedKey(sessionId)) === '1'; } catch { return false; }
 }
-
 export function ThankYou({ via, subdomain }) {
   useStorePresence(subdomain, 'thanks');
   const [params] = useSearchParams();
   const sessionId = params.get('session_id') || '';
+  return <PurchaseThankYou key={sessionId} sessionId={sessionId} via={via} subdomain={subdomain} />;
+}
+
+function PurchaseThankYou({ sessionId, via, subdomain }) {
   const delivery = useQuery(api.storefront.getDelivery, sessionId ? { sessionId } : 'skip');
   // The store's look is only needed while the purchase loads or cannot be found.
   const context = useQuery(api.storefront.getCheckout, delivery?.presentation ? 'skip' : { subdomain });
-  const [celebrated, setCelebrated] = useState(() => readCelebrated(sessionId));
+  // celebrating → leaving (the book flies to its card, the page enters) → done (offer can open).
+  const [phase, setPhase] = useState(() => (readCelebrated(sessionId) ? 'done' : 'celebrating'));
+  // Once the book has flown to the page, the page keeps its hand-off classes.
+  const [handoff, setHandoff] = useState(false);
   useEffect(() => {
     if (delivery?.status === 'paid') trackPixelOnce(`purchase-${sessionId}`, delivery.metaPixelId, 'Purchase', { value: delivery.total / 100, currency: delivery.currency });
   }, [delivery, sessionId]);
   function finishCelebration() {
     try { window.sessionStorage.setItem(celebratedKey(sessionId), '1'); } catch { /* private mode: it may play again */ }
-    setCelebrated(true);
+    setPhase('done');
   }
   const presentation = delivery?.presentation ?? { accentColor: context?.content?.style?.accentColor, ...context?.content?.footer, postLabels: context?.content?.postLabels };
   const paid = delivery?.status === 'paid';
+  const deliveries = delivery?.deliveries ?? [];
   const product = delivery?.items?.find(item => item.role === 'main') ?? delivery?.items?.[0];
-  // The post-purchase modal mounts after the celebration, so it opens on a calm page.
-  return <PurchaseResult status={sessionId && delivery === undefined ? 'loading' : delivery?.status ?? 'missing'} presentation={presentation} storeName={delivery?.storeName ?? context?.store?.name} emailed={delivery?.emailed} deliveries={delivery?.deliveries ?? []}>
-    {paid && !celebrated && <PurchaseCelebration productName={product?.name ?? ''} presentation={presentation} onDone={finishCelebration} />}
-    {paid && celebrated && delivery.postPurchaseOffer && <PostPurchaseModal offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} accentColor={presentation.accentColor} />}
+  const cover = deliveries.find(link => link.role === 'main' && link.coverUrl)?.coverUrl ?? deliveries.find(link => link.coverUrl)?.coverUrl ?? '';
+  const celebrating = paid && phase === 'celebrating';
+  const entrance = !paid || celebrating ? '' : `is-entering${handoff ? ' is-handoff' : ''}`;
+  return <PurchaseResult status={sessionId && delivery === undefined ? 'loading' : delivery?.status ?? 'missing'} presentation={presentation} storeName={delivery?.storeName ?? context?.store?.name} emailed={delivery?.emailed} deliveries={deliveries} order={paid ? { items: delivery.items, total: delivery.total, currency: delivery.currency } : null} entrance={entrance}>
+    {paid && phase !== 'done' && <PurchaseCelebration productName={product?.name ?? ''} coverUrl={cover} presentation={presentation} onExitStart={() => { setHandoff(true); setPhase('leaving'); }} onDone={finishCelebration} />}
+    {paid && phase === 'done' && delivery.postPurchaseOffer && <PostPurchaseModal offer={delivery.postPurchaseOffer} currency={delivery.currency} sessionId={sessionId} via={via} accentColor={presentation.accentColor} />}
   </PurchaseResult>;
 }

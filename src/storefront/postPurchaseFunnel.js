@@ -12,7 +12,6 @@ export const initialFunnel = () => ({ declined: [], reopens: { visibility: 0, mo
 
 export function stagesFor(offer) {
   const options = popupOptions(offer.content);
-  if (!options.postEnabled) return [];
   return ['offer', ...(options.postDownsell && offer.downsellPrice ? ['downsell'] : []), ...(options.postFinal ? ['final'] : [])];
 }
 

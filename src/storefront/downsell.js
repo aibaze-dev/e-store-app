@@ -9,10 +9,7 @@ export function downsellCopy(downsell) {
   return Object.fromEntries(Object.entries(DOWNSELL_DEFAULTS).map(([key, fallback]) => [key, downsell?.[key]?.trim() || fallback]));
 }
 
-// Same rule as the server (convex/lib/pricing.ts); used only to preview a price in the panel.
-export function discountedPrice(price, percent) {
-  return Math.max(1, Math.round(price * (100 - percent) / 100));
-}
+export { discountedPrice } from '../../shared/post-purchase.js';
 
 // Calls `onBack` the first time the visitor goes back, keeping them on the page. It adds a
 // second history entry for the same address, so the first "back" lands on it. Browsers skip
@@ -26,7 +23,10 @@ export function watchBackIntent(win, onBack) {
     if (guarded || win.navigator.userActivation?.hasBeenActive === false) return;
     guarded = true;
     stopWaiting();
-    win.history.pushState(win.history.state, '');
+    // Reloads and React effect remounts reuse the guard already at this location.
+    if (!win.history.state?.offerExitGuard) {
+      win.history.pushState({ ...win.history.state, offerExitGuard: true }, '');
+    }
   }
   const onPop = () => {
     if (!guarded) return;

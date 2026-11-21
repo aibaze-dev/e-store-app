@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { claimExitIntent, exitIntentCopy, exitIntentSession, leftDocument } from '../src/storefront/exitIntent.js';
+import { claimExitIntent, exitIntentCopy, claimSessionExit, canShowExit, leftDocument } from '../src/storefront/exitIntent.js';
 
 const money = amount => `$${amount / 100}`;
 const view = (offer = {}, content = {}) => ({
@@ -11,7 +11,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('exit intent copy', () => {
   it('only states what the offer backs: no savings, bonuses or guarantee unless configured', () => {
     const copy = exitIntentCopy(view(), 'landing', money);
-    expect(copy).toMatchObject({ emoji: '👋', title: 'Before you go', button: 'Quiero mi copia', closing: 'Pay securely and get instant access.' });
+    expect(copy).toMatchObject({ emoji: '👋', title: 'Hold on a second', button: 'Quiero mi copia', closing: 'Pay securely and get instant access.' });
     expect(copy.intro).toContain('Guía de inversión');
     expect(copy.bullets).toEqual(['Get the e-book as soon as your payment is confirmed', 'One-time payment', 'Secure checkout']);
     expect(JSON.stringify(copy)).not.toMatch(/guarantee|sav(e|ings)|bonus|\$/i);
@@ -64,20 +64,22 @@ describe('exit intent cooldown', () => {
 });
 
 describe('exit intent session', () => {
-  it('remembers per tab in sessionStorage and per landing', () => {
-    const store = new Map();
-    vi.stubGlobal('sessionStorage', { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) });
-    expect(exitIntentSession.seen('tienda-a')).toBe(false);
-    exitIntentSession.mark('tienda-a');
-    expect(store.get('exit-intent:tienda-a')).toBe('1');
-    expect(exitIntentSession.seen('tienda-a')).toBe(true);
-    expect(exitIntentSession.seen('tienda-b')).toBe(false);
+  it('counts landing and checkout separately and reads saved counts after a reload', () => {
+    const store = new Map([['exit-intent:v2:prior:checkout', '1']]);
+    vi.stubGlobal('sessionStorage', { getItem: key => store.get(key), setItem: (key, value) => store.set(key, value) });
+    expect(claimSessionExit('test', 'landing')).toBe(true);
+    expect(claimSessionExit('test', 'landing')).toBe(false);
+    expect(claimSessionExit('test', 'checkout')).toBe(true);
+    expect(claimSessionExit('test', 'checkout')).toBe(true);
+    expect(claimSessionExit('test', 'checkout')).toBe(false);
+    expect(store.get('exit-intent:v2:test:checkout')).toBe('2');
+    expect(claimSessionExit('prior', 'checkout')).toBe(true);
+    expect(canShowExit('prior', 'checkout')).toBe(false);
   });
-  it('falls back to memory when storage is blocked', () => {
+  it('keeps the limit in memory when storage is blocked', () => {
     const blocked = () => { throw new Error('blocked'); };
     vi.stubGlobal('sessionStorage', { getItem: blocked, setItem: blocked });
-    expect(exitIntentSession.seen('tienda-c')).toBe(false);
-    expect(() => exitIntentSession.mark('tienda-c')).not.toThrow();
-    expect(exitIntentSession.seen('tienda-c')).toBe(true);
+    expect(claimSessionExit('blocked', 'landing')).toBe(true);
+    expect(canShowExit('blocked', 'landing')).toBe(false);
   });
 });

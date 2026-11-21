@@ -26,7 +26,7 @@ export default function ArtifactPage() {
   return <div className={`artifact-theme artifact-${slug} min-h-svh`}>
     <ErrorBoundary key={slug}>
       <Suspense fallback={<p role="status" className="px-6 py-16 text-center">Cargando herramienta…</p>}>
-        <Component />
+        <Component name={artifact.name} />
       </Suspense>
     </ErrorBoundary>
   </div>;

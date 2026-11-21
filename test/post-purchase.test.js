@@ -40,15 +40,16 @@ describe('post-purchase presentation', () => {
 
 describe('editable popups and their preview map', () => {
   const offer = { name: 'Curso', price: 4700, downsellPrice: 3760, finalPrice: 3290, content: {} };
-  const view = () => ({ content: normalizeContent({}), postPurchaseOffer: offer, downsell: { price: 2000 }, offer: { main: { name: 'Guía', price: 2700 }, bonuses: [], upsells: [] } });
+  const view = () => ({ content: normalizeContent({}), postPurchaseOffer: offer, downsell: { price: 2000, finalPrice: 1730 }, offer: { main: { name: 'Guía', price: 2700 }, bonuses: [], upsells: [] } });
   it('lists every modal even when unavailable, using actual configuration', () => {
     expect(popupJourney(view())).toHaveLength(7);
     expect(popupJourney(view()).every(item => item.enabled)).toBe(true);
     const disabled = popupJourney({ ...view(), downsell: null, postPurchaseOffer: null, content: { popupOptions: { landingExit: false }, checkout: { showExit: false } } });
     expect(disabled).toHaveLength(7);
-    expect(disabled.every(item => !item.enabled)).toBe(true);
+    expect(disabled.filter(item => item.enabled).map(item => item.target)).toEqual(['popup-exit-landing', 'popup-exit-checkout']);
     const noTriggers = popupJourney({ ...view(), content: { popupOptions: { postOnLoad: false, postOnReturn: false, postOnExit: false } } });
-    expect(noTriggers.filter(item => item.group === 'Después del pago').every(item => !item.enabled)).toBe(true);
+    expect(noTriggers.find(item => item.target === 'post').enabled).toBe(true);
+    expect(noTriggers.find(item => item.target === 'post-final').enabled).toBe(false);
     const onlyOnLoad = popupJourney({ ...view(), content: { popupOptions: { postOnReturn: false, postOnExit: false } } });
     expect(onlyOnLoad.find(item => item.target === 'post-downsell').enabled).toBe(true);
     expect(onlyOnLoad.find(item => item.target === 'post-final').enabled).toBe(false);
@@ -60,7 +61,7 @@ describe('editable popups and their preview map', () => {
     expect(claimReopen(configured, decline.funnel, 'visibility')).toBeNull();
     const reopened = claimReopen(configured, decline.funnel, 'mouse');
     expect(nextStage(configured, reopened)).toBe('final');
-    expect(nextStage({ ...offer, content: { popupOptions: { postEnabled: false } } }, initialFunnel())).toBeNull();
+    expect(nextStage({ ...offer, content: { popupOptions: { postEnabled: false, postOnLoad: false } } }, initialFunnel())).toBe('offer');
     const noFinal = { ...offer, content: { popupOptions: { postFinal: false } } };
     expect(nextStage(noFinal, { ...initialFunnel(), declined: ['offer', 'downsell'] })).toBeNull();
     expect(popupJourney({ ...view(), content: { popupOptions: { postFinal: false } } }).find(item => item.target === 'post-final').enabled).toBe(false);

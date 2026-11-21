@@ -1,3 +1,4 @@
+import { mainDiscountPrices } from '../../shared/post-purchase.js';
 import type { Doc, QueryCtx } from './functions';
 import { discounted, finalPostPurchasePercent } from './pricing';
 import { ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
@@ -68,7 +69,7 @@ export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, land
     content,
     store: { id: store._id, name: store.name, currency: store.currency, metaPixelId: store.tracking.metaPixelId },
     offer: { main: { ...main, price: store.offer.price }, bonuses, upsells },
-    downsell: store.downsell?.enabled ? { ...store.downsell, price: discounted(store.offer.price, store.downsell.percent) } : null,
+    downsell: store.downsell?.enabled ? { ...store.downsell, ...mainDiscountPrices(store.offer.price, store.downsell.percent) } : null,
     checkout: { upsellTitle: store.checkout?.upsellTitle ?? '', notifications: store.checkout?.notifications ?? content.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications, liveVisitors: store.checkout?.liveVisitors ?? false },
     activity: await buildActivity(ctx, store, {
       recent: Boolean((content.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications) || store.checkout?.notifications),

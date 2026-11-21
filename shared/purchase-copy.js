@@ -81,6 +81,21 @@ export const POST_LABEL_FIELDS = {
     "label": "Descarga en curso",
     "value": "Downloading…"
   },
+  "seeLinks": {
+    "group": "access",
+    "label": "Botón para ver todos los accesos",
+    "value": "See all your access links"
+  },
+  "summaryTitle": {
+    "group": "access",
+    "label": "Título del resumen de compra",
+    "value": "Order summary"
+  },
+  "summaryTotal": {
+    "group": "access",
+    "label": "Total del resumen de compra",
+    "value": "Total paid"
+  },
   "emptyLinks": {
     "group": "access",
     "label": "Compra sin accesos",
@@ -308,12 +323,16 @@ export const postLabels = (content = {}) => ({ ...POST_LABEL_DEFAULTS, ...filled
 export const postOptions = (content = {}) => ({ ...POST_OPTION_DEFAULTS, ...content.postOptions });
 export const popupOptions = (content = {}) => ({ ...POPUP_OPTION_DEFAULTS, ...content.popupOptions });
 export const purchaseText = (copy, key, values = {}) => formatLandingText(copy[key], values);
-export const landingExitConfig = (view = {}) => ({
-  ...Object.fromEntries(Object.keys(LANDING_EXIT_FIELDS).map(key => [key, CHECKOUT_DEFAULTS[key]])),
-  exitIntro: 'Before you go, see what you get with {producto}.',
-  exitButton: view.content?.hero?.ctaText || 'Buy now',
-  ...filledTexts(view.content?.landingExit, LANDING_EXIT_OPTIONAL_FIELDS),
-});
+export const landingExitConfig = (view = {}) => {
+  const copy = {
+    ...Object.fromEntries(Object.keys(LANDING_EXIT_FIELDS).map(key => [key, CHECKOUT_DEFAULTS[key]])),
+    exitIntro: 'Before you go, see what you get with {producto}.',
+    exitButton: view.content?.hero?.ctaText || 'Buy now',
+    ...filledTexts(view.content?.landingExit, LANDING_EXIT_OPTIONAL_FIELDS),
+  };
+  if (copy.exitTitle === 'Before you go') copy.exitTitle = 'Hold on a second';
+  return copy;
+};
 export function backPopupConfig(view = {}) {
   return { ...Object.fromEntries(Object.entries(BACK_POPUP_FIELDS).map(([key, field]) => [key, field.value])),
     ...Object.fromEntries(Object.keys(DOWNSELL_DEFAULTS).filter(key => view.downsell?.[key]?.trim()).map(key => [key, view.downsell[key]])),
@@ -321,4 +340,4 @@ export function backPopupConfig(view = {}) {
   };
 }
 export const PURCHASE_PREVIEW_STATES = { offer: 'Oferta', preparing: 'Preparando pago', error: 'Error al iniciar pago', payment: 'Formulario de pago', processing: 'Procesando pago', 'payment-error': 'Error al confirmar el pago', 'payment-loading': 'Cargando medios de pago', videoError: 'Error del video', paid: 'Compra confirmada con email', saved: 'Compra confirmada sin email', empty: 'Sin links cargados', loading: 'Buscando compra', missing: 'Compra no encontrada', pending: 'Pago pendiente', needs_review: 'Pago en revisión', failed: 'Pago rechazado', expired: 'Pago vencido', refunded: 'Compra reembolsada' };
-export const POPUP_PREVIEW_TARGETS = { 'popup-exit-landing': 'Salida de la landing', 'popup-exit-checkout': 'Salida del checkout', 'popup-back-landing': 'Volver atrás · landing', 'popup-back-checkout': 'Volver atrás · checkout', 'popup-back-page': 'Página de oferta con descuento' };
+export const POPUP_PREVIEW_TARGETS = { 'popup-exit-landing': 'Salida de la landing', 'popup-exit-checkout': 'Salida del checkout', 'popup-back-checkout': 'Ver oferta del checkout', 'popup-offer-final': 'Último descuento en /oferta', 'popup-back-page': 'Página de oferta con descuento' };

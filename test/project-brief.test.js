@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { api } from './api';
 import { backend } from './helpers';
 import { readSession, remainingSeconds, reportOpening, saveSession, STORAGE_KEY } from '../src/artifacts/project-brief/session';
@@ -53,7 +54,7 @@ it('opens one B2C record before the form and only edits that record on submissio
   vi.stubEnv('AIBAZE_API_URL', 'https://crm.example.com');
   const fetch = vi.fn()
     .mockRejectedValueOnce(new Error('response lost'))
-    .mockResolvedValueOnce(Response.json({ received: true, id: leadId, briefEditable: true }))
+    .mockResolvedValueOnce(Response.json({ received: true, id: leadId }))
     .mockResolvedValueOnce(new Response(null, { status: 503 }))
     .mockResolvedValueOnce(Response.json({ received: true }));
   vi.stubGlobal('fetch', fetch);
@@ -67,6 +68,7 @@ it('opens one B2C record before the form and only edits that record on submissio
   expect(opening.body).not.toContain(session.requestId);
   expect(JSON.parse(opening.body)).toMatchObject({
     customData: { email: null, case: expect.stringContaining('2026-11-22T07:00:00.000Z') },
+    calendar: { appointmentId: 'ateneo-project-brief:' + createHash('sha256').update(session.requestId).digest('hex') },
   });
   await expect(t.action(api.project_brief.submit, project)).rejects.toThrow();
   expect(await t.action(api.project_brief.submit, project)).toBeNull();

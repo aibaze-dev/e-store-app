@@ -32,10 +32,25 @@ export default function LandingFrame({ view, mode, target = 'landing', previewRe
     });
     setRoot(doc.getElementById('preview-root'));
   }
+  let screen;
+  if (target.startsWith('popup')) {
+    screen = <PopupPreview key={`${target}:${previewRevision}`} view={view} target={target} />;
+  } else if (target === 'checkout') {
+    screen = <>
+      <CheckoutView view={view} preview previewState={checkoutState} />
+      {checkoutState === 'exit' && <div className="fixed inset-0 z-50 overflow-auto">
+        <PopupPreview key={previewRevision} view={view} target="popup-exit-checkout" />
+      </div>}
+    </>;
+  } else if (target === 'landing') {
+    screen = <ClassicLanding view={view} />;
+  } else {
+    screen = <PostPurchasePreview key={previewRevision} view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} modal={postAsModal} state={postState} onStageChange={onPostStageChange} />;
+  }
   return <div ref={viewportRef} className={`landing-preview-viewport ${mode === 'mobile' ? 'is-mobile' : ''}`}>
     <div className="landing-preview-canvas" style={{ width: frameWidth * scale }}>
       <iframe title={target === 'checkout' ? 'Vista previa de tu checkout' : 'Vista previa de tu landing'} srcDoc={DOCUMENT} onLoad={ready} style={{ width: frameWidth, height: size.height ? size.height / scale : '100%', transform: `scale(${scale})`, transformOrigin: 'top left' }} />
     </div>
-    {root && createPortal(<PreviewEditing onSelectSection={onSelectSection}>{target.startsWith('popup') ? <PopupPreview key={`${target}:${previewRevision}`} view={view} target={target} /> : target === 'checkout' ? <CheckoutView view={view} preview previewState={checkoutState} /> : target === 'landing' ? <ClassicLanding view={view} /> : <PostPurchasePreview key={previewRevision} view={view} stage={POST_PURCHASE_PREVIEW_STAGES[target]} modal={postAsModal} state={postState} onStageChange={onPostStageChange} />}</PreviewEditing>, root)}
+    {root && createPortal(<PreviewEditing onSelectSection={onSelectSection}>{screen}</PreviewEditing>, root)}
   </div>;
 }

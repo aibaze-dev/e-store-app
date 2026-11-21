@@ -43,17 +43,21 @@ export function claimExitIntent(scope, now = performance.now()) {
   return true;
 }
 
-// Shared session memory, still used by the downsell's back trigger. The mouse-exit
-// popup does not use this limit. Memory covers browsers where sessionStorage is blocked.
-const shownInMemory = new Set();
-const storageKey = scope => `exit-intent:${scope}`;
-export const exitIntentSession = {
-  seen(scope) {
-    if (shownInMemory.has(scope)) return true;
-    try { return sessionStorage.getItem(storageKey(scope)) === '1'; } catch { return false; }
-  },
-  mark(scope) {
-    shownInMemory.add(scope);
-    try { sessionStorage.setItem(storageKey(scope), '1'); } catch { /* memory already holds it */ }
-  },
-};
+const sessionCounts = new Map();
+const sessionKey = (store, step) => `exit-intent:v2:${store}:${step}`;
+function sessionCount(key) {
+  const fallback = sessionCounts.get(key) ?? 0;
+  try { return Math.max(fallback, Number(sessionStorage.getItem(key)) || 0); }
+  catch { return fallback; }
+}
+export function canShowExit(store, step) {
+  return sessionCount(sessionKey(store, step)) < (step === 'landing' ? 1 : 2);
+}
+export function claimSessionExit(store, step) {
+  if (!canShowExit(store, step)) return false;
+  const key = sessionKey(store, step);
+  const count = sessionCount(key) + 1;
+  sessionCounts.set(key, count);
+  try { sessionStorage.setItem(key, String(count)); } catch { /* Use memory in this tab. */ }
+  return true;
+}

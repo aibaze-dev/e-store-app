@@ -1,4 +1,4 @@
-import { postLabels, popupOptions } from '../../shared/purchase-copy.js';
+import { postLabels } from '../../shared/purchase-copy.js';
 import { checkoutConfig } from '../../shared/checkout-copy.js';
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'convex/react';
@@ -16,11 +16,10 @@ import { afterDecline, claimReopen, funnelStore, initialFunnel, nextStage } from
 // Payment happens inside the same modal; the amounts are charged by the server.
 export default function PostPurchaseModal({ offer, currency, sessionId, via, accentColor }) {
   const labels = postLabels(offer.content);
-  const options = popupOptions(offer.content);
   const start = useAction(api.checkout.startPostPurchase);
   const [funnel, setFunnelState] = useState(() => funnelStore.read(sessionId) ?? initialFunnel());
   const [stage, setStage] = useState(() => nextStage(offer, funnel));
-  const [open, setOpen] = useState(() => options.postEnabled && options.postOnLoad && funnel.declined.length === 0);
+  const [open, setOpen] = useState(() => stage === 'offer');
   const [reopened, setReopened] = useState(false);
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -92,7 +91,7 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
     finally { setBusy(false); }
   }
 
-  if (!stage || !options.postEnabled) return null;
+  if (!stage) return null;
   const { price } = postPurchaseStage(offer, stage);
   // While Stripe confirms the payment the modal cannot be dismissed.
   const guard = event => { if (paying || busy) event.preventDefault(); };

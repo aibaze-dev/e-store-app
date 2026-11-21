@@ -1,3 +1,4 @@
+import { mainDiscountPrices } from '../../shared/post-purchase.js';
 import { POST_LABEL_FIELDS, POST_LABEL_GROUPS, POST_LABEL_DEFAULTS, POST_OPTIONAL_FIELDS, POST_OPTION_FIELDS, POPUP_OPTION_FIELDS, LANDING_EXIT_FIELDS, LANDING_EXIT_OPTIONAL_FIELDS, BACK_POPUP_FIELDS, BACK_POPUP_OPTIONAL_FIELDS, postOptions, popupOptions, landingExitConfig, backPopupConfig, PURCHASE_PREVIEW_STATES, POPUP_PREVIEW_TARGETS } from '../../shared/purchase-copy.js';
 import { CHECKOUT_FIELDS, CHECKOUT_DEFAULTS, CHECKOUT_OPTIONAL_FIELDS } from '../../shared/checkout-copy.js';
 import { CopyFields, CopyGroup, OptionFields } from './PurchaseCopyFields.jsx';
@@ -163,7 +164,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
       finalPercent: finalPostPurchasePercent(store.postPurchase), finalPrice: discountedPrice(store.postPurchase.price, finalPostPurchasePercent(store.postPurchase)),
     } : null,
     subdomain: form.subdomain, checkout: store.checkout,
-    downsell: store.downsell?.enabled ? { ...store.downsell, price: discountedPrice(store.offer.price, store.downsell.percent) } : null,
+    downsell: store.downsell?.enabled ? { ...store.downsell, ...mainDiscountPrices(store.offer.price, store.downsell.percent) } : null,
     content, store: { name: store.name, currency: store.currency },
     offer: {
       main: { ...mainProduct, price: store.offer.price, compareAtPrice: referencePrice(mainProduct, store.offer.compareAtPrice) },
@@ -191,7 +192,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   function openSection(id) {
     selectTab(landingSectionTab(id));
     if (id === 'popupCheckout') setPreviewTarget('popup-exit-checkout');
-    if (id === 'popupBack') setPreviewTarget('popup-back-landing');
+    if (id === 'popupBack') setPreviewTarget('popup-back-checkout');
     if (id === 'popupPost') setPreviewTarget('post');
     if (id === 'postPurchaseDownsell') setPreviewTarget('post-downsell');
     if (id === 'postPurchaseFinal') setPreviewTarget('post-final');
@@ -432,17 +433,16 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
     </>,
     popups: <>
       <section className="dashboard-card space-y-5 p-5 sm:p-6">
-        <div className="space-y-1.5"><h2 className="text-lg font-semibold">Cuándo aparecen</h2><p className="text-sm leading-6 text-muted-foreground">Activan o desactivan cada popup sin modificar el cobro. Precio, producto y porcentaje se configuran en la oferta de la tienda.</p></div>
-        {[['Antes del pago', ['landingExit', 'backLanding', 'backCheckout']], ['Después del pago', ['postEnabled', 'postOnLoad', 'postOnReturn', 'postOnExit', 'postDownsell', 'postFinal']]].map(([title, keys]) => <div key={title} className="space-y-2"><h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">{title}</h3>
-          <OptionFields fields={Object.fromEntries(keys.map(key => [key, POPUP_OPTION_FIELDS[key]]))} value={popupOptions(content)} onChange={patch => change('popupOptions', patch)} disabled={Boolean(busy) || (title === 'Después del pago' && !popupOptions(content).postEnabled)} /></div>)}
-        <Link className="inline-block text-sm underline underline-offset-4" to={`/panel/tiendas/${storeId}/downsell`}>Configurar descuentos y video de la oferta al volver atrás</Link>
+        <h2 className="text-lg font-semibold">Después del pago</h2>
+        <p className="text-sm text-muted-foreground">La oferta post-compra activa se abre al terminar la animación de /gracias.</p>
+        <OptionFields fields={Object.fromEntries(['postOnReturn', 'postOnExit', 'postDownsell', 'postFinal'].map(key => [key, POPUP_OPTION_FIELDS[key]]))} value={popupOptions(content)} onChange={patch => change('popupOptions', patch)} disabled={Boolean(busy)} />
+        <Link className="inline-block text-sm underline underline-offset-4" to={`/panel/tiendas/${storeId}/downsell`}>Configurar descuento y video de la oferta principal</Link>
       </section>
-      <Section id="popupLanding" description="Aviso cuando el mouse sale de la página de venta" defaultOpen><CopyFields fields={LANDING_EXIT_FIELDS} value={content.landingExit} defaults={landingExitConfig({ content: { ...content, landingExit: {} } })} optional={LANDING_EXIT_OPTIONAL_FIELDS} onChange={patch => change('landingExit', patch)} disabled={Boolean(busy)} /></Section>
+      <Section id="popupLanding" description="Aviso de salida, una vez por sesión" defaultOpen><CopyFields fields={LANDING_EXIT_FIELDS} value={content.landingExit} defaults={landingExitConfig({ content: { ...content, landingExit: {} } })} optional={LANDING_EXIT_OPTIONAL_FIELDS} onChange={patch => change('landingExit', patch)} disabled={Boolean(busy)} /></Section>
       <Section id="popupCheckout" description="Aviso cuando el mouse sale del checkout">
-        <OptionFields fields={{ showExit: 'Mostrar popup al salir del checkout' }} value={content.checkout} onChange={patch => change('checkout', patch)} disabled={Boolean(busy)} />
         <CopyFields maxLength={600} fields={Object.fromEntries(Object.entries(CHECKOUT_FIELDS).filter(([, field]) => field.group === 'exit'))} value={content.checkout} defaults={CHECKOUT_DEFAULTS} optional={CHECKOUT_OPTIONAL_FIELDS} onChange={patch => change('checkout', patch)} disabled={Boolean(busy)} />
       </Section>
-      <Section id="popupBack" description="Popup al pulsar Atrás y página de destino con descuento"><CopyFields fields={BACK_POPUP_FIELDS} value={content.backPopup} defaults={backPopupConfig({ content: {}, downsell: store.downsell })} optional={BACK_POPUP_OPTIONAL_FIELDS} onChange={patch => change('backPopup', patch)} disabled={Boolean(busy)} /></Section>
+      <Section id="popupBack" description="Popup al pedir un descuento y página de la oferta"><CopyFields fields={BACK_POPUP_FIELDS} value={content.backPopup} defaults={backPopupConfig({ content: {}, downsell: store.downsell })} optional={BACK_POPUP_OPTIONAL_FIELDS} onChange={patch => change('backPopup', patch)} disabled={Boolean(busy)} /></Section>
       <Section id="popupPost" description="Oferta inicial, descuento y última oportunidad"><p className="text-sm leading-6">Los títulos, descripciones y botones de estas tres variantes se editan en Post-compra. El mapa superior permite ver cada una y sus estados de pago.</p><Button type="button" variant="outline" onClick={() => selectTab('post')}>Editar textos de post-compra</Button></Section>
     </>,
     checkout: <CheckoutContentFields copy={content.checkout} onChange={patch => change('checkout', patch)} disabled={Boolean(busy)} storeId={storeId} onOpenPopups={() => openSection('popupCheckout')}>

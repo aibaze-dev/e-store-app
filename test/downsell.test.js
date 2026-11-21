@@ -83,6 +83,20 @@ describe('main product downsell', () => {
     expect(stripe.requests[0].body.customer_email).toBeUndefined();
   });
 
+  it('charges the main product at the final price shown on /oferta', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    const { downsell } = await t.query(api.storefront.getCheckout, { subdomain: 'inversion' });
+    expect(downsell).toMatchObject({ percent: 25, price: 2025, finalPercent: 35, finalPrice: 1755 });
+    const attemptId = crypto.randomUUID();
+    await start(t, { downsell: true, finalDownsell: true, attemptId });
+    expect(stripe.requests[0].body['line_items[0][price_data][unit_amount]']).toBe('1755');
+    expect((await rows(t, 'orders'))[0]).toMatchObject({ total: 1755, finalDownsell: true });
+    await expect(start(t, { downsell: true, attemptId })).rejects.toThrow();
+    await expect(start(t, { finalDownsell: true })).rejects.toThrow();
+    expect(await rows(t, 'orders')).toHaveLength(1);
+  });
+
   it('leaves the regular checkout at full price', async () => {
     const { t } = await campaign();
     mockStripe();
@@ -161,7 +175,7 @@ describe('back intent', () => {
     const win = fakeWindow(true);
     const onBack = vi.fn();
     watchBackIntent(win, onBack);
-    expect(win.history.pushed).toEqual([[{ idx: 3 }, '']]);
+    expect(win.history.pushed).toEqual([[{ idx: 3, offerExitGuard: true }, '']]);
     win.fire('popstate');
     win.fire('popstate');
     expect(onBack).toHaveBeenCalledTimes(1);

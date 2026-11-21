@@ -14,6 +14,10 @@ export const open = action({
   handler: async (_ctx, args): Promise<null> => {
     if (!validProjectSession(args.firstLoad, args.requestId)) fail('Invalid project session.');
     const due = new Date(args.firstLoad + DELIVERY_WINDOW_MS).toISOString();
+    // Older B2C deployments deduplicate by the body field, newer ones derive
+    // the same value from the private header. Never expose the key in the body.
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(args.requestId.toLowerCase()));
+    const appointmentId = 'ateneo-project-brief:' + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
     const response = await fetch(apiUrl('/api/v1/webhooks/b2c-oportunity'), {
       method: 'POST',
       redirect: 'error',
@@ -27,6 +31,7 @@ export const open = action({
           utm_content: null, utm_term: null, fb_click_id: null, reschedule_link: null, cancel_link: null,
         },
         contact_source: 'Post-purchase project brief',
+        calendar: { appointmentId },
         country: null,
         attributionSource: {
           url: process.env.SITE_URL ? new URL('/a/project-brief', process.env.SITE_URL).href : null,
@@ -35,7 +40,7 @@ export const open = action({
       }),
     });
     const body = response.ok ? await response.json() : null;
-    if (body?.received !== true || body.briefEditable !== true) {
+    if (body?.received !== true) {
       fail('Could not confirm the project opportunity.');
     }
     return null;

@@ -1,3 +1,4 @@
+import { discountedPrice as discounted, mainDiscountPrices } from '../../shared/post-purchase.js';
 import { fail } from './validation';
 
 type Deliverable = { title: string; url: string };
@@ -30,10 +31,7 @@ function snapshot(entries: { productId: string; role: Role; price: number }[], p
   return { items, deliveries, total: items.reduce((sum, item) => sum + item.price, 0) };
 }
 
-// Price after a downsell discount, in the currency's minor unit.
-export function discounted(price: number, percent: number) {
-  return Math.max(1, Math.round(price * (100 - percent) / 100));
-}
+export { discounted };
 
 // The browser only says which extras it wants; every amount comes from the store.
 export function buildInitialOrder(store: Store, products: Map<string, Product>, upsellProductIds: string[]) {
@@ -51,10 +49,11 @@ export function buildInitialOrder(store: Store, products: Map<string, Product>, 
 }
 
 // The main product with its bonuses, without extras, at the store's downsell discount.
-export function buildDownsellOrder(store: Store, products: Map<string, Product>) {
+export function buildDownsellOrder(store: Store, products: Map<string, Product>, final = false) {
   if (!store.downsell?.enabled) fail('Esta oferta ya no está disponible.');
+  const prices = mainDiscountPrices(store.offer.price, store.downsell.percent);
   return snapshot([
-    { productId: store.offer.mainProductId, role: 'main', price: discounted(store.offer.price, store.downsell.percent) },
+    { productId: store.offer.mainProductId, role: 'main', price: final ? prices.finalPrice : prices.price },
     ...store.offer.bonuses.map(bonus => ({ productId: bonus.productId, role: 'bonus' as const, price: 0 })),
   ], products);
 }

@@ -18,8 +18,18 @@ export const POST_PURCHASE_CONTENT = {
 // Last post-purchase discount: 10 more points than the store's downsell, or 10% without
 // one, never above 90%. The server charges it with this same rule.
 export const FINAL_EXTRA_PERCENT = 10;
+export function finalDiscountPercent(percent) {
+  return Math.min(percent + FINAL_EXTRA_PERCENT, 90);
+}
+export function discountedPrice(price, percent) {
+  return Math.max(1, Math.round(price * (100 - percent) / 100));
+}
+export function mainDiscountPrices(price, percent) {
+  const finalPercent = finalDiscountPercent(percent);
+  return { price: discountedPrice(price, percent), finalPercent, finalPrice: discountedPrice(price, finalPercent) };
+}
 export function finalPostPurchasePercent(postPurchase = {}) {
-  return Math.min((postPurchase.downsellPercent ?? 0) + FINAL_EXTRA_PERCENT, 90);
+  return finalDiscountPercent(postPurchase.downsellPercent ?? 0);
 }
 
 // Pages of the post-purchase preview and the modal step each one shows.

@@ -4,7 +4,7 @@
 export const artifacts = [
   {
     slug: 'project-brief',
-    name: 'Your Project Brief',
+    name: 'Your Own Custom App!',
     description: 'Share the details for your purchased landing page or custom system and see when it will be ready.',
   },
   {
