@@ -22,6 +22,7 @@ const checkoutPages = () => import('./CheckoutPages.jsx');
 const Checkout = lazy(() => checkoutPages().then(module => ({ default: module.Checkout })));
 const DownsellOffer = lazy(() => checkoutPages().then(module => ({ default: module.DownsellOffer })));
 const ThankYou = lazy(() => checkoutPages().then(module => ({ default: module.ThankYou })));
+const SupportPage = lazy(() => import('./SupportPage.jsx'));
 
 const Page = ({ children }) => <main className="mx-auto max-w-2xl space-y-6 px-5 py-10 sm:px-6">{children}</main>;
 const Unavailable = () => <Page>
@@ -76,6 +77,7 @@ export default function Storefront({ subdomain, via }) {
   captureAttribution(subdomain);
   return <ErrorBoundary language="en-US"><Suspense fallback={<Page><PageSkeleton label="Loading" /></Page>}><Routes>
     <Route path="gracias" element={<ThankYou via={via} subdomain={subdomain} />} />
+    <Route path="soporte" element={<SupportPage subdomain={subdomain} />} />
     <Route path="*" element={<LandingRoutes subdomain={subdomain} via={via} />} />
   </Routes></Suspense></ErrorBoundary>;
 }

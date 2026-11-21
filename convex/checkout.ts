@@ -2,7 +2,7 @@ import { checkoutRecord, forStore, purchaseContent } from './lib/landing_records
 import { authorizedSession } from './quizzes';
 import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
-import { action, internalMutation, type Doc, type Id, type MutationCtx } from './lib/functions';
+import { action, internalMutation, query, type Doc, type Id, type MutationCtx } from './lib/functions';
 import { buildDownsellOrder, buildInitialOrder, buildPostPurchaseOrder } from './lib/pricing';
 import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
 import { queueEmail } from './emails';
@@ -10,6 +10,7 @@ import { queueSaleAlert } from './discord';
 import { fail } from './lib/validation';
 import { attributionMetadata, cleanAttribution } from '../shared/attribution.js';
 import { attribution as attributionArg } from './schema';
+import { sessionExpiresAt } from '../shared/checkout-session.js';
 
 const via = v.union(v.literal('subdomain'), v.literal('path'));
 const attemptId = v.string();
@@ -24,7 +25,8 @@ const retry = v.optional(v.boolean());
 // Campaign of the ad link, as the browser remembers it. Cleaned again before it is stored.
 const attribution = v.optional(attributionArg);
 
-type OpenOrder = { paymentLocale: NonNullable<Doc<'transactions'>['paymentLocale']>; orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; customerEmail?: string; attribution?: Doc<'orders'>['attribution'] };
+type OpenOrder = { paymentLocale: NonNullable<Doc<'transactions'>['paymentLocale']>; orderId: Id<'orders'>; transactionId: Id<'transactions'>; currency: string; subdomain: string; lineItems: LineItem[]; idempotencyKey: string; expiresAt: number; customerEmail?: string; attribution?: Doc<'orders'>['attribution'] };
+type StartedSession = { clientSecret: string; sessionId: string; expiresAt: number };
 type Snapshot = ReturnType<typeof buildInitialOrder>;
 
 const lineItems = (items: { name: string; price: number }[]) =>
@@ -33,20 +35,26 @@ const lineItems = (items: { name: string; price: number }[]) =>
 // Stripe replays the saved result of an idempotency key, 500 errors included, so retrying
 // with the same key can fail forever. A retry gets a new key only while no session was ever
 // attached: a session Stripe created but never returned to a browser cannot be paid.
+// The session expiry is saved with each key: Stripe rejects a key replayed with other parameters.
 async function idempotencyKey(ctx: MutationCtx, transaction: Doc<'transactions'>, retry?: boolean) {
   let attempt = transaction.sessionAttempt ?? 0;
-  if (retry && !transaction.stripeCheckoutSessionId) {
-    attempt += 1;
-    await ctx.db.patch(transaction._id, { sessionAttempt: attempt });
+  let expiresAt = transaction.stripeSessionExpiresAt;
+  if ((retry && !transaction.stripeCheckoutSessionId) || expiresAt === undefined) {
+    if (retry && !transaction.stripeCheckoutSessionId) attempt += 1;
+    expiresAt = sessionExpiresAt() * 1000;
+    await ctx.db.patch(transaction._id, { sessionAttempt: attempt, stripeSessionExpiresAt: expiresAt });
   }
-  return attempt ? `order-${transaction.orderId}-retry-${attempt}` : `order-${transaction.orderId}`;
+  return { key: attempt ? `order-${transaction.orderId}-retry-${attempt}` : `order-${transaction.orderId}`, expiresAt: expiresAt / 1000 };
 }
 
 async function reopen(ctx: MutationCtx, order: Doc<'orders'>, subdomain: string, retry?: boolean): Promise<OpenOrder> {
   const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', order._id)).first();
   if (!transaction || order.status !== 'pending') fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
+  // Sessions opened before expiries were saved cannot be replayed with the same parameters.
+  if (transaction.stripeCheckoutSessionId && transaction.stripeSessionExpiresAt === undefined) fail('Esta compra ya fue procesada. Recargá la página para empezar otra.');
   // Earlier transactions sent Spanish to Stripe. Retries must replay the same parameters.
-  return { paymentLocale: transaction.paymentLocale ?? 'es', orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: await idempotencyKey(ctx, transaction, retry), attribution: order.attribution };
+  const session = await idempotencyKey(ctx, transaction, retry);
+  return { paymentLocale: transaction.paymentLocale ?? 'es', orderId: order._id, transactionId: transaction._id, currency: order.currency, subdomain, lineItems: lineItems(order.items), idempotencyKey: session.key, expiresAt: session.expiresAt, attribution: order.attribution };
 }
 
 async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
@@ -91,15 +99,17 @@ async function openOrder(ctx: MutationCtx, input: {
   const content = await purchaseContent(ctx, input.store);
   const checkout = content.checkout;
   const paymentLocale = (checkout && 'paymentLocale' in checkout ? checkout.paymentLocale : undefined) ?? 'en';
+  const expiresAt = sessionExpiresAt();
   const transactionId = await ctx.db.insert('transactions', {
     paymentLocale,
+    stripeSessionExpiresAt: expiresAt * 1000,
     orderId,
     status: 'pending',
     amount: snapshot.total,
     currency: input.store.currency,
     deliveries: snapshot.deliveries,
   });
-  return { paymentLocale, orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}`, attribution: input.attribution };
+  return { paymentLocale, orderId, transactionId, currency: input.store.currency, subdomain: input.landing.subdomain, lineItems: lineItems(snapshot.items), idempotencyKey: `order-${orderId}`, expiresAt, attribution: input.attribution };
 }
 
 function checkAttempt(attemptId: string) {
@@ -152,7 +162,13 @@ export const createPostPurchaseOrder = internalMutation({
     // the same Stripe session, so the buyer can only pay it once.
     const stage = args.finalDownsell ? 'final' : args.downsell ? 'downsell' : 'offer';
     const stageOf = (child: Doc<'orders'>) => child.finalDownsell ? 'final' : child.downsell ? 'downsell' : 'offer';
-    const open = children.find(child => child.status === 'pending' && stageOf(child) === stage);
+    // A session that already ran out cannot be paid: that step starts a new order instead.
+    let open: Doc<'orders'> | undefined;
+    for (const child of children) {
+      if (child.status !== 'pending' || stageOf(child) !== stage) continue;
+      const transaction = await ctx.db.query('transactions').withIndex('by_order', q => q.eq('orderId', child._id)).first();
+      if (transaction?.stripeSessionExpiresAt && transaction.stripeSessionExpiresAt > Date.now() + 2 * 60_000) { open = child; break; }
+    }
     const order = open ? await reopen(ctx, open, landing.subdomain, args.retry) : await openOrder(ctx, {
       store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, attribution: parent.attribution, retry: args.retry,
       build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), stage),
@@ -163,14 +179,14 @@ export const createPostPurchaseOrder = internalMutation({
 });
 
 export const attachSession = internalMutation({
-  args: { transactionId: v.id('transactions'), sessionId: v.string() },
+  args: { transactionId: v.id('transactions'), sessionId: v.string(), expiresAt: v.number() },
   // Never replaces a session already linked: the first one may still be paid (delayed
   // methods take days), and losing its link would hide that charge.
-  handler: async (ctx, { transactionId, sessionId }): Promise<boolean> => {
+  handler: async (ctx, { transactionId, sessionId, expiresAt }): Promise<boolean> => {
     const transaction = await ctx.db.get(transactionId);
     if (!transaction) return false;
     if (transaction.stripeCheckoutSessionId) return transaction.stripeCheckoutSessionId === sessionId;
-    await ctx.db.patch(transactionId, { stripeCheckoutSessionId: sessionId });
+    await ctx.db.patch(transactionId, { stripeCheckoutSessionId: sessionId, stripeSessionExpiresAt: expiresAt });
     return true;
   },
 });
@@ -182,7 +198,7 @@ function stripeSettings() {
   return { secretKey, site: new URL(siteUrl) };
 }
 
-async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<any> }, order: OpenOrder, route: 'subdomain' | 'path', elements = false) {
+async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<any> }, order: OpenOrder, route: 'subdomain' | 'path', elements = false): Promise<StartedSession> {
   const { secretKey, site } = stripeSettings();
   // The return address is built on the server from SITE_URL, never from a browser value.
   const base = route === 'subdomain' ? `${site.protocol}//${order.subdomain}.${site.host}` : `${site.origin}/l/${order.subdomain}`;
@@ -193,6 +209,7 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
     customerEmail: elements ? order.customerEmail : undefined,
     orderId: order.orderId,
     idempotencyKey: order.idempotencyKey,
+    expiresAt: order.expiresAt,
     currency: order.currency,
     lineItems: order.lineItems,
     // Always the campaign stored on the order: a retry must send Stripe the same parameters.
@@ -202,16 +219,16 @@ async function openSession(ctx: { runMutation: (ref: any, args: any) => Promise<
   if (!session) throw new ConvexError('No se pudo iniciar el pago. Volvé a intentar en unos minutos.');
   // Stripe forgets idempotency keys after about a day; a late retry then gets a different
   // session. It is never handed out, so it expires unpaid.
-  if (!(await ctx.runMutation(internal.checkout.attachSession, { transactionId: order.transactionId, sessionId: session.id }))) {
+  if (!(await ctx.runMutation(internal.checkout.attachSession, { transactionId: order.transactionId, sessionId: session.id, expiresAt: session.expiresAt }))) {
     console.error('Stripe returned a different session for an order that already has one', order.orderId);
     throw new ConvexError('Este pago ya se inició en otra ventana. Recargá la página para continuar.');
   }
-  return { clientSecret: session.clientSecret };
+  return { clientSecret: session.clientSecret, sessionId: session.id, expiresAt: session.expiresAt };
 }
 
 export const start = action({
   args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, via, downsell, finalDownsell, origin, quizToken, retry, attribution, elements: v.optional(v.boolean()) },
-  handler: async (ctx, args): Promise<{ clientSecret: string }> => {
+  handler: async (ctx, args): Promise<StartedSession> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createOrder, {
       subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry, attribution: args.attribution,
@@ -222,12 +239,24 @@ export const start = action({
 
 export const startPostPurchase = action({
   args: { parentSessionId: v.string(), attemptId, via, downsell, finalDownsell, retry, elements: v.optional(v.boolean()) },
-  handler: async (ctx, args): Promise<{ clientSecret: string }> => {
+  handler: async (ctx, args): Promise<StartedSession> => {
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createPostPurchaseOrder, {
       parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, retry: args.retry,
     });
     return await openSession(ctx, order, args.via, args.elements);
+  },
+});
+
+// The checkout watches its own session: once Stripe reports it expired (or a delayed payment
+// failed) it can no longer be paid, and the buyer is offered a new one. Only that is revealed.
+export const sessionStatus = query({
+  args: { sessionId: v.string() },
+  handler: async (ctx, { sessionId }): Promise<'open' | 'ended' | null> => {
+    if (!/^cs_(test|live)_[A-Za-z0-9]{1,200}$/.test(sessionId)) return null;
+    const transaction = await ctx.db.query('transactions').withIndex('by_session', q => q.eq('stripeCheckoutSessionId', sessionId)).first();
+    if (!transaction) return null;
+    return transaction.status === 'expired' || transaction.status === 'failed' ? 'ended' : 'open';
   },
 });
 

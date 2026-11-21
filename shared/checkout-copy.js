@@ -202,6 +202,16 @@ export const CHECKOUT_FIELDS = {
     "label": "Error al iniciar la compra",
     "value": "We couldn’t start checkout. Please try again."
   },
+  "expiredError": {
+    "group": "errors",
+    "label": "Sesión de pago vencida",
+    "value": "Your checkout session expired. Nothing was charged."
+  },
+  "renew": {
+    "group": "errors",
+    "label": "Botón para reabrir el pago",
+    "value": "Continue to payment"
+  },
   "confirmError": {
     "group": "errors",
     "label": "Error al confirmar",
@@ -295,7 +305,7 @@ export const CHECKOUT_FIELDS = {
 };
 export const CHECKOUT_OPTIONAL_FIELDS = ['guaranteeFallback', 'emailHint', 'purchaseText', 'purchaseLocationText', 'noticeAge', 'noticeExample', 'exitEmoji', 'exitClosing', 'exitGuarantee', 'exitGuaranteeDays'];
 export const CHECKOUT_GROUPS = { header: 'Encabezado y confianza', personal: 'Datos personales', payment: 'Pago', summary: 'Resumen de compra', extras: 'Extras', activity: 'Actividad y avisos', legal: 'Enlaces legales', errors: 'Carga, errores y validación', exit: 'Popup al salir' };
-export const CHECKOUT_FLAGS = { showActivity: 'Mostrar barra de actividad simulada', showTimer: 'Mostrar contador simulado', notifications: 'Mostrar avisos de compra simulados', showTrust: 'Mostrar sellos de confianza', showGuarantee: 'Mostrar garantía configurada', showExit: 'Mostrar popup al salir' };
+export const CHECKOUT_FLAGS = { showActivity: 'Mostrar barra de actividad simulada', showTimer: 'Mostrar contador (en el checkout, el vencimiento real de la sesión de pago)', notifications: 'Mostrar avisos de compra simulados', showTrust: 'Mostrar sellos de confianza', showGuarantee: 'Mostrar garantía configurada', showExit: 'Mostrar popup al salir' };
 export const CHECKOUT_DEFAULTS = { ...Object.fromEntries(Object.entries(CHECKOUT_FIELDS).map(([key, field]) => [key, field.value])), ...Object.fromEntries(Object.keys(CHECKOUT_FLAGS).map(key => [key, true])), paymentLocale: 'en' };
 export const checkoutText = (copy, key, values = {}) => formatLandingText(copy[key], values);
 // Legacy store settings remain the fallback until a checkout draft is published.

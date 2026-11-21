@@ -285,6 +285,76 @@ export const POST_LABEL_FIELDS = {
     "group": "email",
     "label": "Nota final",
     "value": "Keep this email: it’s the easiest way to get back to your access links."
+  },
+  "supportTitle": {
+    "group": "support",
+    "label": "Título de ayuda en el email y la página de gracias",
+    "value": "Need help?"
+  },
+  "supportText": {
+    "group": "support",
+    "label": "Texto de ayuda",
+    "value": "Our team is here for you. Write to us and we’ll reply by email."
+  },
+  "supportLink": {
+    "group": "support",
+    "label": "Botón de contacto",
+    "value": "Contact support"
+  },
+  "supportPageTitle": {
+    "group": "support",
+    "label": "Título de la página de soporte",
+    "value": "How can we help?"
+  },
+  "supportPageText": {
+    "group": "support",
+    "label": "Texto de la página de soporte",
+    "value": "Tell us what you need. Use the email you bought with so we can find your order quickly."
+  },
+  "supportEmail": {
+    "group": "support",
+    "label": "Campo de email",
+    "value": "Purchase email"
+  },
+  "supportMessage": {
+    "group": "support",
+    "label": "Campo de mensaje",
+    "value": "Your message"
+  },
+  "supportPlaceholder": {
+    "group": "support",
+    "label": "Ejemplo dentro del mensaje",
+    "value": "Tell us what happened or what you need…"
+  },
+  "supportSend": {
+    "group": "support",
+    "label": "Botón de enviar",
+    "value": "Send message"
+  },
+  "supportSending": {
+    "group": "support",
+    "label": "Botón mientras envía",
+    "value": "Sending…"
+  },
+  "supportSentTitle": {
+    "group": "support",
+    "label": "Título de mensaje enviado",
+    "value": "Message sent"
+  },
+  "supportSentText": {
+    "group": "support",
+    "label": "Texto de mensaje enviado",
+    "value": "Thanks! We’ll reply to {email} as soon as possible."
+  },
+  "supportError": {
+    "group": "support",
+    "label": "Error al enviar",
+    "value": "We couldn’t send your message. Check the fields and try again."
+  },
+  "supportBack": {
+    "group": "support",
+    "label": "Link para volver",
+    "value": "Back to the store"
   }
 };
 export const BACK_POPUP_FIELDS = {
@@ -342,7 +412,7 @@ export const BACK_POPUP_FIELDS = {
   }
 };
 export const POST_LABEL_DEFAULTS = Object.fromEntries(Object.entries(POST_LABEL_FIELDS).map(([key, field]) => [key, field.value]));
-export const POST_LABEL_GROUPS = { confirmation: 'Confirmación de compra', access: 'Links y entrega', offer: 'Textos adicionales de la oferta', video: 'Video', states: 'Estados de la compra', footer: 'Pie y enlaces legales', email: 'Email de compra' };
+export const POST_LABEL_GROUPS = { confirmation: 'Confirmación de compra', access: 'Links y entrega', offer: 'Textos adicionales de la oferta', video: 'Video', states: 'Estados de la compra', footer: 'Pie y enlaces legales', email: 'Email de compra', support: 'Soporte' };
 export const POST_OPTION_FIELDS = { showCover: 'Mostrar portada de la oferta', showDiscount: 'Mostrar etiqueta de ahorro', showTrust: 'Mostrar sellos de confianza', showPaymentNote: 'Mostrar aclaración de cobro separado' };
 export const POPUP_OPTION_FIELDS = { landingExit: 'Mostrar popup al salir de la landing', backLanding: 'Mostrar oferta al volver atrás en la landing', backCheckout: 'Mostrar oferta al volver atrás en el checkout', postEnabled: 'Mostrar ofertas post-compra', postOnLoad: 'Abrir post-compra al confirmar la compra', postOnReturn: 'Reabrir post-compra al volver a la pestaña', postOnExit: 'Reabrir post-compra al salir con el mouse', postDownsell: 'Mostrar segunda oferta con descuento', postFinal: 'Mostrar última oportunidad' };
 export const POST_OPTION_DEFAULTS = Object.fromEntries(Object.keys(POST_OPTION_FIELDS).map(key => [key, true]));

@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ErrorAlert } from '@/components/Field.jsx';
 import ExitIntentModal from './ExitIntentModal.jsx';
-import CheckoutPayment, { CheckoutPaymentPreview, SessionPayment, stripeKey } from './CheckoutPayment.jsx';
+import CheckoutPayment, { CheckoutPaymentPreview, SessionPayment, stripeKey, useSessionClock } from './CheckoutPayment.jsx';
 import PostPurchaseOfferCard from '@/templates/PostPurchaseOfferCard.jsx';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckoutActivityBar, CheckoutOfferTimer, useSimulatedCheckoutSignals } from './CheckoutSignals.jsx';
@@ -33,10 +33,11 @@ import { attributionArgs } from './attribution.js';
 
 // One checkout attempt per selection: retrying the same selection reuses the same order.
 // `failed` asks the server for a fresh Stripe key, since Stripe replays a cached failure.
+// `fresh` starts over after the session expired: that order can no longer be paid.
 function useAttempt() {
   const attempt = useRef({ key: null, id: '', failed: false });
-  return key => {
-    if (attempt.current.key !== key) attempt.current = { key, id: crypto.randomUUID(), failed: false };
+  return (key, fresh = false) => {
+    if (fresh || attempt.current.key !== key) attempt.current = { key, id: crypto.randomUUID(), failed: false };
     return attempt.current;
   };
 }
@@ -62,7 +63,11 @@ export function Checkout({ view, via }) {
 export function CheckoutView({ view, via, initialBuyer, preview = false, previewState = 'ready' }) {
   const location = useLocation();
   const origin = preview ? 'direct' : location.state?.origin || 'direct';
-  const { shoppers, timeLeft } = useSimulatedCheckoutSignals(view.subdomain, { preview });
+  const { shoppers } = useSimulatedCheckoutSignals(view.subdomain, { preview });
+  // The countdown is the real life of the Stripe session; it appears once the session exists.
+  const [session, setSession] = useState(null);
+  const sessionClock = useSessionClock(preview ? null : session);
+  const timeLeft = preview ? '29:37' : sessionClock.timeLeft;
   const copy = checkoutConfig(view);
   const t = (key, values) => checkoutText(copy, key, values);
   const { offer, store } = view;
@@ -168,7 +173,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
         </section> : <CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} />}
       </aside>
       <section className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
-        {preview ? <CheckoutPaymentPreview copy={copy} totalLabel={money(total)} state={previewState} /> : <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={initialBuyer} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} />}
+        {preview ? <CheckoutPaymentPreview copy={copy} totalLabel={money(total)} state={previewState} /> : <CheckoutPayment origin={origin} quizToken={origin==='quiz'?readQuizToken(view.subdomain):undefined} initialBuyer={initialBuyer} view={view} via={via} selected={selected} total={total} totalLabel={money(total)} onPayingChange={setBusy} payRef={payRef} onSession={setSession} />}
         {trust}
       </section>
     </main>
@@ -190,28 +195,29 @@ export function DownsellOffer({ view, via }) {
   const quizContact = useQuizContact(view.subdomain);
   const start = useAction(api.checkout.start);
   const attemptFor = useAttempt();
-  const [clientSecret, setClientSecret] = useState('');
+  const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const { offer, store, downsell } = view;
   useEffect(() => { document.title = offer.main.name; }, [offer.main.name]);
 
-  async function pay(final) {
+  async function pay(final, fresh = false) {
     if (busy) return;
     setBusy(true); setError('');
-    const attempt = attemptFor(final ? 'final' : 'downsell');
+    if (fresh) setPayment(null);
+    const attempt = attemptFor(final ? 'final' : 'downsell', fresh);
     try {
       const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, finalDownsell: final, elements: true, origin, ...attributionArgs(view.subdomain), ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
       trackPixel(store.metaPixelId, 'InitiateCheckout', { value: (final ? downsell.finalPrice : downsell.price) / 100, currency: store.currency });
-      setClientSecret(result.clientSecret);
+      setPayment(result);
     } catch (failure) { attempt.failed = true; setError(postLabels(view.content).startError); }
     finally { setBusy(false); }
   }
 
-  return <DownsellOfferView view={view} origin={origin} clientSecret={clientSecret} busy={busy} error={error} onPay={pay} initialBuyer={quizContact ?? undefined} />;
+  return <DownsellOfferView view={view} origin={origin} payment={payment} busy={busy} error={error} onPay={pay} initialBuyer={quizContact ?? undefined} />;
 }
 
-export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy = false, error = '', onPay, initialBuyer, preview = false, previewFinal = false }) {
+export function DownsellOfferView({ view, origin = 'direct', payment, busy = false, error = '', onPay, initialBuyer, preview = false, previewFinal = false }) {
   const { offer, store, downsell } = view;
   const copy = backPopupConfig(view);
   const checkout = checkoutConfig(view);
@@ -284,7 +290,7 @@ export function DownsellOfferView({ view, origin = 'direct', clientSecret, busy 
           </dl>
         </div>
       </section>
-      {preview && accepted ? <CheckoutPaymentPreview copy={checkout} totalLabel={money(price)} /> : clientSecret ? <SessionPayment copy={checkout} clientSecret={clientSecret} total={price} currency={store.currency} totalLabel={money(price)} askContact initialBuyer={initialBuyer} /> : <div className="space-y-3">
+      {preview && accepted ? <CheckoutPaymentPreview copy={checkout} totalLabel={money(price)} /> : payment ? <SessionPayment copy={checkout} key={payment.clientSecret} clientSecret={payment.clientSecret} sessionId={payment.sessionId} expiresAt={payment.expiresAt} onRenew={() => onPay(useFinal, true)} total={price} currency={store.currency} totalLabel={money(price)} askContact initialBuyer={initialBuyer} /> : <div className="space-y-3">
         {!preview && !stripeKey && <Alert><AlertDescription>{checkout.unavailable}</AlertDescription></Alert>}
         <ErrorAlert>{error}</ErrorAlert>
         <Button size="lg" className="h-auto min-h-14 w-full whitespace-normal py-3 text-base" onClick={() => accept(useFinal)} disabled={busy || (!preview && !stripeKey)}>

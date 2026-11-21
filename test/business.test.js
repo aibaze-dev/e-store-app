@@ -196,7 +196,7 @@ describe('checkout', () => {
   it('charges the amounts stored in the store for the selected extras', async () => {
     const { t, ids } = await campaign();
     const stripe = mockStripe();
-    expect(await start(t, [ids.upsellB])).toEqual({ clientSecret: 'secret_1' });
+    expect(await start(t, [ids.upsellB])).toMatchObject({ clientSecret: 'secret_1', sessionId: 'cs_test_1' });
     const [order] = await rows(t, 'orders');
     expect(order).toMatchObject({ status: 'pending', currency: 'USD', total: 3200 });
     expect(order.items.map(item => [item.role, item.name, item.price])).toEqual([
@@ -302,9 +302,9 @@ describe('checkout retries', () => {
     const attemptId = attempt();
     await expect(start(t, [], attemptId)).rejects.toThrow();
     await expect(start(t, [], attemptId)).rejects.toThrow();
-    expect(await retryStart(t, attemptId)).toEqual({ clientSecret: 'secret_1' });
+    expect(await retryStart(t, attemptId)).toMatchObject({ clientSecret: 'secret_1', sessionId: 'cs_test_1' });
     // Once a session is linked, retries reuse its key instead of opening another session.
-    expect(await retryStart(t, attemptId)).toEqual({ clientSecret: 'secret_1' });
+    expect(await retryStart(t, attemptId)).toMatchObject({ clientSecret: 'secret_1', sessionId: 'cs_test_1' });
     expect(await rows(t, 'orders')).toHaveLength(1);
     expect(stripe.requests.map(request => request.headers['Idempotency-Key'])).toEqual([
       expect.stringMatching(/^order-[^-]+$/), expect.stringMatching(/^order-[^-]+$/), expect.stringMatching(/-retry-1$/), expect.stringMatching(/-retry-1$/),
@@ -317,7 +317,7 @@ describe('checkout retries', () => {
     const { t } = await campaign();
     const stripe = mockStripe();
     const attemptId = attempt();
-    expect(await start(t, [], attemptId)).toEqual({ clientSecret: 'secret_1' });
+    expect(await start(t, [], attemptId)).toMatchObject({ clientSecret: 'secret_1', sessionId: 'cs_test_1' });
     stripe.forget();
     await expect(start(t, [], attemptId)).rejects.toThrow();
     await expect(retryStart(t, attemptId)).rejects.toThrow();
@@ -326,6 +326,116 @@ describe('checkout retries', () => {
     expect(transaction.sessionAttempt).toBeUndefined();
     await sendWebhook(t, paidSession('cs_test_1', 2700));
     expect((await rows(t, 'orders'))[0].status).toBe('paid');
+  });
+});
+
+describe('payment session expiry', () => {
+  const startPost = (t, parentSessionId, attemptId = attempt()) =>
+    t.action(api.checkout.startPostPurchase, { parentSessionId, attemptId, via: 'path' });
+
+  it('asks Stripe for a 30 minute session and returns when it ends', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe();
+    const before = Date.now();
+    const session = await start(t);
+    const sent = Number(stripe.requests[0].body.expires_at) * 1000;
+    // Stripe needs at least 30 minutes from when it receives the request: one more is asked.
+    expect(sent - before).toBeGreaterThanOrEqual(31 * 60_000 - 1000);
+    expect(sent - before).toBeLessThanOrEqual(31 * 60_000 + 1000);
+    expect(session).toEqual({ clientSecret: 'secret_1', sessionId: 'cs_test_1', expiresAt: sent });
+    expect((await rows(t, 'transactions'))[0].stripeSessionExpiresAt).toBe(sent);
+  });
+
+  it('replays a key with the same expiry and gives a new key a fresh one', async () => {
+    const { t } = await campaign();
+    const stripe = mockStripe({ failFirst: 1 });
+    const attemptId = attempt();
+    await expect(start(t, [], attemptId)).rejects.toThrow();
+    await expect(start(t, [], attemptId)).rejects.toThrow();
+    const [first, replay] = stripe.requests.map(request => request.body.expires_at);
+    expect(replay).toBe(first);
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 5 * 60_000 });
+    try {
+      await t.action(api.checkout.start, { subdomain: 'inversion', upsellProductIds: [], attemptId, via: 'path', retry: true });
+    } finally { vi.useRealTimers(); }
+    const moved = Number(stripe.requests[2].body.expires_at) - Number(first);
+    expect(moved).toBeGreaterThanOrEqual(5 * 60);
+    expect(moved).toBeLessThanOrEqual(5 * 60 + 2);
+  });
+
+  it('tells the checkout when its session can no longer be paid', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    await start(t);
+    await start(t);
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'cs_test_1' })).toBe('open');
+    await sendWebhook(t, stripeEvent('checkout.session.expired', { id: 'cs_test_1', payment_status: 'unpaid' }));
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'cs_test_1' })).toBe('ended');
+    await sendWebhook(t, stripeEvent('checkout.session.async_payment_failed', { id: 'cs_test_2', payment_status: 'unpaid', payment_intent: 'pi_2' }));
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'cs_test_2' })).toBe('ended');
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'cs_test_404' })).toBeNull();
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'not-a-session' })).toBeNull();
+  });
+
+  it('keeps a paid session open so the buyer is never offered a second payment', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect(await t.query(api.checkout.sessionStatus, { sessionId: 'cs_test_1' })).toBe('open');
+  });
+
+  it('opens a new post-purchase order once the previous session ran out', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect(await startPost(t, 'cs_test_1')).toMatchObject({ sessionId: 'cs_test_2' });
+    // Another tab still within the session shares it.
+    expect(await startPost(t, 'cs_test_1')).toMatchObject({ sessionId: 'cs_test_2' });
+    // The time ran out but Stripe has not sent the expired event yet.
+    await t.run(async ctx => {
+      const transaction = (await ctx.db.query('transactions').collect()).find(row => row.stripeCheckoutSessionId === 'cs_test_2');
+      await ctx.db.patch(transaction._id, { stripeSessionExpiresAt: Date.now() + 60_000 });
+    });
+    expect(await startPost(t, 'cs_test_1')).toMatchObject({ sessionId: 'cs_test_3' });
+    const children = (await rows(t, 'orders')).filter(order => order.parentOrderId);
+    expect(children.map(order => order.status)).toEqual(['pending', 'pending']);
+    await sendWebhook(t, paidSession('cs_test_3', 4700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_3' })).status).toBe('paid');
+  });
+
+  it('asks a tab still holding a session from before expiries were saved to reload', async () => {
+    const { t } = await campaign();
+    mockStripe();
+    const attemptId = attempt();
+    await start(t, [], attemptId);
+    await t.run(async ctx => {
+      const [transaction] = await ctx.db.query('transactions').collect();
+      await ctx.db.patch(transaction._id, { stripeSessionExpiresAt: undefined });
+    });
+    await expect(start(t, [], attemptId)).rejects.toThrow(/Recargá la página/);
+  });
+});
+
+describe('checkout countdown', () => {
+  it('ends one minute before Stripe closes the session', async () => {
+    const { sessionDeadline, sessionTimeLeft } = await import('../shared/checkout-session.js');
+    const expiresAt = Date.UTC(2026, 0, 1, 12, 31);
+    const deadline = sessionDeadline(expiresAt);
+    expect(deadline).toBe(Date.UTC(2026, 0, 1, 12, 30));
+    expect(sessionTimeLeft(deadline, Date.UTC(2026, 0, 1, 12, 0))).toBe('30:00');
+    expect(sessionTimeLeft(deadline, Date.UTC(2026, 0, 1, 12, 29, 0, 500))).toBe('01:00');
+    expect(sessionTimeLeft(deadline, deadline + 5000)).toBe('00:00');
+    expect(sessionDeadline(undefined)).toBeNull();
+  });
+
+  it('stops offering a remembered session once its countdown ended', async () => {
+    const { sessionEnded } = await import('../shared/checkout-session.js');
+    const expiresAt = Date.UTC(2026, 0, 1, 12, 31);
+    expect(sessionEnded(expiresAt, Date.UTC(2026, 0, 1, 12, 29, 59))).toBe(false);
+    expect(sessionEnded(expiresAt, Date.UTC(2026, 0, 1, 12, 30))).toBe(true);
+    expect(sessionEnded(undefined)).toBe(false);
   });
 });
 
@@ -571,7 +681,7 @@ describe('post-purchase offer', () => {
     await expect(startPost(t, 'cs_test_1')).rejects.toThrow();
     await sendWebhook(t, paidSession('cs_test_1', 2700));
 
-    expect(await startPost(t, 'cs_test_1')).toEqual({ clientSecret: 'secret_2' });
+    expect(await startPost(t, 'cs_test_1')).toMatchObject({ clientSecret: 'secret_2', sessionId: 'cs_test_2' });
     expect(stripe.requests[1].body['line_items[0][price_data][unit_amount]']).toBe('4700');
     const [parent, child] = await rows(t, 'orders');
     expect(child).toMatchObject({ parentOrderId: parent._id, status: 'pending', total: 4700 });

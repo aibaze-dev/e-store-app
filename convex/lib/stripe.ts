@@ -15,6 +15,8 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
   collectContact?: boolean; customerEmail?: string;
   // Campaign of the order (utm_source, ad_id…), shown on the session and on the payment.
   metadata?: Record<string, string>;
+  // Unix seconds. Stripe accepts 30 minutes to 24 hours after creation.
+  expiresAt: number;
 }) {
   const body = new URLSearchParams({
     mode: 'payment',
@@ -23,6 +25,7 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
     return_url: input.returnUrl,
     client_reference_id: input.orderId,
     'metadata[orderId]': input.orderId,
+    expires_at: String(input.expiresAt),
   });
   if (input.elements && input.collectContact !== false) {
     body.set('name_collection[individual][enabled]', 'true');
@@ -55,7 +58,9 @@ export async function createEmbeddedCheckoutSession(secretKey: string, input: {
     console.error('Stripe checkout session failed', response.status, session?.error?.type, session?.error?.code);
     return null;
   }
-  return { id: session.id as string, clientSecret: session.client_secret as string };
+  // A replayed idempotency key returns the original session, with its original expiry.
+  const expiresAt = (typeof session.expires_at === 'number' ? session.expires_at : input.expiresAt) * 1000;
+  return { id: session.id as string, clientSecret: session.client_secret as string, expiresAt };
 }
 
 function hex(buffer: ArrayBuffer) {

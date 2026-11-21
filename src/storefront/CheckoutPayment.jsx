@@ -1,14 +1,16 @@
 import { CHECKOUT_DEFAULTS, checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
 import { useEffect, useRef, useState } from 'react';
-import { useAction } from 'convex/react';
+import { useAction, useQuery } from 'convex/react';
 import { CheckoutElementsProvider, PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { loadStripe } from '@stripe/stripe-js/pure';
-import { CreditCard, LoaderCircle, UserRound } from 'lucide-react';
+import { Clock, CreditCard, LoaderCircle, UserRound } from 'lucide-react';
 import { api } from '@/lib/api.js';
 import { trackPixel } from '@/lib/pixel.js';
 import { Field, ErrorAlert } from '@/components/Field.jsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { sessionDeadline, sessionEnded, sessionTimeLeft } from '../../shared/checkout-session.js';
 import { confirmCheckout } from './confirmCheckout.js';
 import { attributionArgs } from './attribution.js';
 
@@ -46,6 +48,31 @@ function useBuyer(initialBuyer) {
   return [buyer, setBuyer];
 }
 
+// Countdown to the real end of a Stripe session ({ sessionId, expiresAt }) and whether it can
+// still be paid. It ends at the deadline, or earlier when the webhook reports it expired.
+export function useSessionClock(session) {
+  const deadline = sessionDeadline(session?.expiresAt);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (deadline === null) return;
+    setNow(Date.now());
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, [deadline]);
+  const status = useQuery(api.checkout.sessionStatus, session?.sessionId ? { sessionId: session.sessionId } : 'skip');
+  if (!session) return { timeLeft: null, ended: false };
+  return { timeLeft: deadline === null ? null : sessionTimeLeft(deadline, now), ended: status === 'ended' || (deadline !== null && now >= deadline) };
+}
+
+// Shown instead of the card form once the session can no longer be paid.
+function SessionExpired({ copy, onRenew, heading = true }) {
+  return <div className="space-y-6">
+    {heading && <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>}
+    <Alert role="alert"><Clock aria-hidden="true" /><AlertDescription>{copy.expiredError}</AlertDescription></Alert>
+    <Button type="button" className="checkout-pay h-16 w-full text-lg" onClick={onRenew}>{copy.renew}</Button>
+  </div>;
+}
+
 // No Link sign-up box and billing address only when the card really needs it.
 const PAYMENT_ELEMENT_OPTIONS = { layout: 'tabs', wallets: { link: 'never' }, fields: { billingDetails: { address: 'if_required' } } };
 
@@ -80,7 +107,7 @@ function PaymentForm({ buyer, total, currency, totalLabel, onPayingChange, onIni
   </form>;
 }
 
-export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer }) {
+export default function CheckoutPayment({ view, via, selected, total, totalLabel, onPayingChange, payRef, origin, quizToken, initialBuyer, onSession }) {
   const copy = checkoutConfig(view);
   const start = useAction(api.checkout.start);
   // A quiz may hand over the name and email the visitor already typed; they stay editable.
@@ -98,20 +125,28 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
     setError('');
     const timer = setTimeout(() => {
       let attempt = attempts.current.get(key);
+      // Coming back to a selection whose session already ran out starts a new order.
+      if (attempt && sessionEnded(attempt.expiresAt)) attempt = null;
       if (!attempt) { attempt = { id: crypto.randomUUID() }; attempts.current.set(key, attempt); }
       // Reuse the pending request/session for this selection, including retries and Strict Mode.
       // After a failure the retry asks for a fresh Stripe key: Stripe replays cached errors.
       attempt.promise ||= start({ subdomain: view.subdomain, via, upsellProductIds: JSON.parse(selection), attemptId: attempt.id, elements: true, origin, ...attributionArgs(view.subdomain), ...(quizToken?{quizToken}:{}), ...(attempt.failed ? { retry: true } : {}) }).catch(failure => { attempt.promise = null; attempt.failed = true; throw failure; });
-      attempt.promise.then(result => { if (!ignore) setSession({ key, clientSecret: result.clientSecret }); }, () => { if (!ignore) setError(copy.sessionError); });
+      attempt.promise.then(result => { attempt.expiresAt = result.expiresAt; if (!ignore) setSession({ key, clientSecret: result.clientSecret, sessionId: result.sessionId, expiresAt: result.expiresAt }); }, () => { if (!ignore) setError(copy.sessionError); });
     }, 250);
     return () => { ignore = true; clearTimeout(timer); };
   }, [key, selection, view.subdomain, via, start, retry, origin, quizToken, copy.sessionError]);
   const ready = session?.key === key;
+  const live = ready ? session : null;
+  const clock = useSessionClock(live);
+  // The page shows the countdown next to the order summary.
+  useEffect(() => { onSession?.(live ? { sessionId: live.sessionId, expiresAt: live.expiresAt } : null); }, [live?.sessionId, live?.expiresAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A new attempt is a new order and a new Stripe session; the expired one stays expired.
+  function renew() { attempts.current.delete(key); setSession(null); setRetry(value => value + 1); }
   const setProcessing = value => { setPaying(value); onPayingChange(value); };
   const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-9">
     <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />
-    {ready ? <CheckoutElementsProvider key={`${session.clientSecret}:${copy.paymentLocale}`} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
+    {ready && clock.ended && !paying ? <SessionExpired copy={copy} onRenew={renew} /> : ready ? <CheckoutElementsProvider key={`${session.clientSecret}:${copy.paymentLocale}`} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
       <PaymentForm copy={copy} total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
     </CheckoutElementsProvider> : <div className="space-y-6">
       <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>
@@ -125,16 +160,20 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
 
 // Payment Element for a session that was already created (downsell and post-purchase offers).
 // `askContact` shows the personal details form; without it the session already knows the buyer.
-export function SessionPayment({ clientSecret, total, currency, totalLabel, askContact = false, initialBuyer, onInitiate = () => {}, onPayingChange = () => {}, copy = CHECKOUT_DEFAULTS }) {
+// With `sessionId`, `expiresAt` and `onRenew`, an expired session is replaced by a button that
+// asks the page for a new one.
+export function SessionPayment({ clientSecret, sessionId, expiresAt, onRenew, total, currency, totalLabel, askContact = false, initialBuyer, onInitiate = () => {}, onPayingChange = () => {}, copy = CHECKOUT_DEFAULTS }) {
   const [buyer, setBuyer] = useBuyer(initialBuyer);
   const [paying, setPayingState] = useState(false);
+  const clock = useSessionClock(sessionId ? { sessionId, expiresAt } : null);
+  const ended = Boolean(onRenew) && clock.ended && !paying;
   const setPaying = value => { setPayingState(value); onPayingChange(value); };
   const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-8 rounded-xl border bg-card p-5 sm:p-6">
     {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />}
-    <CheckoutElementsProvider key={clientSecret} stripe={stripe} options={{ clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
+    {ended ? <SessionExpired copy={copy} onRenew={onRenew} heading={false} /> : <CheckoutElementsProvider key={clientSecret} stripe={stripe} options={{ clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
       <PaymentForm copy={copy} total={total} currency={currency} buyer={askContact ? buyer : null} totalLabel={totalLabel} onPayingChange={setPaying} onInitiate={onInitiate} />
-    </CheckoutElementsProvider>
+    </CheckoutElementsProvider>}
   </div>;
 }
 

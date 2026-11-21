@@ -16,5 +16,6 @@ export const api = {
   landingWizard: { generate: ref('landing_wizard:generate') },
   orders: { list: ref('orders:list') },
   storefront: {getCheckout:ref('storefront:getCheckout'), getLanding: ref('storefront:getLanding'), getDelivery: ref('storefront:getDelivery'), heartbeat: ref('storefront:heartbeat'), checkoutVisitors: ref('storefront:checkoutVisitors') },
-  checkout: { start: ref('checkout:start'), startPostPurchase: ref('checkout:startPostPurchase') },
+  checkout: { start: ref('checkout:start'), startPostPurchase: ref('checkout:startPostPurchase'), sessionStatus: ref('checkout:sessionStatus') },
+  contactRequests: { page: ref('contact_requests:page'), create: ref('contact_requests:create'), list: ref('contact_requests:list'), counts: ref('contact_requests:counts'), setStatus: ref('contact_requests:setStatus') },
 };

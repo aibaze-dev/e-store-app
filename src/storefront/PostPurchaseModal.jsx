@@ -9,6 +9,7 @@ import { postPurchaseStage } from '@/templates/PostPurchaseContent.jsx';
 import PostPurchaseOfferCard from '@/templates/PostPurchaseOfferCard.jsx';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { SessionPayment, stripeKey } from './CheckoutPayment.jsx';
+import { sessionEnded } from '../../shared/checkout-session.js';
 import { claimExitIntent, leftDocument } from './exitIntent.js';
 import { afterDecline, claimReopen, funnelStore, initialFunnel, nextStage } from './postPurchaseFunnel.js';
 
@@ -79,6 +80,8 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
     setBusy(true); setError('');
     // One attempt per step: retrying the same step reuses its order and Stripe session.
     let attempt = attempts.current.get(stage);
+    // A step reopened after its session ran out starts a new order instead of showing it expired.
+    if (attempt && sessionEnded(attempt.expiresAt)) attempt = null;
     if (!attempt) { attempt = { id: crypto.randomUUID(), failed: false }; attempts.current.set(stage, attempt); }
     try {
       const result = await start({
@@ -86,10 +89,14 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
         ...(stage !== 'offer' ? { downsell: true } : {}), ...(stage === 'final' ? { finalDownsell: true } : {}),
         ...(attempt.failed ? { retry: true } : {}),
       });
-      setPayment({ stage, clientSecret: result.clientSecret });
+      attempt.expiresAt = result.expiresAt;
+      setPayment({ stage, ...result });
     } catch (failure) { attempt.failed = true; setError(labels.startError); }
     finally { setBusy(false); }
   }
+
+  // An expired session cannot be paid: the same step starts again with a new order.
+  function renew() { attempts.current.delete(stage); setPayment(null); accept(); }
 
   if (!stage) return null;
   const { price } = postPurchaseStage(offer, stage);
@@ -100,7 +107,7 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
     <DialogContent closeLabel={labels.close} className="classic-offer-dialog post-offer-dialog max-w-lg" style={classicTheme(accentColor)} onInteractOutside={guard} onEscapeKeyDown={guard}>
       <PostPurchaseOfferCard offer={offer} currency={currency} stage={stage} busy={busy} error={error} canPurchase={Boolean(stripeKey)}
         onAccept={accept} onDecline={decline} Title={DialogTitle} Description={DialogDescription}
-        payment={payment?.stage === stage ? <SessionPayment copy={checkoutConfig({ content: offer.content })} key={payment.clientSecret} clientSecret={payment.clientSecret} total={price} currency={currency} totalLabel={money(price, currency)} onPayingChange={setPaying} /> : null} />
+        payment={payment?.stage === stage ? <SessionPayment copy={checkoutConfig({ content: offer.content })} key={payment.clientSecret} clientSecret={payment.clientSecret} sessionId={payment.sessionId} expiresAt={payment.expiresAt} onRenew={renew} total={price} currency={currency} totalLabel={money(price, currency)} onPayingChange={setPaying} /> : null} />
     </DialogContent>
   </Dialog>;
 }

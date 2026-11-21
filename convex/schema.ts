@@ -200,6 +200,8 @@ export default defineSchema({
     amount: v.number(),
     currency: v.string(),
     stripeCheckoutSessionId: v.optional(v.string()),
+    // When Stripe closes that session (ms). Missing on sessions created before it was set (24 h).
+    stripeSessionExpiresAt: v.optional(v.number()),
     stripePaymentIntentId: v.optional(v.string()),
     paidAt: v.optional(v.number()),
     // What Stripe actually charged when it did not match the order (status needs_review).
@@ -231,6 +233,21 @@ export default defineSchema({
     history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
     contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),
   }).index('by_token', ['tokenHash']).index('by_store', ['storeId']).index('by_store_ip',['storeId','ipHash']),
+  // Public support form (/soporte, linked from the purchase email). The email is what the
+  // buyer typed, not verified: it is a way to find their order and reply, never a login.
+  contactRequests: defineTable({
+    storeId: v.id('stores'),
+    email: v.string(),
+    message: v.string(),
+    status: v.union(v.literal('open'), v.literal('closed')),
+    closedAt: v.optional(v.number()),
+    // A paid order of this store bought with the same email, when there is one.
+    orderId: v.optional(v.id('orders')),
+    ipHash: v.optional(v.string()),
+  }).index('by_store', ['storeId'])
+    .index('by_store_status', ['storeId', 'status'])
+    .index('by_store_email', ['storeId', 'email'])
+    .index('by_store_ip', ['storeId', 'ipHash']),
   webhookEvents: defineTable({
     stripeEventId: v.string(),
     type: v.string(),

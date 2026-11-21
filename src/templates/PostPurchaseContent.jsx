@@ -8,7 +8,7 @@ import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import './thank-you.css';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, BookOpen, Check, Download, ExternalLink, Gift, Globe, LoaderCircle, PlusCircle, Receipt, Star, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, BookOpen, LifeBuoy, Check, Download, ExternalLink, Gift, Globe, LoaderCircle, PlusCircle, Receipt, Star, X } from 'lucide-react';
 import { groupDeliveries } from '@/storefront/delivery-groups.js';
 import { downloadFile, isDownloadable } from '@/storefront/download.js';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
@@ -205,6 +205,15 @@ export function postPurchaseStage(offer, stage) {
 }
 
 
+// Under the library: where to write if something is missing. Same page the email links to.
+function SupportBand({ labels, preview }) {
+  return <aside className="thanks-card support-band">
+    <span className="support-band-icon" aria-hidden="true"><LifeBuoy /></span>
+    <div><h2>{labels.supportTitle}</h2>{labels.supportText && <p>{labels.supportText}</p>}</div>
+    <Link className="purchase-open is-secondary" to="../soporte" onClick={event => { if (preview) event.preventDefault(); }}>{labels.supportLink}<ArrowRight aria-hidden="true" /></Link>
+  </aside>;
+}
+
 // `entrance` adds the page's entrance classes after the celebration (see ThankYou).
 export function PurchaseResult({ status = 'paid', presentation = {}, storeName, deliveries = [], order = null, emailed = true, preview = false, entrance = '', children }) {
   const copy = postLabels(presentation);
@@ -225,6 +234,7 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
         <DeliveryLinks deliveries={deliveries} preview={preview} labels={copy} />
         <OrderSummary order={order} labels={copy} />
       </div>
+      <SupportBand labels={copy} preview={preview} />
     </div></div>
     {children}
   </PurchaseLanding>;

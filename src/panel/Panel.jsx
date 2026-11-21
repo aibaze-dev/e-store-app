@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { DropdownMenu } from 'radix-ui';
-import { ArrowUpRight, BadgePercent, BarChart3, BookOpen, Check, ChevronDown, CreditCard, LayoutDashboard, LayoutGrid, Library, LoaderCircle, LogOut, Menu, PanelTop, Plus, Settings2, ShoppingBag, ShoppingCart, Sparkles, X } from 'lucide-react';
+import { ArrowUpRight, BadgePercent, LifeBuoy, BarChart3, BookOpen, Check, ChevronDown, CreditCard, LayoutDashboard, LayoutGrid, Library, LoaderCircle, LogOut, Menu, PanelTop, Plus, Settings2, ShoppingBag, ShoppingCart, Sparkles, X } from 'lucide-react';
 import brand from '@/config/brandData.json';
 import { api } from '@/lib/api.js';
 import { authClient } from '@/lib/auth-client.js';
@@ -28,6 +28,7 @@ import StoreDashboardPage from './StoreDashboardPage.jsx';
 import StoreCheckoutPage from './StoreCheckoutPage.jsx';
 import ChangePasswordDialog from './ChangePasswordDialog.jsx';
 const StoreAnalyticsPage = lazy(() => import('./StoreAnalyticsPage.jsx'));
+const SupportInboxPage = lazy(() => import('./SupportInboxPage.jsx'));
 
 const NAV_GROUPS = [
   { id: 'overview', label: 'Tienda', items: [
@@ -46,6 +47,7 @@ const NAV_GROUPS = [
   { id: 'management', label: 'Gestión', items: [
     { path: 'contactos', label: 'Contactos y respuestas', icon: BookOpen },
     { path: 'cobros', label: 'Cobros y entregas', icon: ShoppingCart },
+    { path: 'soporte', label: 'Soporte', icon: LifeBuoy, badge: 'support' },
     { path: 'configuracion', label: 'Configuración', icon: Settings2 },
   ] },
 ];
@@ -103,6 +105,9 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
   }, [mobileOpen]);
   const location = useLocation();
   const basePath = selected ? storePath(selected._id) : '/panel';
+  // Open support messages, shown next to "Soporte" so a new one is not missed.
+  const support = useQuery(api.contactRequests.counts, selected ? { storeId: selected._id } : 'skip');
+  const badges = { support: support?.open ? (support.open > support.limit ? `${support.limit}+` : String(support.open)) : '' };
   const section = SECTIONS.find(item => location.pathname === `${basePath}${item.path ? `/${item.path}` : ''}`);
   const title = location.pathname.startsWith('/panel/artefactos') ? 'Artefactos' : location.pathname === '/panel/tiendas' ? 'Todas las tiendas' : location.pathname === '/panel/tiendas/nueva' ? 'Nueva tienda' : location.pathname.includes('/catalogo') || location.pathname.startsWith('/panel/productos') ? 'Catálogo compartido' : section?.label || 'Tu tienda';
   const closeMenu = () => {
@@ -118,7 +123,7 @@ export function WorkspaceLayout({ user, stores, selected, children }) {
         <nav className="workspace-navigation" aria-label="Secciones de la tienda">
           {selected ? NAV_GROUPS.map(group => <section key={group.id} className="workspace-nav-group" aria-labelledby={`nav-${group.id}`}>
             <h2 id={`nav-${group.id}`} className="workspace-nav-label">{group.label}</h2>
-            {group.items.map(({ path, label, icon: Icon }) => <NavLink key={path} end to={`${basePath}${path ? `/${path}` : ''}`} onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><Icon className="size-[18px] shrink-0" aria-hidden="true" />{label}</NavLink>)}
+            {group.items.map(({ path, label, icon: Icon, badge }) => <NavLink key={path} end to={`${basePath}${path ? `/${path}` : ''}`} onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><Icon className="size-[18px] shrink-0" aria-hidden="true" />{label}{badge && badges[badge] && <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground" aria-label={`${badges[badge]} abiertas`}>{badges[badge]}</span>}</NavLink>)}
           </section>) : <section className="workspace-nav-group" aria-labelledby="nav-start">
             <h2 id="nav-start" className="workspace-nav-label">Empezá por acá</h2>
             <NavLink to="/panel/tiendas/nueva" onClick={closeMenu} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}><ShoppingBag className="size-[18px]" aria-hidden="true" />Crear mi primera tienda</NavLink>
@@ -178,6 +183,7 @@ function Workspace({ user }) {
         <Route path="tiendas/:storeId/landing" element={<LandingEditPage />} />
         <Route path="tiendas/:storeId/checkout" element={<StoreCheckoutPage />} />
         <Route path="tiendas/:storeId/cobros" element={<OrdersPage />} />
+        <Route path="tiendas/:storeId/soporte" element={<Suspense fallback={<PageSkeleton label="Cargando" />}><SupportInboxPage /></Suspense>} />
         <Route path="tiendas/:storeId/catalogo" element={<ProductsPage />} />
         <Route path="tiendas/:storeId/catalogo/nuevo" element={<ProductFormPage />} />
         <Route path="tiendas/:storeId/catalogo/:productId" element={<ProductFormPage />} />

@@ -37,9 +37,11 @@ export const context = internalQuery({
     const order = transaction && await ctx.db.get(transaction.orderId);
     if (!transaction || !order) return null;
     const store = await ctx.db.get(order.storeId);
+    const landing = await ctx.db.get(order.landingId);
     // The same texts, color and legal links as the thank-you page.
     const content = store ? await purchaseContent(ctx, store) : null;
     return {
+      supportUrl: supportUrl(landing?.subdomain || store?.subdomain || ''),
       status: transaction.status,
       email: transaction.email ?? null,
       storeName: store?.name ?? '',
@@ -62,6 +64,13 @@ export const context = internalQuery({
   },
 });
 
+// The store's public support form. Built from SITE_URL on the server; the /l/<subdomain>
+// address works with or without the landing's own subdomain.
+export function supportUrl(subdomain: string, siteUrl = process.env.SITE_URL) {
+  if (!subdomain || !siteUrl) return '';
+  try { return `${new URL(siteUrl).origin}/l/${encodeURIComponent(subdomain)}/soporte`; } catch { return ''; }
+}
+
 export const record = internalMutation({
   args: { transactionId: v.id('transactions'), status: emailStatus, attempts: v.number(), error: v.optional(v.string()), retryInMs: v.optional(v.number()) },
   handler: async (ctx, { transactionId, status, attempts, error, retryInMs }) => {
@@ -74,7 +83,7 @@ type Delivery = { productName: string; title: string; url: string; kind?: 'file'
 type Presentation = { postLabels?: Record<string, string>; accentColor?: string; brandName?: string; termsUrl?: string; privacyUrl?: string };
 type Context = {
   status: string; email: { status: string; attempts: number } | null; storeName: string; buyer: { email: string; name: string } | null;
-  presentation?: Presentation;
+  presentation?: Presentation; supportUrl?: string;
   currency: string; total: number; items: { name: string; role?: string; price: number }[]; deliveries: Delivery[];
   charged: { amount: number; currency: string } | null; reviewReason: 'amount' | 'duplicate' | 'late'; paymentIntentId: string;
 };
@@ -239,6 +248,17 @@ function receipt(data: Context, labels: Record<string, string>, c: ReturnType<ty
 </td></tr></table>`;
 }
 
+// "Need help?": a card with a link to the store's public support form.
+function support(url: string, labels: Record<string, string>, c: ReturnType<typeof palette>) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;margin-top:16px"><tr><td class="email-pad" bgcolor="${c.paper}" style="padding:24px 32px;border:1px solid ${c.line};border-radius:24px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>
+<td width="52" valign="top" style="width:52px;padding-right:16px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="52" height="52" align="center" bgcolor="${c.soft}" style="width:52px;height:52px;border-radius:16px;font-size:24px;line-height:1">&#128172;</td></tr></table></td>
+<td valign="middle" style="font-family:${FONT}"><p style="margin:0;font-size:18px;line-height:1.3;font-weight:850;color:${c.ink}">${escapeHtml(labels.supportTitle)}</p>${labels.supportText ? `<p style="margin:4px 0 0;font-size:14px;line-height:1.55;color:${c.muted}">${escapeHtml(labels.supportText)}</p>` : ''}</td>
+</tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td>${button(url, `${escapeHtml(labels.supportLink)} &nbsp;&#8594;`, c, 'outline')}</td></tr></table>
+</td></tr></table>`;
+}
+
 export function deliveryEmail(data: Context): Omit<EmailMessage, 'from'> {
   const presentation = data.presentation ?? {};
   const labels = postLabels(presentation) as Record<string, string>;
@@ -283,6 +303,7 @@ ${labels.linksSubtitle ? `<p style="margin:8px 0 0;font-family:${FONT};font-size
 ${library(links, labels, c)}
 </td></tr>
 <tr><td>${data.items.length ? receipt(data, labels, c) : ''}</td></tr>
+${data.supportUrl && safeUrl(data.supportUrl) ? `<tr><td>${support(data.supportUrl, labels, c)}</td></tr>` : ''}
 <tr><td align="center" style="padding:28px 24px 0;font-family:${FONT};font-size:13px;line-height:1.7;color:${c.muted}">
 ${labels.emailKeep ? `<p style="margin:0 0 14px">${escapeHtml(labels.emailKeep)}</p>` : ''}
 <p style="margin:0">&copy; ${year} ${escapeHtml(store)}. ${escapeHtml(labels.rights)}</p>
@@ -304,6 +325,7 @@ ${legal ? `<p style="margin:6px 0 0">${legal}</p>` : ''}
     '', labels.summaryTitle.toUpperCase(),
     ...[...data.items].sort((a, b) => (ROLE_ORDER[a.role ?? ''] ?? 9) - (ROLE_ORDER[b.role ?? ''] ?? 9)).map(item => `${item.name}: ${item.price > 0 ? storefrontMoney(item.price, data.currency) : labels.free}`),
     `${labels.summaryTotal}: ${storefrontMoney(data.total, data.currency)}`, '',
+    ...(data.supportUrl && safeUrl(data.supportUrl) ? [`${labels.supportTitle} ${labels.supportText}`.trim(), `${labels.supportLink}: ${data.supportUrl}`, ''] : []),
     labels.emailKeep,
   ].join('\n');
   return { to: data.buyer?.email ? [data.buyer.email] : [], subject, html, text };
