@@ -46,6 +46,26 @@ export const POST_LABEL_FIELDS = {
     "label": "Subtítulo de accesos",
     "value": ""
   },
+  "groupMain": {
+    "group": "access",
+    "label": "Grupo del producto principal",
+    "value": "Your product"
+  },
+  "groupBonus": {
+    "group": "access",
+    "label": "Grupo de bonos gratis",
+    "value": "Free bonuses"
+  },
+  "groupExtras": {
+    "group": "access",
+    "label": "Grupo de productos agregados",
+    "value": "Added to your order"
+  },
+  "free": {
+    "group": "access",
+    "label": "Etiqueta de bono gratis",
+    "value": "Free"
+  },
   "open": {
     "group": "access",
     "label": "Botón de acceso",

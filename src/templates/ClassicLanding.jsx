@@ -112,16 +112,21 @@ function BonusFlow({ bonuses, labels }) {
   </div>;
 }
 
-// The kit video starts muted; one tap turns the sound on and shows the controls.
-function KitMedia({ section, preview, labels }) {
+// Kit and showcase videos start muted; one tap turns the sound on and shows the controls.
+function SectionVideo({ source, section, labels, label, className = '' }) {
   const [sound, setSound] = useState(false);
   const video = useRef(null);
-  const source = section.videoUrl ? videoSource(section.videoUrl) : null;
-  if (source?.kind === 'embed') return <div className="cl-kit-media"><iframe src={source.src} title={section.imageAlt || 'Kit overview video'} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>;
-  if (source) return <div className="cl-kit-media">
-    <video ref={video} src={source.src} poster={section.imageUrl || undefined} autoPlay muted loop playsInline controls={sound} aria-label={section.imageAlt || 'Kit overview video'} />
+  const name = section.imageAlt || label;
+  if (source.kind === 'embed') return <div className={`cl-kit-media ${className}`}><iframe src={source.src} title={name} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>;
+  return <div className={`cl-kit-media ${className}`}>
+    <video ref={video} src={source.src} poster={section.imageUrl || undefined} autoPlay muted loop playsInline controls={sound} aria-label={name} />
     {!sound && <button type="button" onClick={() => { video.current.muted = false; video.current.currentTime = 0; video.current.play(); setSound(true); }}><Volume2 aria-hidden="true" />{labels.listen}</button>}
   </div>;
+}
+
+function KitMedia({ section, preview, labels }) {
+  const source = section.videoUrl ? videoSource(section.videoUrl) : null;
+  if (source) return <SectionVideo source={source} section={section} labels={labels} label="Kit overview video" />;
   if (!section.imageUrl) return preview ? <PhotoSlot className="cl-kit-slot" ratio="4 / 3" title="Foto o video del kit" hint="Opcional · horizontal, 880 × 660 px" /> : null;
   return <div className="cl-kit-media"><Picture src={section.imageUrl} alt={section.imageAlt || section.title} /></div>;
 }
@@ -208,8 +213,9 @@ export default function ClassicLanding({ view, onCta }) {
   const highlighted = content.comparison.items.find(item => item.highlighted);
   const proof = content.socialProof;
   const number = value => value.toLocaleString('en-US', { maximumFractionDigits: 1 });
-  // A photo section is its photo: the public page waits for it, the editor preview asks for it.
-  const photoSection = section => section.enabled && (section.imageUrl || (preview && section.title));
+  // A photo section is its photo (or video): the public page waits for it, the editor preview asks for it.
+  const photoSection = section => section.enabled && (section.imageUrl || section.videoUrl || (preview && section.title));
+  const showcaseVideo = content.showcase.videoUrl ? videoSource(content.showcase.videoUrl) : null;
   const photo = (section, slot) => section.imageUrl
     ? <Picture className="cl-figure" src={section.imageUrl} alt={section.imageAlt || section.title} />
     : <PhotoSlot {...slot} />;
@@ -294,7 +300,8 @@ export default function ClassicLanding({ view, onCta }) {
 
       {photoSection(content.showcase) && <section {...edit('showcase')} className="cl-section"><div className="cl-wrap cl-w-760">
         <Head section={content.showcase} />
-        {photo(content.showcase, { ratio: '1', title: 'Foto con todo lo que viene adentro', hint: 'Cuadrada, 1200 × 1200 px. La sección se publica cuando subís la foto.' })}
+        {showcaseVideo ? <SectionVideo source={showcaseVideo} section={content.showcase} labels={labels} label={content.showcase.title || 'What’s inside video'} className="cl-showcase-media" />
+          : photo(content.showcase, { ratio: '1', title: 'Foto o video con todo lo que viene adentro', hint: 'Cuadrada, 1200 × 1200 px. La sección se publica cuando subís la foto o el video.' })}
       </div></section>}
 
       {content.benefits.enabled && content.benefits.items.length > 0 && <section {...edit('benefits')} className="cl-section is-cream"><div className="cl-wrap cl-w-640">

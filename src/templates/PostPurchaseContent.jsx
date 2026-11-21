@@ -7,7 +7,8 @@ import { PageSkeleton } from '@/components/Field.jsx';
 import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, BookOpen, Download, ExternalLink, LoaderCircle, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Download, ExternalLink, Gift, LoaderCircle, PlusCircle, Star, X } from 'lucide-react';
+import { groupDeliveries } from '@/storefront/delivery-groups.js';
 import { downloadFile, isDownloadable } from '@/storefront/download.js';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
 import { classicTheme } from '../../shared/classic-design.js';
@@ -58,32 +59,53 @@ function DownloadButton({ link, labels }) {
   </button>;
 }
 
-// The links the buyer paid for. Files get a download button besides «Open».
+const GROUP_LOOK = {
+  main: { Icon: Star, label: 'groupMain' },
+  bonus: { Icon: Gift, label: 'groupBonus' },
+  extras: { Icon: PlusCircle, label: 'groupExtras' },
+};
+
+// One deliverable: its product, «Open» always, and «Download» when it is a file.
+function DeliveryItem({ link, group, preview, labels }) {
+  const downloadable = preview ? link.kind !== 'link' : isDownloadable(link);
+  const secondary = downloadable ? ' is-secondary' : '';
+  const Icon = group === 'bonus' ? Gift : group === 'extras' ? PlusCircle : BookOpen;
+  return <li className={`is-${group}`}>
+    <span className="purchase-link-icon" aria-hidden="true"><Icon /></span>
+    <div>
+      <strong>{link.productName}{group === 'bonus' && labels.free && <span className="purchase-free">{labels.free}</span>}</strong>
+      {link.title && link.title !== link.productName && <p>{link.title}</p>}
+    </div>
+    <div className="purchase-actions">
+      {preview
+        ? <>
+          {downloadable && <span className="purchase-open is-disabled" aria-disabled="true"><Download aria-hidden="true" />{labels.download}</span>}
+          <span className={`purchase-open is-disabled${secondary}`} aria-disabled="true">{labels.open}<ExternalLink aria-hidden="true" /></span>
+        </>
+        : <>
+          {downloadable && <DownloadButton link={link} labels={labels} />}
+          <a className={`purchase-open${secondary}`} href={link.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>
+        </>}
+    </div>
+  </li>;
+}
+
+// The links the buyer paid for, grouped: main product, free bonuses, then added products.
 // In the preview they are examples and cannot be opened.
 export function DeliveryLinks({ deliveries, preview = false, labels = postLabels() }) {
+  const groups = groupDeliveries(deliveries);
   return <PurchaseSection soft label={labels.linksTitle}>
     <Heading section={{ title: labels.linksTitle, subtitle: labels.linksSubtitle }} eyebrow={labels.linksEyebrow} />
-    {deliveries.length === 0
+    {groups.length === 0
       ? <p className="purchase-notice">{labels.emptyLinks}</p>
-      : <ul className="purchase-links">{deliveries.map((link, index) => {
-        const downloadable = preview ? link.kind !== 'link' : isDownloadable(link);
-        const secondary = downloadable ? ' is-secondary' : '';
-        return <li key={index}>
-          <span className="purchase-link-icon" aria-hidden="true"><BookOpen /></span>
-          <div><strong>{link.productName}</strong>{link.title && <p>{link.title}</p>}</div>
-          <div className="purchase-actions">
-            {preview
-              ? <>
-                {downloadable && <span className="purchase-open is-disabled" aria-disabled="true"><Download aria-hidden="true" />{labels.download}</span>}
-                <span className={`purchase-open is-disabled${secondary}`} aria-disabled="true">{labels.open}<ExternalLink aria-hidden="true" /></span>
-              </>
-              : <>
-                {downloadable && <DownloadButton link={link} labels={labels} />}
-                <a className={`purchase-open${secondary}`} href={link.url} target="_blank" rel="noreferrer">{labels.open}<span className="sr-only"> {link.productName}: {link.title}</span><ExternalLink aria-hidden="true" /></a>
-              </>}
-          </div>
-        </li>;
-      })}</ul>}
+      : <div className="purchase-groups">{groups.map(({ key, links }) => {
+        const look = GROUP_LOOK[key];
+        const title = look && labels[look.label];
+        return <section key={key} className={`purchase-group is-${key}`} aria-label={title || labels.linksTitle}>
+          {title && <h3 className="purchase-group-title"><look.Icon aria-hidden="true" />{title}<span className="purchase-group-count">{links.length}</span></h3>}
+          <ul className="purchase-links">{links.map((link, index) => <DeliveryItem key={index} link={link} group={key === 'all' ? 'main' : key} preview={preview} labels={labels} />)}</ul>
+        </section>;
+      })}</div>}
   </PurchaseSection>;
 }
 
@@ -159,7 +181,8 @@ export function PostPurchasePreview({ view, stage = 'offer', modal = true, state
     if (!next) return;
     setFunnel(next); setReopened(true); setDismissed(false); setAccepted(false); showStage(nextStage(configuredOffer, next));
   }
-  const examples = view.offer ? [view.offer.main, ...(view.offer.bonuses || [])].map(product => ({ productName: product.name, title: '' })) : [];
+  const example = role => product => ({ productName: product.name, title: '', role });
+  const examples = view.offer ? [example('main')(view.offer.main), ...(view.offer.bonuses || []).map(example('bonus')), ...(view.offer.upsells || []).map(example('upsell'))] : [];
   const unavailableStage = shown === 'downsell' && !offer?.downsellPrice;
   const resultStates = ['paid', 'saved', 'empty', 'loading', 'missing', 'pending', 'needs_review', 'failed', 'expired', 'refunded'];
   const showOffer = !resultStates.includes(state);

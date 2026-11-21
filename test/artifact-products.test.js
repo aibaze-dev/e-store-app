@@ -75,9 +75,9 @@ describe('artifact commercial records', () => {
     const delivery = await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' });
     expect(delivery.status).toBe('paid');
     expect(delivery.deliveries).toEqual(expect.arrayContaining([
-      { productName: 'Prompt bonus', title: 'Prompt bonus', url: 'https://auth-test.convex.site/a/prompt-builder', kind: 'link' },
+      { productName: 'Prompt bonus', title: 'Prompt bonus', url: 'https://auth-test.convex.site/a/prompt-builder', kind: 'link', role: 'bonus' },
       // Links come from the product as it is now; the product name stays the one sold.
-      { productName: presentation.name, title: 'Changed after checkout', url: 'https://auth-test.convex.site/a/meeting-prep', kind: 'link' },
+      { productName: presentation.name, title: 'Changed after checkout', url: 'https://auth-test.convex.site/a/meeting-prep', kind: 'link', role: 'upsell' },
     ]));
   });
 });

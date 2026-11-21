@@ -137,7 +137,8 @@ describe('landing editor attention', () => {
     const needs = id => (checks[id]?.needs ?? []).map(item => item.label);
     const extras = id => (checks[id]?.extras ?? []).map(item => item.label);
     expect(needs('transformation')).toEqual(['Falta la foto']);
-    expect(needs('showcase')).toEqual(['Falta la foto']);
+    expect(needs('showcase')).toEqual(['Falta la foto o el video']);
+    expect(landingAttention(normalizeContent({ ...generated, showcase: { ...generated.showcase, videoUrl: 'https://example.com/inside.mp4' } }), { bonuses: 0, upsells: 0, hasCover: false }).showcase?.needs).toBeUndefined();
     expect(needs('cover')).toEqual(['Falta la foto principal']);
     expect(extras('cover')).toEqual(['Segunda foto', 'Calificación', 'Texto de calificación']);
     expect(needs('offer')).toEqual(['Sin bonos en la tienda']);

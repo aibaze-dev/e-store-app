@@ -42,7 +42,7 @@ export const landingContent = v.object({
   introduction: v.optional(v.object({ ...storyFields, text: v.string(), badge: v.optional(v.string()) })),
   transformation: v.optional(v.object({ ...storyFields, ...storyImage })),
   about: v.optional(v.object({ ...storyFields, ...storyImage, text: v.string(), signature: v.optional(v.string()) })),
-  showcase: v.optional(v.object({ ...storyFields, ...storyImage })),
+  showcase: v.optional(v.object({ ...storyFields, ...storyImage, videoUrl: v.optional(v.string()) })),
   comparison: v.optional(v.object({ ...storyFields, badge: v.optional(v.string()), items: v.array(v.object({ title: v.string(), description: v.string(), highlighted: v.boolean() })) })),
   combo: v.optional(v.object({ ...storyFields, upsellText: v.string(), allText: v.string() })),
   benefits: v.object({ ...sectionFields, ...storyImage, videoUrl: v.optional(v.string()), title: v.string(), items: v.array(v.union(v.string(), feature)) }),

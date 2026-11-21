@@ -22,7 +22,7 @@ export function landingAttention(content, { bonuses = 0, upsells = 0, hasCover =
   empty('steps', 'pasos');
   if (on('about') && !content.about.text) add('about', 'needs', 'Sin texto', 'No tiene texto: la sección no se muestra.');
   else if (on('about') && !content.about.imageUrl) add('about', 'extras', 'Foto del equipo', 'Foto del equipo sin subir.');
-  if (on('showcase') && !content.showcase.imageUrl) add('showcase', 'needs', 'Falta la foto', 'Falta la foto: la sección no se publica hasta que la subas.');
+  if (on('showcase') && !content.showcase.imageUrl && !content.showcase.videoUrl) add('showcase', 'needs', 'Falta la foto o el video', 'Falta la foto o el video: la sección no se publica hasta que subas uno.');
   empty('benefits', 'elementos');
   if (on('benefits') && content.benefits.items.length > 0 && !content.benefits.imageUrl && !content.benefits.videoUrl) add('benefits', 'extras', 'Foto o video', 'Foto o video del kit sin cargar.');
   if (on('socialProof')) {

@@ -4,7 +4,7 @@ export const CLASSIC_STORY = {
   introduction: { enabled: false, eyebrow: 'A new way to get started', title: '', subtitle: '', text: '', badge: '' },
   transformation: { enabled: false, eyebrow: 'Before and after', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
   about: { enabled: false, eyebrow: 'About us', title: '', subtitle: '', text: '', imageUrl: '', imageAlt: '', signature: '' },
-  showcase: { enabled: false, eyebrow: 'What’s inside', title: '', subtitle: '', imageUrl: '', imageAlt: '' },
+  showcase: { enabled: false, eyebrow: 'What’s inside', title: '', subtitle: '', imageUrl: '', imageAlt: '', videoUrl: '' },
   comparison: { enabled: false, eyebrow: 'Choose how to get started', title: '', subtitle: '', items: [], badge: '', ctaText: '' },
   // The order builder lists the store's extras; it only shows when the store has any.
   combo: { enabled: true, eyebrow: 'Build your bundle', title: 'Your order', subtitle: '', upsellText: 'Add extras at a discount with this order', allText: 'Add all extras', ctaText: 'Go to checkout', note: 'Secure checkout' },

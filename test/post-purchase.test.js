@@ -103,3 +103,20 @@ describe('thank-you downloads', async () => {
     expect(labels.download).toBeTruthy();
   });
 });
+
+describe('thank-you delivery order', async () => {
+  const { groupDeliveries } = await import('../src/storefront/delivery-groups.js');
+  it('puts the main product first, then free bonuses, then added products', () => {
+    const links = [
+      { productName: 'Upsell', role: 'upsell' }, { productName: 'Bonus', role: 'bonus' },
+      { productName: 'After purchase', role: 'post_purchase' }, { productName: 'Book', role: 'main' }, { productName: 'Book PDF', role: 'main' },
+    ];
+    expect(groupDeliveries(links).map(group => [group.key, group.links.map(link => link.productName)])).toEqual([
+      ['main', ['Book', 'Book PDF']], ['bonus', ['Bonus']], ['extras', ['Upsell', 'After purchase']],
+    ]);
+  });
+  it('keeps old orders without roles as one list and handles empty orders', () => {
+    expect(groupDeliveries([{ productName: 'A' }, { productName: 'B' }])).toEqual([{ key: 'all', links: [{ productName: 'A' }, { productName: 'B' }] }]);
+    expect(groupDeliveries([])).toEqual([]);
+  });
+});

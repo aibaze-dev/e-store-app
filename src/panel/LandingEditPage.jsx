@@ -293,10 +293,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('about', 'text', 'Texto', { multiline: true, rows: 8, maxLength: 2400, hint: `Separá los párrafos con un salto de línea. ${MARKS}` })}
           {field('about', 'signature', 'Firma', { maxLength: 120, placeholder: 'El equipo de…' })}
         </Section>
-        <Section id="showcase" attention={checks.showcase} description="Una foto grande con todo lo que recibe el comprador" hidden={off('showcase')}>
+        <Section id="showcase" attention={checks.showcase} description="Una foto o un video grande con todo lo que recibe el comprador" hidden={off('showcase')}>
           {heading('showcase')}
-          {image('showcase', 'imageUrl', 'Foto del contenido', 'La sección se publica cuando tiene su foto.')}
-          {field('showcase', 'imageAlt', 'Descripción de la foto', { maxLength: 240 })}
+          {image('showcase', 'imageUrl', 'Foto del contenido', 'La sección se publica cuando tiene su foto o su video. Si además cargás un video, se usa como imagen de espera.')}
+          {field('showcase', 'imageAlt', 'Descripción de la foto o del video', { maxLength: 240 })}
+          <VideoField label="Video del contenido (opcional)" value={content.showcase.videoUrl} onChange={videoUrl => change('showcase', { videoUrl })} disabled={Boolean(busy)} hint="Se reproduce en silencio con el botón ‘Tocá para escuchar’." />
         </Section>
         <Section id="benefits" attention={checks.benefits} description="La lista numerada de lo que incluye y el recuadro con el precio" hidden={off('benefits')}>
           {heading('benefits')}

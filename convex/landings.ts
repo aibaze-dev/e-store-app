@@ -69,8 +69,14 @@ export function cleanContent(content: typeof landingContent.type) {
   if ((content.comparison?.items.filter(item => item.highlighted).length ?? 0) > 1) fail('Comparación: destacá una sola opción.');
   const chips = content.bonuses.chips ?? [];
   if (chips.length > 4) fail('Bonos: usá hasta 4 etiquetas.');
-  const kitVideo = cleanUrl(content.benefits.videoUrl ?? '', 'Video del kit');
-  if (kitVideo && !videoSource(kitVideo)) fail('Video del kit: subí un archivo MP4, WebM u OGV.');
+  // The kit and the showcase take the same optional video; the photo becomes its poster.
+  const sectionVideo = (url: string | undefined, label: string) => {
+    const clean = cleanUrl(url ?? '', label);
+    if (clean && !videoSource(clean)) fail(`${label}: subí un archivo MP4, WebM u OGV.`);
+    return clean;
+  };
+  const kitVideo = sectionVideo(content.benefits.videoUrl, 'Video del kit');
+  const showcaseVideo = sectionVideo(content.showcase?.videoUrl, 'Video de qué viene adentro');
   const combo = { ...CLASSIC_STORY.combo, ...content.combo };
   // Errors name the screen: the landing and checkout exit popups share their field labels.
   const cleanLabels = (key: 'postLabels' | 'landingExit' | 'backPopup', fields: Record<string, { label: string }>, screen: string, optional: string[]) => Object.fromEntries(Object.entries(fields).filter(([name]) => content[key]?.[name] !== undefined).map(([name, field]) => [name, cleanText(content[key][name], `${screen} · ${field.label}`, 1200, !optional.includes(name))]));
@@ -82,7 +88,7 @@ export function cleanContent(content: typeof landingContent.type) {
     introduction: { ...storyHeading('introduction'), text: cleanText(content.introduction?.text ?? '', 'Introducción', 2400), badge: cleanText(content.introduction?.badge ?? '', 'Frase destacada', 120) },
     transformation: { ...storyHeading('transformation'), ...storyImage('transformation') },
     about: { ...storyHeading('about'), ...storyImage('about'), text: cleanText(content.about?.text ?? '', 'Quiénes somos', 2400), signature: cleanText(content.about?.signature ?? '', 'Firma del equipo', 120) },
-    showcase: { ...storyHeading('showcase'), ...storyImage('showcase') },
+    showcase: { ...storyHeading('showcase'), ...storyImage('showcase'), videoUrl: showcaseVideo },
     comparison: { ...storyHeading('comparison'), badge: cleanText(content.comparison?.badge ?? '', 'Etiqueta de la opción destacada', 60), ctaText: cleanText(content.comparison?.ctaText ?? '', 'Texto del botón', 60), items: (content.comparison?.items ?? []).map(item => ({ title: cleanText(item.title, 'Opción de comparación', 120, true), description: cleanText(item.description, 'Detalle de comparación', 600, true), highlighted: item.highlighted })) },
     combo: { ...storyHeading('combo'), ...copy(combo, combo.eyebrow), upsellText: cleanText(combo.upsellText, 'Texto de extras', 120), allText: cleanText(combo.allText, 'Botón para sumar todo', 60) },
     postPurchase: {

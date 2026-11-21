@@ -775,6 +775,7 @@ describe('section-based sales template', () => {
       hero: { ...content.hero, title: 'Aprendé y *delegá*', headerCtaText: ' Quiero empezar ', ratingText: 'Edición 2026', noteTitle: '¿Es digital?', footnote: 'Incluye versión para imprimir' },
       bonuses: { title: 'Anexos', eyebrow: 'Bono gratis', chips: ['12 profesiones', ' ', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' },
       benefits: { ...content.benefits, imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' },
+      showcase: { enabled: true, title: 'Todo lo que recibís', imageUrl: 'https://example.com/inside.png', videoUrl: 'https://example.com/inside.mp4' },
       socialProof: { title: 'Opiniones', ctaText: 'Quiero mi resultado', items: [{ name: 'Marta S. · Córdoba', quote: 'Me sirvió.', photoUrl: 'https://example.com/marta.jpg', verified: true }, { name: 'Ana', quote: 'Clara.', verified: false }] },
       comparison: { title: 'Tres caminos', badge: 'El camino corto', ctaText: 'Elijo este', items: [{ title: 'Solo', description: 'Sin método', highlighted: false }, { title: 'Con la guía', description: 'Paso a paso\nEn español', highlighted: true }] },
       closing: { enabled: true, title: 'Empezá hoy', ctaText: 'Comprar', stickyEnabled: true, text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' },
@@ -785,6 +786,7 @@ describe('section-based sales template', () => {
     expect(saved.hero).toMatchObject({ title: 'Aprendé y *delegá*', headerCtaText: 'Quiero empezar', ratingText: 'Edición 2026', noteTitle: '¿Es digital?' });
     expect(saved.bonuses).toMatchObject({ chips: ['12 profesiones', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' });
     expect(saved.benefits).toMatchObject({ imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' });
+    expect(saved.showcase).toMatchObject({ imageUrl: 'https://example.com/inside.png', videoUrl: 'https://example.com/inside.mp4' });
     expect(saved.socialProof.items).toMatchObject([{ photoUrl: 'https://example.com/marta.jpg', verified: true }, { name: 'Ana' }]);
     expect(saved.socialProof.items[1].verified).toBeUndefined();
     expect(saved.comparison).toMatchObject({ badge: 'El camino corto', ctaText: 'Elijo este' });
@@ -794,6 +796,7 @@ describe('section-based sales template', () => {
     for (const patch of [
       { bonuses: { title: '', chips: ['a', 'b', 'c', 'd', 'e'] } },
       { benefits: { ...content.benefits, videoUrl: 'https://example.com/kit.pdf' } },
+      { showcase: { enabled: true, title: 'Adentro', videoUrl: 'https://example.com/inside.pdf' } },
       { benefits: { ...content.benefits, imageUrl: 'javascript:alert(1)' } },
       { socialProof: { title: '', items: [{ name: 'Ana', quote: 'Texto', photoUrl: 'data:image/png;base64,x' }] } },
       { hero: { ...content.hero, headerCtaText: 'x'.repeat(61) } },

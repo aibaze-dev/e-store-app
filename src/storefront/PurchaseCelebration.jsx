@@ -7,7 +7,8 @@ import './purchase-celebration.css';
 const DURATION = 4200;
 const REDUCED_DURATION = 2200;
 const EXIT = 520;
-const COLORS = ['var(--sales-accent)', '#ffc83d', '#ff6b9a', '#34d1bf', '#8b5cf6', '#ffffff', '#4f9dff'];
+// The landing's own palette: accent, its CTA shades and the warm ink.
+const COLORS = ['var(--sales-accent)', 'var(--classic-action)', 'var(--classic-cta-start)', 'var(--classic-cta-end)', 'var(--classic-banner-start)', 'color-mix(in srgb, var(--sales-accent) 40%, white)', 'var(--sales-ink, #30251f)'];
 // Education, training and technology around the book.
 const ORBIT = [
   { Icon: GraduationCap, className: 'is-education' },
