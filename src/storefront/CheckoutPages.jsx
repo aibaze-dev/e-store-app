@@ -282,7 +282,7 @@ export function DownsellOfferView({ view, origin = 'direct', payment, busy = fal
               <span className="min-w-0 flex-1 truncate">{bonus.name}</span>{bonus.referenceValue > 0 && <del className="whitespace-nowrap">{money(bonus.referenceValue)}</del>}<Badge>{checkout.free}</Badge>
             </li>)}</ul>
           </div>}
-          {(clientSecret || accepted) && <p role="status" className="text-sm font-semibold checkout-positive">Promo code applied · ATENEO_DISC</p>}
+          {(payment || accepted) && <p role="status" className="text-sm font-semibold checkout-positive">Promo code applied · ATENEO_DISC</p>}
           <dl className="space-y-2 border-t pt-4 text-sm">
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{copy.subtotal}</dt><dd>{money(offer.main.price)}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{copy.discount}</dt><dd className="font-semibold text-primary">-{money(offer.main.price - price)}</dd></div>
