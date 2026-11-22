@@ -3,6 +3,7 @@ import { checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
 import { readQuizToken } from './quiz-session.js';
 import { PurchaseResult, Video } from '@/templates/PostPurchaseContent.jsx';
 import { videoSource } from '../../shared/post-purchase.js';
+import { classicTheme } from '../../shared/classic-design.js';
 import PostPurchaseModal from './PostPurchaseModal.jsx';
 import PurchaseCelebration from './PurchaseCelebration.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -250,7 +251,8 @@ export function DownsellOfferView({ view, origin = 'direct', payment, busy = fal
     currency={store.currency} stage="final" preview={preview} canPurchase={preview || Boolean(stripeKey)}
     Title={preview ? undefined : DialogTitle} Description={preview ? undefined : DialogDescription}
     onAccept={() => accept(true)} onDecline={leave} />;
-  return <div className="min-h-screen bg-muted/40 break-words">
+  const theme = classicTheme(view.content?.style?.accentColor);
+  return <div className="offer-page min-h-screen bg-muted/40 break-words" style={theme}>
     <header className="border-b bg-card"><div className="mx-auto flex max-w-xl items-center gap-2 px-5 py-4 text-sm font-semibold sm:px-6">
       <LockKeyhole className="size-4 text-primary" aria-hidden="true" />{checkout.secure}
       <Link onClick={event => { if (preview) event.preventDefault(); }} to={origin==='quiz'?'../quiz/resultado':'..'} className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">{checkout.back}</Link>
@@ -301,9 +303,9 @@ export function DownsellOfferView({ view, origin = 'direct', payment, busy = fal
       <p className="flex justify-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="size-3.5" aria-hidden="true" />{checkout.secure}</p>
     </main>
     {finalOpen && canImprove && (preview
-      ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"><section role="dialog" aria-label="Final offer" className="grid max-h-full w-full max-w-md gap-5 overflow-y-auto rounded-xl bg-card p-6">{finalCard}</section></div>
+      ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"><section role="dialog" aria-label="Final offer" className="classic-offer-dialog grid max-h-full w-full max-w-md gap-5 overflow-y-auto p-6" style={theme}>{finalCard}</section></div>
       : <Dialog open onOpenChange={next => { if (!next) leave(); }}>
-          <DialogContent closeLabel={copy.close}>{finalCard}</DialogContent>
+          <DialogContent closeLabel={copy.close} className="classic-offer-dialog" style={theme}>{finalCard}</DialogContent>
         </Dialog>)}
   </div>;
 }

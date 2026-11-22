@@ -63,7 +63,7 @@ export function videoSource(value, { autoPlay = false } = {}) {
     if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com', 'youtu.be'].includes(host)) {
       const id = host === 'youtu.be' ? parts[0] : parts[0] === 'watch' ? url.searchParams.get('v') : ['embed', 'shorts', 'live'].includes(parts[0]) ? parts[1] : '';
       return /^[a-zA-Z0-9_-]{11}$/.test(id || '') ? {
-        kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}${autoPlay ? '?autoplay=1&mute=1&playsinline=1' : ''}`,
+        kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}${autoPlay ? '?autoplay=1&mute=0&playsinline=1' : ''}`,
         ...(parts[0] === 'shorts' && { format: 'reel' }),
       } : null;
     }
@@ -75,7 +75,7 @@ export function videoSource(value, { autoPlay = false } = {}) {
       if (hash) player.searchParams.set('h', hash);
       if (autoPlay) {
         player.searchParams.set('autoplay', '1');
-        player.searchParams.set('muted', '1');
+        player.searchParams.set('muted', '0');
       }
       return { kind: 'embed', src: player.href };
     }

@@ -244,9 +244,12 @@
 .sales-landing.classic-landing .sales-sticky { border-top-color: #edc9ad; box-shadow: 0 -8px 28px #482a1210; }
 .sales-landing.classic-landing .sales-sticky .sales-cta { min-height: 56px; border-radius: 12px; }
 /* These dialogs are portaled outside the landing, so they receive the same tokens directly. */
-.classic-offer-dialog { --background: #fffaf5; --foreground: #30251f; --muted-foreground: #71635a; --primary: var(--classic-action); --ring: var(--classic-action); color-scheme: light; border: 1px solid #f5c5a0; border-radius: 22px; background: radial-gradient(ellipse at top right, #ffe3cc, transparent 65%), #fffaf5; box-shadow: 0 24px 80px #321b0e40; font-family: 'Nunito Sans Variable', sans-serif; }
+.classic-offer-dialog { --background: #fffaf5; --foreground: #30251f; --muted-foreground: #71635a; --primary: var(--classic-action); --primary-foreground: var(--classic-on-action); --ring: var(--classic-action); color-scheme: light; border: 1px solid #f5c5a0; border-radius: 22px; background: radial-gradient(ellipse at top right, #ffe3cc, transparent 65%), #fffaf5; box-shadow: 0 24px 80px #321b0e40; font-family: 'Nunito Sans Variable', sans-serif; }
 .classic-offer-dialog [data-slot='dialog-title'] { font-size: 30px; line-height: 1.15; font-weight: 850; }
-.classic-offer-dialog [data-slot='button'][data-variant='default'] { background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); border: 1px solid #ffffff40; border-radius: 14px; font-weight: 850; box-shadow: 0 8px 24px color-mix(in srgb, var(--sales-accent) 32%, transparent), inset 0 1px 0 #ffffff59; }
+/* The /oferta page shares the offer palette: its CTAs and pills match the post-purchase modal. */
+.offer-page { --primary: var(--classic-action); --primary-foreground: var(--classic-on-action); --ring: var(--classic-action); }
+:is(.classic-offer-dialog, .offer-page) [data-slot='badge'][data-variant='default'] { background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); border-color: transparent; font-weight: 800; }
+:is(.classic-offer-dialog, .offer-page) [data-slot='button'][data-variant='default'] { background: linear-gradient(135deg, var(--classic-cta-start), var(--classic-cta-end)); color: var(--classic-cta-text); border: 1px solid #ffffff40; border-radius: 14px; font-weight: 850; box-shadow: 0 8px 24px color-mix(in srgb, var(--sales-accent) 32%, transparent), inset 0 1px 0 #ffffff59; }
 @media (max-width: 900px) {
   .classic-header-offer { grid-template-columns: 1fr; gap: 16px; max-width: 420px; justify-self: center; }
   .classic-header-price { gap: 6px; }
@@ -285,7 +288,7 @@
   font-weight: 850;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
-  color: #972f18;
+  color: var(--sales-accent);
 }
 @media (prefers-reduced-motion: no-preference) {
   .post-offer-timer[data-running="true"] { animation: post-offer-timer-pulse 1.5s ease-in-out infinite alternate; }

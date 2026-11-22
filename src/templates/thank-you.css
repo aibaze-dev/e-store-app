@@ -152,6 +152,9 @@
 .support-band-icon svg { width: 24px; height: 24px; }
 .sales-landing.classic-landing .support-band h2 { margin: 0; color: var(--sales-ink); font-size: 18px; letter-spacing: -.02em; text-align: left; }
 .sales-landing.classic-landing .support-band p { margin-top: 3px; color: var(--sales-muted); font-size: 14px; line-height: 1.5; }
+.spam-notice { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 0; padding: 14px 18px; border: 1px dashed color-mix(in srgb, var(--classic-action) 45%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--sales-accent) 7%, white); color: var(--sales-ink); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.spam-notice svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; color: var(--classic-action); }
+.spam-notice strong { font-weight: 800; }
 .purchase-landing.is-entering .support-band { animation: thanks-rise 700ms 640ms cubic-bezier(.2, 1.1, .4, 1) both; }
 
 .sales-landing.classic-landing.purchase-landing.is-support { background: #fffaf5; }

@@ -40,13 +40,13 @@ export default function ExitIntentModal({ view, step, onCta, onOffer, disabled =
 
   const copy = exitIntentCopy(view, step, amount => formatMoney(amount, view.store.currency));
   const accent = view.content.style?.accentColor;
-  // The landing paints its buttons with the store's accent; the checkout uses the app theme.
-  const theme = step === 'landing' ? classicTheme(accent) : undefined;
+  // Landing and checkout popups share the post-purchase modal's look: same palette and CTA.
+  const theme = classicTheme(accent);
   const finish = action => { afterClose.current = action; setStage(null); };
 
   // The dialog stays mounted so it can hand the focus back when it closes.
   return <Dialog open={open} onOpenChange={next => { if (!next) setStage(null); }}>
-    <DialogContent closeLabel={step === 'checkout' ? checkoutConfig(view).exitClose : landingExitConfig(view).exitClose} className={step === 'landing' ? 'classic-offer-dialog' : undefined} style={theme} onCloseAutoFocus={event => {
+    <DialogContent closeLabel={step === 'checkout' ? checkoutConfig(view).exitClose : landingExitConfig(view).exitClose} className="classic-offer-dialog" style={theme} onCloseAutoFocus={event => {
       event.preventDefault();
       const callback = afterClose.current;
       afterClose.current = null;
@@ -79,7 +79,7 @@ export function ExitIntentPreview({ view, step = 'checkout', onDiscount }) {
   if (!open) return <button type="button" className="m-5 rounded-lg border bg-card p-3" onClick={() => setOpen(true)}>Volver a abrir la vista previa</button>;
   const copy = exitIntentCopy(view, step, amount => formatMoney(amount, view.store.currency));
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-    <section role="dialog" aria-modal="false" aria-label={copy.title} style={step === 'landing' ? classicTheme(view.content.style?.accentColor) : undefined} className={`relative grid max-h-full w-full max-w-md gap-5 overflow-y-auto rounded-xl border bg-background p-6 text-foreground shadow-lg ${step === 'landing' ? 'classic-offer-dialog' : ''}`}>
+    <section role="dialog" aria-modal="false" aria-label={copy.title} style={classicTheme(view.content.style?.accentColor)} className="classic-offer-dialog relative grid max-h-full w-full max-w-md gap-5 overflow-y-auto p-6 text-foreground">
       <button type="button" className="absolute right-3 top-3 size-11" aria-label={step === 'checkout' ? checkoutConfig(view).exitClose : landingExitConfig(view).exitClose} onClick={() => setOpen(false)}>×</button>
       <ExitContent copy={copy} useCta={() => setOpen(false)} onDiscount={onDiscount} />
     </section>

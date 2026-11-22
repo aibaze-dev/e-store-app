@@ -8,7 +8,8 @@ import { usePreviewSection } from './PreviewEditing.jsx';
 import './classic-landing.css';
 import './thank-you.css';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowRight, BookOpen, LifeBuoy, Check, Download, ExternalLink, Gift, Globe, LoaderCircle, PlusCircle, Receipt, Star, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, BookOpen, LifeBuoy, Check, Download, ExternalLink, Gift, Globe, LoaderCircle, MailWarning, PlusCircle, Receipt, Star, X } from 'lucide-react';
+import brand from '@/config/brandData.json';
 import { groupDeliveries } from '@/storefront/delivery-groups.js';
 import { downloadFile, isDownloadable } from '@/storefront/download.js';
 import PostPurchaseOfferCard from './PostPurchaseOfferCard.jsx';
@@ -198,7 +199,7 @@ export function Video({ video, children, autoPlay = false, editKey = 'postPurcha
     {source.kind === 'embed'
       ? <iframe src={source.src} title={video.title || labels.videoTitle} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       : failed || forceError ? <p role="status" className="purchase-notice">{labels.videoError}</p>
-        : <video src={source.src} autoPlay={autoPlay} muted={autoPlay} controls playsInline preload={autoPlay ? 'auto' : 'metadata'} onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
+        : <video src={source.src} autoPlay={autoPlay} controls playsInline preload={autoPlay ? 'auto' : 'metadata'} onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
     {children}
     <a onClick={event => { if (preview) event.preventDefault(); }} href={video.url} target="_blank" rel="noreferrer">{labels.videoOpen}<ExternalLink aria-hidden="true" /></a>
   </div>;
@@ -222,6 +223,14 @@ function SupportBand({ labels, preview }) {
   </aside>;
 }
 
+// Always under the contact band: purchase emails often land in spam or promotions.
+function SpamNotice() {
+  return <p className="spam-notice" role="note">
+    <MailWarning aria-hidden="true" />
+    <span>Can’t find your email? Check your <strong>spam</strong> or <strong>promotions</strong> folder for a message from <strong>{brand.purchaseEmail}</strong>.</span>
+  </p>;
+}
+
 // `entrance` adds the page's entrance classes after the celebration (see ThankYou).
 export function PurchaseResult({ status = 'paid', presentation = {}, storeName, deliveries = [], order = null, emailed = true, preview = false, entrance = '', children }) {
   const copy = postLabels(presentation);
@@ -231,7 +240,7 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
     return <PurchaseLanding preview={preview} presentation={presentation} storeName={storeName} title={copy[titles[status] ?? 'failedTitle']} busy={status === 'loading' || status === 'pending'}>
       <PurchaseSection><div className="purchase-notice">{status === 'loading' ? <PageSkeleton label={copy.loadingTitle} /> : <p role="status">{copy[messages[status] ?? 'expiredText']}</p>}
         {['failed', 'expired'].includes(status) && <Link onClick={event => { if (preview) event.preventDefault(); }} className="purchase-open purchase-notice-action" to="..">{copy.back}<ArrowRight aria-hidden="true" /></Link>}
-      </div></PurchaseSection>
+      </div>{status === 'pending' && brand.purchaseEmail && <SpamNotice />}</PurchaseSection>
     </PurchaseLanding>;
   }
   const main = groupDeliveries(deliveries)[0]?.links[0] ?? null;
@@ -243,6 +252,7 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
         <OrderSummary order={order} labels={copy} />
       </div>
       <SupportBand labels={copy} preview={preview} />
+      {brand.purchaseEmail && <SpamNotice />}
     </div></div>
     {children}
   </PurchaseLanding>;
