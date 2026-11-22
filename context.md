@@ -154,7 +154,7 @@ store
     campos y textos configurables
 
   tracking
-    metaPixelId
+    metaPixelIds (lista; las tiendas anteriores conservan metaPixelId)
 ```
 
 ### Órdenes con items embebidos

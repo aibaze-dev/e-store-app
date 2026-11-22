@@ -2,6 +2,7 @@ import { mainDiscountPrices } from '../../shared/post-purchase.js';
 import type { Doc, QueryCtx } from './functions';
 import { discounted, finalPostPurchasePercent } from './pricing';
 import { ACTIVITY_DEFAULTS } from '../../shared/landing-copy.js';
+import { pixelIds } from '../../shared/pixels.js';
 import { postPurchaseContent } from '../../shared/post-purchase.js';
 
 type Content = NonNullable<Doc<'landings'>['published']>;
@@ -67,7 +68,7 @@ export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, land
     subdomain: landing.subdomain,
     template: landing.template,
     content,
-    store: { id: store._id, name: store.name, currency: store.currency, metaPixelId: store.tracking.metaPixelId },
+    store: { id: store._id, name: store.name, currency: store.currency, metaPixelIds: pixelIds(store.tracking) },
     offer: { main: { ...main, price: store.offer.price }, bonuses, upsells },
     downsell: store.downsell?.enabled ? { ...store.downsell, ...mainDiscountPrices(store.offer.price, store.downsell.percent) } : null,
     checkout: { upsellTitle: store.checkout?.upsellTitle ?? '', notifications: store.checkout?.notifications ?? content.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications, liveVisitors: store.checkout?.liveVisitors ?? false },

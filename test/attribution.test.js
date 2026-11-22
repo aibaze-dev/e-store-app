@@ -202,7 +202,7 @@ describe('campaign stored with visits, quiz sessions and orders', () => {
     const storeId = await admin.mutation(api.stores.create, {
       name: 'Campaña', status: 'active', currency: 'USD',
       offer: { mainProductId: main, price: 2700, bonuses: [], upsells: [] },
-      postPurchase: { enabled: true, productId: post, price: 4700 }, tracking: { metaPixelId: '' },
+      postPurchase: { enabled: true, productId: post, price: 4700 }, tracking: { metaPixelIds: [] },
     });
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: content });
     await admin.mutation(api.landings.publish, { storeId });

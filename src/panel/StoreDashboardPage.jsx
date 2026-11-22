@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import StoreOfferSummary, { LandingContentSummary } from './StoreOfferSummary.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
+import { pixelIds } from '../../shared/pixels.js';
 
 export function ShareLink({ label, url, icon: Icon, enabled }) {
   const [copied, setCopied] = useState(false);
@@ -55,7 +56,7 @@ export function StoreDashboardView({ store, summary, landing, quiz, orders, prod
     { label: 'Oferta principal configurada', done: Boolean(store.offer.mainProductId), to: `${basePath}/productos` },
     { label: 'Landing publicada', done: published, to: `${basePath}/landing` },
     { label: 'Tienda activa', done: store.status === 'active', to: `${basePath}/configuracion` },
-    { label: 'Meta Pixel configurado', done: Boolean(store.tracking.metaPixelId), optional: true, to: `${basePath}/configuracion` },
+    { label: 'Meta Pixel configurado', done: pixelIds(store.tracking).length > 0, optional: true, to: `${basePath}/configuracion` },
   ];
 
   return <div className="space-y-7">

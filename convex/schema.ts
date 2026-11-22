@@ -159,7 +159,8 @@ export default defineSchema({
     offer: storeOffer,
     postPurchase: storePostPurchase,
     downsell: v.optional(storeDownsell),
-    tracking: v.object({ metaPixelId: v.string() }),
+    // `metaPixelIds` is the list in use. `metaPixelId` is all that stores saved before the list have; newer saves mirror the first pixel there.
+    tracking: v.object({ metaPixelId: v.optional(v.string()), metaPixelIds: v.optional(v.array(v.string())) }),
     checkout: v.optional(storeCheckout),
     subdomain: v.optional(v.string()),
     purchaseDraft: v.optional(landingContent),

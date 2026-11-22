@@ -15,7 +15,7 @@ async function store(subdomain = 'soporte-test', status = 'active') {
   const t = backend();
   const admin = await signedIn(t, ADMIN);
   const productId = await admin.mutation(api.products.create, product('Libro', subdomain));
-  const storeId = await admin.mutation(api.stores.create, { name: 'Ateneo', status, currency: 'USD', offer: { mainProductId: productId, price: 1000, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelId: '' } });
+  const storeId = await admin.mutation(api.stores.create, { name: 'Ateneo', status, currency: 'USD', offer: { mainProductId: productId, price: 1000, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelIds: [] } });
   await admin.mutation(api.landings.saveDraft, { storeId, subdomain, template: 'classic', draft: content });
   await admin.mutation(api.landings.publish, { storeId });
   return { t, admin, storeId, subdomain };

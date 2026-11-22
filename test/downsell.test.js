@@ -27,7 +27,7 @@ async function campaign(change = {}) {
     offer: { mainProductId: ids.main, price: 2700, bonuses: [{ productId: ids.bonus }], upsells: [{ productId: ids.upsell, price: 900, displayOrder: 0 }] },
     postPurchase: { enabled: true, productId: ids.post, price: 4700, downsellPercent: 30 },
     downsell: { enabled: true, percent: 25, ...texts },
-    tracking: { metaPixelId: '' },
+    tracking: { metaPixelIds: [] },
     ...change,
   };
   const storeId = await admin.mutation(api.stores.create, store);

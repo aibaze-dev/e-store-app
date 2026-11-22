@@ -6,6 +6,7 @@ import business from '@/config/businessData.json';
 import { api } from '@/lib/api.js';
 import { errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
 import { DOWNSELL_DEFAULTS, discountedPrice } from '@/storefront/downsell.js';
+import { MAX_PIXELS, pixelIds } from '../../shared/pixels.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -19,7 +20,7 @@ import OfferSection from './OfferSection.jsx';
 
 const EMPTY = {
   name: '', status: 'draft', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
-  bonuses: [], upsells: [], postEnabled: false, postProductId: '', postPrice: '', postDownPercent: '', metaPixelId: '',
+  bonuses: [], upsells: [], postEnabled: false, postProductId: '', postPrice: '', postDownPercent: '', metaPixelIds: [],
   downEnabled: false, downPercent: '', downTexts: DOWNSELL_DEFAULTS, downVideoUrl: '',
 };
 
@@ -45,7 +46,7 @@ function fromStore(store) {
     upsells: [...store.offer.upsells].sort((a, b) => a.displayOrder - b.displayOrder)
       .map(upsell => ({ productId: upsell.productId, price: fromMinor(upsell.price, store.currency) })),
     postEnabled: store.postPurchase.enabled, postProductId: store.postPurchase.productId ?? '',
-    postPrice: fromMinor(store.postPurchase.price, store.currency), metaPixelId: store.tracking.metaPixelId,
+    postPrice: fromMinor(store.postPurchase.price, store.currency), metaPixelIds: pixelIds(store.tracking),
     postDownPercent: store.postPurchase.downsellPercent ? String(store.postPurchase.downsellPercent) : '',
     downEnabled: Boolean(store.downsell?.enabled), downPercent: store.downsell?.percent ? String(store.downsell.percent) : '',
     downTexts: Object.fromEntries(DOWNSELL_TEXTS.map(({ key }) => [key, store.downsell?.[key] || DOWNSELL_DEFAULTS[key]])),
@@ -90,7 +91,7 @@ function toArgs(form) {
       ...form.downTexts,
       ...(form.downVideoUrl.trim() ? { videoUrl: form.downVideoUrl.trim() } : {}),
     },
-    tracking: { metaPixelId: form.metaPixelId.trim() },
+    tracking: { metaPixelIds: form.metaPixelIds.map(id => id.trim()).filter(Boolean) },
   };
 }
 
@@ -153,7 +154,12 @@ export default function StoreFormPage({ section }) {
     }
     setBusy(true);
     try {
-      if (storeId) { await update({ id: storeId, ...args }); setSaved(true); }
+      if (storeId) {
+        await update({ id: storeId, ...args });
+        // The server drops empty and repeated pixels: show what was saved.
+        setForm(current => ({ ...current, metaPixelIds: [...new Set(args.tracking.metaPixelIds)] }));
+        setSaved(true);
+      }
       else navigate(`/panel/tiendas/${await create(args)}/landing`);
     } catch (failure) { setError(errorText(failure, 'No se pudo guardar la tienda. Volvé a intentar.')); }
     finally { setBusy(false); }
@@ -263,9 +269,14 @@ export default function StoreFormPage({ section }) {
     </Card>}
 
     {show('settings') && <Card>
-      <CardHeader><CardTitle>Seguimiento</CardTitle><CardDescription>Con un ID de Meta Pixel se envían los eventos PageView, InitiateCheckout y Purchase desde el navegador del visitante.</CardDescription></CardHeader>
-      <CardContent>
-        <Field label="ID de Meta Pixel" hint="Solo el número. Dejalo vacío para no usar pixel.">{props => <Input {...props} inputMode="numeric" value={form.metaPixelId} onChange={event => set({ metaPixelId: event.target.value })} maxLength={20} disabled={busy} />}</Field>
+      <CardHeader><CardTitle>Seguimiento</CardTitle><CardDescription>Con un ID de Meta Pixel se envían los eventos PageView, InitiateCheckout y Purchase desde el navegador del visitante. Si varios portafolios comerciales anuncian esta tienda, cargá el pixel de cada uno: todos reciben los mismos eventos y Meta atribuye cada venta a la cuenta publicitaria que la generó.</CardDescription></CardHeader>
+      <CardContent className="space-y-4">
+        {form.metaPixelIds.length === 0 && <p className="text-sm text-muted-foreground">Esta tienda no usa pixel.</p>}
+        {form.metaPixelIds.map((pixelId, index) => <div key={index} className="grid grid-cols-[1fr_auto] items-end gap-3">
+          <Field label={`ID de Meta Pixel ${index + 1}`} hint={index === 0 ? 'Solo el número.' : undefined}>{props => <Input {...props} inputMode="numeric" value={pixelId} onChange={event => set({ metaPixelIds: form.metaPixelIds.map((id, i) => (i === index ? event.target.value : id)) })} maxLength={20} disabled={busy} />}</Field>
+          <Button type="button" variant="outline" size="icon" disabled={busy} aria-label={`Quitar pixel ${index + 1}`} onClick={() => set({ metaPixelIds: form.metaPixelIds.filter((_, i) => i !== index) })}><Trash2 aria-hidden="true" /></Button>
+        </div>)}
+        <Button type="button" variant="outline" disabled={busy || form.metaPixelIds.length >= MAX_PIXELS} onClick={() => set({ metaPixelIds: [...form.metaPixelIds, ''] })}><Plus aria-hidden="true" />Agregar pixel</Button>
       </CardContent>
     </Card>}
 

@@ -23,7 +23,7 @@ async function campaign() {
   const t = backend();
   const admin = await signedIn(t, ADMIN);
   const productId = await admin.mutation(api.products.create, product('Libro', 'libro'));
-  const store = { name: 'Analíticas', status: 'active', currency: 'USD', offer: { mainProductId: productId, price: 1000, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelId: '' } };
+  const store = { name: 'Analíticas', status: 'active', currency: 'USD', offer: { mainProductId: productId, price: 1000, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelIds: [] } };
   const storeId = await admin.mutation(api.stores.create, store);
   await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'analytics', template: 'classic', draft: content });
   await admin.mutation(api.landings.publish, { storeId });

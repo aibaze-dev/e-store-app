@@ -58,7 +58,7 @@ describe('artifact commercial records', () => {
     const storeId = await admin.mutation(api.stores.create, {
       name: 'Artifact bundle', status: 'active', currency: 'USD',
       offer: { mainProductId: main, price: 2000, bonuses: [{ productId: bonus }], upsells: [{ productId: upsell, price: 500, displayOrder: 0 }] },
-      postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelId: '' },
+      postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelIds: [] },
     });
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'artifact-bundle', template: 'classic', draft: content });
     await admin.mutation(api.landings.publish, { storeId });

@@ -174,7 +174,7 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
   return <div className="space-y-9">
     <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" onBlur={saveDraft} copy={copy} />
     {ready && clock.ended && !paying ? <SessionExpired copy={copy} onRenew={renew} /> : ready ? <CheckoutElementsProvider key={`${session.clientSecret}:${copy.paymentLocale}`} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
-      <PaymentForm copy={copy} total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
+      <PaymentForm copy={copy} total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelIds, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
     </CheckoutElementsProvider> : <div className="space-y-6">
       <h2 className="flex items-center gap-3 text-2xl font-bold"><CreditCard aria-hidden="true" />{copy.paymentTitle}</h2>
       <ErrorAlert>{error}</ErrorAlert>

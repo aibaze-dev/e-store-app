@@ -10,7 +10,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 async function fixture() {
   const t = backend(), admin = await signedIn(t, 'owner@example.com');
   const main = await admin.mutation(api.products.create, product('Guía de huerto', 'guide'));
-  const storeId = await admin.mutation(api.stores.create, { name: 'Tienda', status: 'active', currency: 'usd', offer: { mainProductId: main, price: 2700, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelId: '' } });
+  const storeId = await admin.mutation(api.stores.create, { name: 'Tienda', status: 'active', currency: 'usd', offer: { mainProductId: main, price: 2700, bonuses: [], upsells: [] }, postPurchase: { enabled: false, price: 0 }, tracking: { metaPixelIds: [] } });
   return { t, admin, storeId };
 }
 function proposal() {

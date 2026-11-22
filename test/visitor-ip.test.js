@@ -25,7 +25,7 @@ async function campaign() {
     name: 'Campaña', status: 'active', currency: 'usd',
     offer: { mainProductId: main, price: 2700, bonuses: [], upsells: [] },
     postPurchase: { enabled: true, productId: post, price: 4700 },
-    tracking: { metaPixelId: '' },
+    tracking: { metaPixelIds: [] },
   });
   await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: content });
   await admin.mutation(api.landings.publish, { storeId });

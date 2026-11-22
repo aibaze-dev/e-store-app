@@ -28,7 +28,7 @@ async function campaign() {
       upsells: [{ productId: ids.upsellA, price: 900, displayOrder: 0 }, { productId: ids.upsellB, price: 500, displayOrder: 1 }],
     },
     postPurchase: { enabled: true, productId: ids.post, price: 4700 },
-    tracking: { metaPixelId: '1234567890' },
+    tracking: { metaPixelIds: ['1234567890'] },
   };
   const storeId = await admin.mutation(api.stores.create, store);
   await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: content });
@@ -795,11 +795,36 @@ describe('store validation', () => {
     await expect(create({ offer: { ...store.offer, bonuses: [{ productId: ids.main }] } })).rejects.toThrow();
     await expect(create({ postPurchase: { enabled: true, price: 100 } })).rejects.toThrow();
     await expect(create({ currency: 'dolar' })).rejects.toThrow();
-    await expect(create({ tracking: { metaPixelId: '<script>' } })).rejects.toThrow();
+    await expect(create({ tracking: { metaPixelIds: ['<script>'] } })).rejects.toThrow();
     const empty = await admin.mutation(api.products.create, { ...product('Sin links', 'x'), deliverables: [] });
     await expect(create({ offer: { ...store.offer, mainProductId: empty } })).rejects.toThrow();
     await expect(create({ status: 'draft', offer: { ...store.offer, mainProductId: empty } })).resolves.toBeDefined();
     await expect(admin.mutation(api.products.create, { ...product('Link malo', 'x'), deliverables: [{ title: 'PDF', url: 'javascript:alert(1)' }] })).rejects.toThrow();
+  });
+
+  it('serves every Meta Pixel of a store, including the single id of older stores', async () => {
+    const { t, admin, store, storeId } = await campaign();
+    const pixels = async () => (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).store.metaPixelIds;
+    expect(await pixels()).toEqual(['1234567890']);
+
+    await admin.mutation(api.stores.update, { id: storeId, ...store, tracking: { metaPixelIds: [' 1234567890 ', '', '9876543210', '1234567890'] } });
+    expect(await pixels()).toEqual(['1234567890', '9876543210']);
+    // The first pixel stays in the field the previous release reads and requires.
+    expect((await admin.query(api.stores.get, { id: storeId })).tracking).toEqual({ metaPixelId: '1234567890', metaPixelIds: ['1234567890', '9876543210'] });
+    mockStripe();
+    await start(t);
+    await sendWebhook(t, paidSession('cs_test_1', 2700));
+    expect((await t.query(api.storefront.getDelivery, { sessionId: 'cs_test_1' })).metaPixelIds).toEqual(['1234567890', '9876543210']);
+
+    await expect(admin.mutation(api.stores.update, { id: storeId, ...store, tracking: { metaPixelIds: ['11111', '22222', '33333', '44444', '55555', '66666'] } })).rejects.toThrow(/hasta 5/);
+    await admin.mutation(api.stores.update, { id: storeId, ...store, tracking: { metaPixelIds: [] } });
+    expect(await pixels()).toEqual([]);
+    expect((await admin.query(api.stores.get, { id: storeId })).tracking).toEqual({ metaPixelId: '', metaPixelIds: [] });
+
+    // A store saved before the list existed.
+    await t.run(ctx => ctx.db.patch(storeId, { tracking: { metaPixelId: '5555555555' } }));
+    expect(await pixels()).toEqual(['5555555555']);
+    expect((await admin.query(api.stores.get, { id: storeId })).tracking).toEqual({ metaPixelId: '5555555555' });
   });
 });
 

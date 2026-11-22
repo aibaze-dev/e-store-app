@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { api } from '@/lib/api.js';
-import { trackPixel } from '@/lib/pixel.js';
+import { trackPageView } from '@/lib/pixel.js';
 import { clarityTags, startClarity } from '@/lib/clarity.js';
 import { templateFor } from '@/templates/index.js';
 import { plainText } from '../../shared/classic-design.js';
@@ -36,8 +36,7 @@ function Landing({ view }) {
   useViewTracking(view.subdomain, 'landing', view.store.id);
   const navigate = useNavigate();
   useEffect(() => { document.title = plainText(view.content.hero.title) || view.offer.main.name; }, [view]);
-  // Once per visit: the landing's data refreshes while the page is open.
-  useEffect(() => { trackPixel(view.store.metaPixelId, 'PageView'); }, [view.store.metaPixelId, view.subdomain]);
+  useEffect(() => { trackPageView(view.store.metaPixelIds); }, [view.store.metaPixelIds]);
   // The payment screens are fetched in the background, so the button opens them without a wait.
   useEffect(() => {
     const timer = setTimeout(checkoutPages, 2000);

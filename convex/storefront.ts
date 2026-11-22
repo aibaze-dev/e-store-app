@@ -1,5 +1,6 @@
 import { forStore, publicStore, checkoutRecord, purchaseContent } from './lib/landing_records';
 import { PRESENCE_WINDOW_MS } from '../shared/analytics.js';
+import { pixelIds } from '../shared/pixels.js';
 import { v } from 'convex/values';
 import { presencePage } from './schema';
 import { mutation, query, type QueryCtx } from './lib/functions';
@@ -101,7 +102,7 @@ export const getDelivery = query({
       isPostPurchase: Boolean(order.parentOrderId),
       storeName: store?.name ?? '',
       subdomain: landing?.subdomain ?? '',
-      metaPixelId: store?.tracking.metaPixelId ?? '',
+      metaPixelIds: pixelIds(store?.tracking),
       currency: order.currency,
       total: order.total,
       items: order.items.map(item => ({ name: item.name, role: item.role, price: item.price })),

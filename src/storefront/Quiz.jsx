@@ -11,6 +11,7 @@ import QuizResult from './QuizResult.jsx';
 import './quiz.css';
 import { quizTokenKey, readQuizToken } from './quiz-session.js';
 import { attributionArgs } from './attribution.js';
+import { trackPageView } from '@/lib/pixel.js';
 
 export { QuizBlocks } from './QuizResult.jsx';
 
@@ -93,6 +94,8 @@ export function QuizPreview({ quiz, view, startAt }) {
 export default function Quiz({ subdomain, view }) {
   const config = useQuery(api.quizzes.publicConfig, { subdomain });
   useStorePresence(config ? subdomain : null, 'landing');
+  // The pixel starts when the quiz opens, while the ad's click id is still in the address.
+  useEffect(() => { trackPageView(view?.store.metaPixelIds); }, [view?.store.metaPixelIds]);
   const start = useMutation(api.quizzes.start), save = useMutation(api.quizzes.saveAnswer), arrival = useMutation(api.quizzes.checkoutArrival), recordView = useMutation(api.analytics.recordView);
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [retry, setRetry] = useState(0);
   const pending = useRef(null);

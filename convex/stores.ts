@@ -5,6 +5,7 @@ import { requireAdmin } from './lib/permissions';
 import { cleanAmount, cleanCurrency, cleanPercent, cleanText, fail } from './lib/validation';
 import { storeCheckout, storeDownsell, storeOffer, storePostPurchase } from './schema';
 import { videoSource } from '../shared/post-purchase.js';
+import { MAX_PIXELS } from '../shared/pixels.js';
 
 // Optional VSL of the downsell page: only known players or a stored/direct video file.
 function cleanVideoUrl(value: string | undefined) {
@@ -21,12 +22,12 @@ const fields = {
   offer: storeOffer,
   postPurchase: storePostPurchase,
   downsell: v.optional(storeDownsell),
-  tracking: v.object({ metaPixelId: v.string() }),
+  tracking: v.object({ metaPixelIds: v.array(v.string()) }),
 };
 
 async function clean(ctx: MutationCtx, args: {
   name: string; status: 'draft' | 'active'; currency: string;
-  offer: typeof storeOffer.type; postPurchase: typeof storePostPurchase.type; downsell?: typeof storeDownsell.type; tracking: { metaPixelId: string };
+  offer: typeof storeOffer.type; postPurchase: typeof storePostPurchase.type; downsell?: typeof storeDownsell.type; tracking: { metaPixelIds: string[] };
 }) {
   const { offer, postPurchase, downsell } = args;
   const compareAtPrice = offer.compareAtPrice === undefined ? undefined : cleanAmount(offer.compareAtPrice, 'Precio de referencia');
@@ -53,8 +54,9 @@ async function clean(ctx: MutationCtx, args: {
     fail('Para activar la tienda, el producto principal necesita al menos un entregable.');
   }
 
-  const pixel = args.tracking.metaPixelId.trim();
-  if (pixel && !/^\d{5,20}$/.test(pixel)) fail('Meta Pixel: ingresá solo el número de ID del pixel.');
+  const pixels = [...new Set(args.tracking.metaPixelIds.map(id => id.trim()).filter(Boolean))];
+  if (pixels.some(id => !/^\d{5,20}$/.test(id))) fail('Meta Pixel: ingresá solo el número de ID de cada pixel.');
+  if (pixels.length > MAX_PIXELS) fail(`Meta Pixel: usá hasta ${MAX_PIXELS} pixeles por tienda.`);
 
   return {
     name: cleanText(args.name, 'Nombre', 120, true),
@@ -88,7 +90,8 @@ async function clean(ctx: MutationCtx, args: {
       pageSubtitle: cleanText(downsell.pageSubtitle, 'Subtítulo de la oferta', 240),
       ...(cleanVideoUrl(downsell.videoUrl) ? { videoUrl: cleanVideoUrl(downsell.videoUrl) } : {}),
     } } : {}),
-    tracking: { metaPixelId: pixel },
+    // `metaPixelId` mirrors the first pixel so the release before the list can still be deployed over this data.
+    tracking: { metaPixelId: pixels[0] ?? '', metaPixelIds: pixels },
   };
 }
 
@@ -143,9 +146,9 @@ export const update = mutation({
       ...existing.checkout,
       upsellReferences: existing.checkout.upsellReferences.filter(reference => next.offer.upsells.some(upsell => upsell.productId === reference.productId)),
     };
-    // A caller that does not send the downsell leaves the saved one as it is.
-    const downsell = next.downsell ?? existing.downsell;
-    await ctx.db.replace(id, { ...next, ...(downsell ? { downsell } : {}), ...(checkout ? { checkout } : {}) });
+    // A patch: the address and the purchase pages are saved by the landing editor and stay as they are,
+    // and so does the downsell when the caller does not send it.
+    await ctx.db.patch(id, { ...next, ...(checkout ? { checkout } : {}) });
     return id;
   },
 });
