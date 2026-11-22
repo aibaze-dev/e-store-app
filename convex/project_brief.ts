@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { action } from './lib/functions';
 import { fail } from './lib/validation';
-import { DELIVERY_WINDOW_MS, validProjectSession } from '../shared/project-brief';
+import { DELIVERY_WINDOW_MS, PROJECT_BRIEF_LIMIT, validProjectSession } from '../shared/project-brief';
 
 const sessionArgs = { requestId: v.string(), firstLoad: v.number() };
 
@@ -59,7 +59,7 @@ export const submit = action({
     const business = args.business.trim();
     const brief = args.brief.trim();
     if (!name || name.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-        business.length > 160 || !brief || brief.length > 2000) fail('Check your contact and project details.');
+        business.length > 160 || !brief || brief.length > PROJECT_BRIEF_LIMIT) fail('Check your contact and project details.');
     if (!validProjectSession(args.firstLoad, args.requestId)) fail('Invalid project session.');
     const response = await fetch(apiUrl('/api/v1/webhooks/b2c-oportunity/project-brief'), {
       method: 'PATCH',

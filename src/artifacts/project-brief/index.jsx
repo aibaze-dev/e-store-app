@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAction } from 'convex/react';
-import { ArrowRight, Check, ClipboardList, Clock3, Mail, Wrench } from 'lucide-react';
-import { Field } from '@/components/Field.jsx';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
-import { Textarea } from '@/components/ui/textarea';
+import { Check, ClipboardList, Clock3, Mail, Wrench } from 'lucide-react';
+import BriefForm from './BriefForm.jsx';
 import { api } from '@/lib/api.js';
 import { DELIVERY_WINDOW_MS } from '../../../shared/project-brief.js';
 import { loadSession, readSession, remainingSeconds, reportOpening, saveSession, STORAGE_KEY } from './session.js';
@@ -40,7 +36,7 @@ function DeliveryClock({ firstLoad }) {
 
 function ProjectRoadmap({ submitted }) {
   return <section className="brief-roadmap" aria-labelledby="roadmap-title">
-    <h2 id="roadmap-title">How you’ll get your app</h2>
+    <h2 id="roadmap-title">How you’ll get your project</h2>
     <ol role="list">
       <li>
         <span className={`step-icon${submitted ? ' is-complete' : ''}`} aria-hidden="true">
@@ -111,18 +107,8 @@ export default function ProjectBrief({ name }) {
     };
   }, [firstLoad, requestId, submitted, storageUnavailable, open, openingAttempt]);
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleSubmit(fields) {
     if (sending.current || session.submitted || readyId !== session.requestId) return;
-    const form = event.currentTarget;
-    const fields = Object.fromEntries(new FormData(form));
-    for (const field of ['name', 'brief']) {
-      if (!fields[field].trim()) {
-        form.elements[field].setCustomValidity('Please fill out this field.');
-        form.elements[field].reportValidity();
-        return;
-      }
-    }
     sending.current = true;
     setPending(true);
     setError('');
@@ -153,25 +139,8 @@ export default function ProjectBrief({ name }) {
         <p>Our team will review your project and contact you at the email address you provided.</p>
       </div> : <>
         <h2 id="brief-title">Your project brief</h2>
-        <form onSubmit={handleSubmit} onInput={event => event.target.setCustomValidity('')}>
-          <fieldset disabled={pending}>
-            <Field label="Your name">{props => <Input {...props} name="name" autoComplete="name" maxLength={120} required />}</Field>
-            <Field label="Purchase email" hint="Re-enter the email you used at checkout. We’ll write to you there.">{props =>
-              <Input {...props} name="email" type="email" autoComplete="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" maxLength={254} required />}</Field>
-            <Field label="Business or brand name (optional)">{props => <Input {...props} name="business" autoComplete="organization" maxLength={160} />}</Field>
-            <Field label="What did you purchase?">{props => <NativeSelect {...props} name="product" defaultValue="" required>
-              <option value="" disabled>Select your project type</option><option>Landing page</option><option>Custom system</option>
-            </NativeSelect>}</Field>
-            <Field label="What should we build?" hint="Include your goals, must-have features, and any reference links.">{props =>
-              <Textarea {...props} name="brief" rows={3} maxLength={2000} required />}</Field>
-          </fieldset>
-          {error && <p role="alert" className="brief-error">{error}</p>}
-          {openingFailed && <>
-            <p role="alert" className="brief-error">We couldn’t connect your project. Retry the connection to send your brief.</p>
-            <Button type="button" variant="outline" onClick={() => setOpeningAttempt(attempt => attempt + 1)}>Retry connection</Button>
-          </>}
-          <Button type="submit" disabled={pending || readyId !== requestId}>{pending ? 'Sending…' : 'Send project brief'} <ArrowRight aria-hidden="true" /></Button>
-        </form>
+        <BriefForm onSend={handleSubmit} pending={pending} ready={readyId === requestId} error={error}
+          openingFailed={openingFailed} onRetry={() => setOpeningAttempt(attempt => attempt + 1)} />
       </>}
     </section>
   </main>;

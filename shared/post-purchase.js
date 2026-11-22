@@ -54,7 +54,7 @@ export function postPurchaseContent(content = {}) {
 }
 
 // Never embed arbitrary HTML/iframes. Accept known video players or direct video files.
-export function videoSource(value) {
+export function videoSource(value, { autoPlay = false } = {}) {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
@@ -63,7 +63,7 @@ export function videoSource(value) {
     if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com', 'youtu.be'].includes(host)) {
       const id = host === 'youtu.be' ? parts[0] : parts[0] === 'watch' ? url.searchParams.get('v') : ['embed', 'shorts', 'live'].includes(parts[0]) ? parts[1] : '';
       return /^[a-zA-Z0-9_-]{11}$/.test(id || '') ? {
-        kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}`,
+        kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${id}${autoPlay ? '?autoplay=1&mute=1&playsinline=1' : ''}`,
         ...(parts[0] === 'shorts' && { format: 'reel' }),
       } : null;
     }
@@ -71,7 +71,13 @@ export function videoSource(value) {
       const id = host === 'player.vimeo.com' && parts[0] === 'video' ? parts[1] : parts[0];
       const hash = url.searchParams.get('h') || (host !== 'player.vimeo.com' ? parts[1] : '');
       if (!/^\d+$/.test(id || '') || (hash && !/^[a-zA-Z0-9]+$/.test(hash))) return null;
-      return { kind: 'embed', src: `https://player.vimeo.com/video/${id}${hash ? `?h=${hash}` : ''}` };
+      const player = new URL(`https://player.vimeo.com/video/${id}`);
+      if (hash) player.searchParams.set('h', hash);
+      if (autoPlay) {
+        player.searchParams.set('autoplay', '1');
+        player.searchParams.set('muted', '1');
+      }
+      return { kind: 'embed', src: player.href };
     }
     const stored = /^[a-z0-9-]+\.convex\.cloud$/.test(host) && /^\/api\/storage\/[a-zA-Z0-9-]+$/.test(url.pathname);
     return stored || /\.(mp4|webm|ogv)$/i.test(url.pathname) ? { kind: 'video', src: url.href } : null;

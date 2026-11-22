@@ -1,4 +1,4 @@
-import { initialFunnel, afterDecline, claimReopen, nextStage } from '@/storefront/postPurchaseFunnel.js';
+import { initialFunnel, afterDecline, claimReopen, nextStage, postOfferDeadline } from '@/storefront/postPurchaseFunnel.js';
 import { postLabels } from '../../shared/purchase-copy.js';
 import { checkoutConfig } from '../../shared/checkout-copy.js';
 import { CheckoutPaymentPreview } from '@/storefront/CheckoutPayment.jsx';
@@ -181,11 +181,11 @@ export function OrderSummary({ order, labels }) {
 }
 
 // Optional VSL. `editKey` marks the section for the panel preview; outside it, it is inert.
-export function Video({ video, editKey = 'postPurchaseVideo', labels = postLabels(), preview = false, forceError = false }) {
+export function Video({ video, children, autoPlay = false, editKey = 'postPurchaseVideo', labels = postLabels(), preview = false, forceError = false }) {
   const edit = usePreviewSection();
   const [failed, setFailed] = useState(false);
   const [nativeRatio, setNativeRatio] = useState(null);
-  const source = videoSource(video.url);
+  const source = videoSource(video.url, { autoPlay });
   if (!video.enabled || !source) return null;
   const format = video.format && video.format !== 'auto' ? video.format : source.format;
   const ratio = format === 'reel' ? 9 / 16 : format === 'landscape' ? 16 / 9 : nativeRatio ?? 16 / 9;
@@ -196,9 +196,10 @@ export function Video({ video, editKey = 'postPurchaseVideo', labels = postLabel
   return <div {...edit(editKey)} className="purchase-video" style={{ '--vsl-ratio': ratio }}>
     {video.title && <h3>{video.title}</h3>}
     {source.kind === 'embed'
-      ? <iframe src={source.src} title={video.title || labels.videoTitle} allow="fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+      ? <iframe src={source.src} title={video.title || labels.videoTitle} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       : failed || forceError ? <p role="status" className="purchase-notice">{labels.videoError}</p>
-        : <video src={source.src} controls playsInline preload="metadata" onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
+        : <video src={source.src} autoPlay={autoPlay} muted={autoPlay} controls playsInline preload={autoPlay ? 'auto' : 'metadata'} onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
+    {children}
     <a onClick={event => { if (preview) event.preventDefault(); }} href={video.url} target="_blank" rel="noreferrer">{labels.videoOpen}<ExternalLink aria-hidden="true" /></a>
   </div>;
 }
@@ -249,6 +250,7 @@ export function PurchaseResult({ status = 'paid', presentation = {}, storeName, 
 
 // No payment session or tracking is started by these preview actions.
 export function PostPurchasePreview({ view, stage = 'offer', modal = true, state = 'offer', onStageChange }) {
+  const [deadline] = useState(() => postOfferDeadline());
   const content = normalizeContent(view.content);
   const labels = postLabels(content);
   const offer = view.postPurchaseOffer;
@@ -285,7 +287,7 @@ export function PostPurchasePreview({ view, stage = 'offer', modal = true, state
   const resultStates = ['paid', 'saved', 'empty', 'loading', 'missing', 'pending', 'needs_review', 'failed', 'expired', 'refunded'];
   const showOffer = !resultStates.includes(state);
   const paymentCopy = checkoutConfig(view);
-  const card = offer && !unavailableStage && <PostPurchaseOfferCard offer={{ ...offer, content: view.content }} currency={view.store.currency} stage={shown}
+  const card = offer && !unavailableStage && <PostPurchaseOfferCard offer={{ ...offer, content: view.content }} currency={view.store.currency} stage={shown} deadline={deadline}
     preview previewState={state} busy={state === 'preparing'} error={state === 'error' ? labels.startError : ''} canPurchase
     onAccept={() => setAccepted(true)} onDecline={decline}
     payment={accepted || ['payment', 'processing', 'payment-error', 'payment-loading'].includes(state) ? <CheckoutPaymentPreview askContact={false} copy={paymentCopy} state={state === 'processing' ? state : state === 'payment-error' ? 'error' : state === 'payment-loading' ? 'loading' : 'ready'} totalLabel={money(postPurchaseStage(offer, shown).price, view.store.currency)} /> : null} />;

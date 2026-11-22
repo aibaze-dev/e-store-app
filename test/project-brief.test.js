@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { api } from './api';
 import { backend } from './helpers';
 import { readSession, remainingSeconds, reportOpening, saveSession, STORAGE_KEY } from '../src/artifacts/project-brief/session';
-import { DELIVERY_WINDOW_MS } from '../shared/project-brief';
+import { formatProjectBrief, projectSections } from '../src/artifacts/project-brief/questions';
+import { DELIVERY_WINDOW_MS, PROJECT_BRIEF_LIMIT } from '../shared/project-brief';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -86,8 +87,26 @@ it('validates buyer input before contacting the webhook', async () => {
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
   const t = backend();
-  for (const invalid of [{ email: 'no-email' }, { name: ' ' }, { brief: ' ' }, { product: 'Unknown' }, { firstLoad: -1 }]) {
+  for (const invalid of [{ email: 'no-email' }, { name: ' ' }, { brief: ' ' }, { brief: 'x'.repeat(PROJECT_BRIEF_LIMIT + 1) }, { product: 'Unknown' }, { firstLoad: -1 }]) {
     await expect(t.action(api.project_brief.submit, { ...project, ...invalid })).rejects.toThrow();
   }
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['Landing page', 'Socials: @studio'],
+  ['Custom system', 'Workflow: Manager approves the booking'],
+])('sends only the selected %s answers through the existing projectIdea field', async (product, detail) => {
+  const answers = {
+    Bottleneck: '  Bookings get lost in messages.  ', Goal: '  ', Socials: '@studio',
+    Workflow: 'Manager approves the booking',
+  };
+  const brief = formatProjectBrief(projectSections(product), answers);
+  expect(brief).toBe('Bottleneck: Bookings get lost in messages.\n' + detail);
+  const fetch = vi.fn().mockResolvedValue(Response.json({ received: true }));
+  vi.stubGlobal('fetch', fetch);
+  await backend().action(api.project_brief.submit, { ...project, product, brief });
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    fullName: 'Ada', email: project.email, companyName: project.business, product, projectIdea: brief,
+  });
 });

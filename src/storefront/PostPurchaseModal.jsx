@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { SessionPayment, stripeKey } from './CheckoutPayment.jsx';
 import { sessionEnded } from '../../shared/checkout-session.js';
 import { claimExitIntent, leftDocument } from './exitIntent.js';
-import { afterDecline, claimReopen, funnelStore, nextStage } from './postPurchaseFunnel.js';
+import { afterDecline, claimReopen, funnelStore, nextStage, postOfferDeadline } from './postPurchaseFunnel.js';
 
 // The post-purchase offer of the thank-you page, in a modal that opens on load.
 // Payment happens inside the same modal; the amounts are charged by the server.
@@ -21,6 +21,7 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
   const [funnel, setFunnelState] = useState(() => funnelStore.read(sessionId));
   const [stage, setStage] = useState('offer');
   const [open, setOpen] = useState(true);
+  const [deadline] = useState(() => postOfferDeadline(sessionId));
   const [reopened, setReopened] = useState(false);
   const [payment, setPayment] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -105,7 +106,7 @@ export default function PostPurchaseModal({ offer, currency, sessionId, via, acc
 
   return <Dialog open={open} onOpenChange={next => { if (next) setOpen(true); else if (!paying && !busy) dismiss(); }}>
     <DialogContent closeLabel={labels.close} className="classic-offer-dialog post-offer-dialog max-w-lg" style={classicTheme(accentColor)} onInteractOutside={guard} onEscapeKeyDown={guard}>
-      <PostPurchaseOfferCard offer={offer} currency={currency} stage={stage} busy={busy} error={error} canPurchase={Boolean(stripeKey)}
+      <PostPurchaseOfferCard offer={offer} currency={currency} stage={stage} deadline={deadline} busy={busy} error={error} canPurchase={Boolean(stripeKey)}
         onAccept={accept} onDecline={decline} Title={DialogTitle} Description={DialogDescription}
         payment={payment?.stage === stage ? <SessionPayment copy={checkoutConfig({ content: offer.content })} key={payment.clientSecret} clientSecret={payment.clientSecret} sessionId={payment.sessionId} expiresAt={payment.expiresAt} onRenew={renew} total={price} currency={currency} totalLabel={money(price, currency)} onPayingChange={setPaying} /> : null} />
     </DialogContent>

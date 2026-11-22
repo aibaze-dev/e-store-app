@@ -1,3 +1,4 @@
+export const PROJECT_BRIEF_LIMIT = 2000;
 export const DELIVERY_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 export function validProjectSession(firstLoad, requestId) {

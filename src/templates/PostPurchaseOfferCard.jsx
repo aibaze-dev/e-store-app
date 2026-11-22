@@ -1,4 +1,6 @@
 import { postLabels, postOptions, purchaseText } from '../../shared/purchase-copy.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { checkoutTimeLeft } from '@/storefront/checkoutSignals.js';
 import { ArrowRight, Check, LoaderCircle, LockKeyhole, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/Field.jsx';
@@ -8,12 +10,42 @@ import { usePreviewSection } from './PreviewEditing.jsx';
 import { Video, postPurchaseStage } from './PostPurchaseContent.jsx';
 
 const PlainTitle = props => <h2 data-slot="dialog-title" className="text-2xl font-semibold tracking-tight" {...props} />;
+function OfferTimer({ deadline }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    let tick;
+    function update() {
+      const time = Date.now();
+      setNow(time);
+      if (time >= deadline) clearInterval(tick);
+    }
+    tick = setInterval(update, 1000);
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => { clearInterval(tick); document.removeEventListener('visibilitychange', update); };
+  }, [deadline]);
+  return <div className="post-offer-timer" data-running={now < deadline} role="timer" aria-label="Offer countdown" aria-live="off">
+    {checkoutTimeLeft(deadline, now)}
+  </div>;
+}
 const PlainDescription = ({ className = '', ...props }) => <p data-slot="dialog-description" className={`leading-7 text-muted-foreground ${className}`} {...props} />;
 
 // Content of the post-purchase modal: the thank-you page shows it inside a dialog and the
 // panel preview inside a mock of that dialog. `payment` replaces the buttons once accepted.
-export default function PostPurchaseOfferCard({ offer, currency, stage, preview = false, previewState = 'offer', busy = false, error = '', canPurchase = false, onAccept, onDecline, payment = null, Title = PlainTitle, Description = PlainDescription }) {
+export default function PostPurchaseOfferCard({ offer, currency, stage, deadline, preview = false, previewState = 'offer', busy = false, error = '', canPurchase = false, onAccept, onDecline, payment = null, Title = PlainTitle, Description = PlainDescription }) {
   const edit = usePreviewSection();
+  const titleRef = useRef(null);
+  const previousStage = useRef(stage);
+  useLayoutEffect(() => {
+    if (previousStage.current === stage) return;
+    previousStage.current = stage;
+    const heading = titleRef.current;
+    const dialog = heading?.closest('[role="dialog"]');
+    if (!dialog) return;
+    heading.focus({ preventScroll: true });
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dialog.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' });
+  }, [stage]);
   const { postPurchase: copy, postPurchaseVideo: video, postPurchaseBenefits: benefits } = postPurchaseContent(offer.content);
   const labels = postLabels(offer.content);
   const options = postOptions(offer.content);
@@ -26,16 +58,19 @@ export default function PostPurchaseOfferCard({ offer, currency, stage, preview 
   const ctaText = final ? copy.finalCtaText || defaults.finalCtaText : discounted ? copy.downsellCtaText || defaults.downsellCtaText : copy.ctaText || defaults.ctaText;
   const hasVideo = video.enabled && Boolean(videoSource(video.url));
   const showBenefits = !payment && benefits.enabled && benefits.items.length > 0;
+  const timer = deadline && <OfferTimer deadline={deadline} />;
 
   return <>
     <div {...edit(final ? 'postPurchaseFinal' : discounted ? 'postPurchaseDownsell' : 'postPurchase')} className="space-y-2 pr-8">
       {copy.eyebrow && !discounted && <p className="text-xs font-bold tracking-widest text-primary uppercase">{copy.eyebrow}</p>}
       {discounted && options.showDiscount && <p className="text-xs font-bold tracking-widest text-primary uppercase">{purchaseText(labels, 'discount', { porcentaje: percent })}</p>}
-      <Title>{title}</Title>
+      <Title ref={titleRef} tabIndex={-1}>{title}</Title>
       {subtitle ? <Description>{subtitle}</Description> : <Description className="sr-only">{labels.offerDescription}</Description>}
     </div>
     {preview && previewState === 'videoError' && !hasVideo && <p className="text-sm text-muted-foreground">Activá un video en Post-compra para revisar su mensaje de error.</p>}
-    {hasVideo && !payment && <Video key={video.url} video={video} labels={labels} preview={preview} forceError={previewState === 'videoError'} />}
+    {!payment && (hasVideo
+      ? <Video key={video.url} video={video} autoPlay labels={labels} preview={preview} forceError={previewState === 'videoError'}>{timer}</Video>
+      : timer)}
     <div className="flex gap-4">
       {options.showCover && offer.coverUrl && <img src={offer.coverUrl} alt="" className="h-24 w-18 shrink-0 rounded-lg object-cover" />}
       <div className="min-w-0 space-y-1">

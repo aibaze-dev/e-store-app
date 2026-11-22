@@ -47,3 +47,14 @@
 @media (max-width: 740px) {
   .artifact-project-brief .brief-layout { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
 }
+.artifact-project-brief .brief-progress,
+.artifact-project-brief .brief-budget { font-size: 14px; }
+.artifact-project-brief .brief-step-title { font-size: 20px; font-weight: 600; margin: 4px 0 20px; }
+.artifact-project-brief .brief-budget { margin-top: 16px; }
+.artifact-project-brief .brief-actions { display: flex; align-items: stretch; gap: 12px; margin-top: 24px; }
+.artifact-project-brief .brief-actions button { margin-top: 0; height: auto; }
+.artifact-project-brief .brief-actions button[type='button'] { width: auto; }
+.artifact-project-brief .brief-actions button[type='submit'] { flex: 1; min-width: 0; }
+@media (max-width: 380px) {
+  .artifact-project-brief .brief-actions { flex-direction: column; }
+}

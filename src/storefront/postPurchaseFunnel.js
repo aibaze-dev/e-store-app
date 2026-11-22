@@ -8,6 +8,18 @@ import { popupOptions } from '../../shared/purchase-copy.js';
 
 export const REOPEN_LIMITS = { visibility: 1, mouse: 2 };
 
+export function postOfferDeadline(sessionId) {
+  const deadline = Date.now() + 5 * 60_000;
+  if (!sessionId) return deadline;
+  const key = `post-offer-deadline:${sessionId}`;
+  try {
+    const saved = Number(sessionStorage.getItem(key));
+    if (Number.isSafeInteger(saved) && saved > 0 && saved <= deadline) return saved;
+    sessionStorage.setItem(key, String(deadline));
+  } catch { /* The modal holds the deadline in memory while this page is open. */ }
+  return deadline;
+}
+
 export const initialFunnel = () => ({ declined: [], reopens: { visibility: 0, mouse: 0 } });
 
 export function stagesFor(offer) {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '@/lib/api.js';
 import { EMAIL_ERRORS, EMAIL_LABELS, formatDate, formatMoney } from '@/lib/format.js';
@@ -7,6 +8,7 @@ import { EmptyState, PageSkeleton } from '@/components/Field.jsx';
 import { useStoreWorkspace } from './StoreWorkspace.jsx';
 
 const ROLE_LABELS = { main: 'Principal', bonus: 'Bono', upsell: 'Extra', post_purchase: 'Post-compra' };
+const STATUS_FILTERS = { paid: 'Pagadas', pending: 'Pendientes', all: 'Todas' };
 const REVIEW_REASONS = { amount: ' y no coincide con la orden', duplicate: ' por una oferta post-compra que ya estaba pagada', late: ' por una orden vencida o rechazada' };
 
 // Campaign and ad of the link that brought the buyer, when the order has them.
@@ -14,21 +16,31 @@ const campaignLabel = attribution => attribution ? [attribution.campaign || attr
 
 export default function OrdersPage() {
   const { store } = useStoreWorkspace();
+  const [status, setStatus] = useState('paid');
   const orders = useQuery(api.orders.list, store ? { storeId: store._id } : 'skip');
+  const visibleOrders = status === 'all' ? orders : orders?.filter(order => order.status === status);
   return <div className="space-y-6">
     <div className="space-y-1">
       <h1 className="text-3xl font-semibold tracking-tight">Cobros y entregas</h1>
       <p className="text-sm leading-6 text-muted-foreground">Las últimas 100 compras de {store?.name || 'esta tienda'}, con el estado que confirmó Stripe y los entregables de cada una.</p>
     </div>
 
+    <div className="catalog-segmented" role="group" aria-label="Filtrar compras por estado">
+      {Object.entries(STATUS_FILTERS).map(([value, label]) =>
+        <button type="button" key={value} aria-pressed={status === value} className={status === value ? 'is-active' : ''} onClick={() => setStatus(value)}>{label}</button>
+      )}
+    </div>
     {orders === undefined && <PageSkeleton label="Cargando cobros" />}
     {orders?.length === 0 && <EmptyState title="Todavía no hay compras">
       <p>Cuando alguien inicie un pago desde una landing publicada, va a aparecer acá con su estado.</p>
     </EmptyState>}
-    {orders?.length > 0 && <div className="rounded-xl border bg-card">
+    {orders?.length > 0 && visibleOrders.length === 0 && <EmptyState title={`No hay compras ${STATUS_FILTERS[status].toLowerCase()} entre las últimas 100`}>
+      <p>Elegí otro estado o seleccioná «Todas» para ver las compras recientes.</p>
+    </EmptyState>}
+    {visibleOrders?.length > 0 && <div className="rounded-xl border bg-card">
       <Table>
         <TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Tienda</TableHead><TableHead>Comprador</TableHead><TableHead>Detalle</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
-        <TableBody>{orders.map(order => <TableRow key={order._id}>
+        <TableBody>{visibleOrders.map(order => <TableRow key={order._id}>
           <TableCell className="whitespace-nowrap">{formatDate(order.createdAt)}</TableCell>
           <TableCell className="min-w-40">{order.storeName || '—'}{order.isPostPurchase && <span className="block text-xs text-muted-foreground">Oferta post-compra</span>}{order.downsell && <span className="block text-xs text-muted-foreground">{order.finalDownsell ? 'Con último descuento' : 'Con descuento de downsell'}</span>}{campaignLabel(order.attribution) && <span className="block text-xs break-words text-muted-foreground">Campaña: {campaignLabel(order.attribution)}</span>}</TableCell>
           <TableCell className="min-w-44">{order.buyer?.email
