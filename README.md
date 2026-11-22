@@ -157,7 +157,7 @@ El hook público mide una vez por navegador, tienda, página y día de negocio. 
 
 Los únicos se calculan con el hash completo, sin sumar los únicos diarios ni los de landing y checkout. La interfaz no expone los códigos. Cuando no hay IP, la vista se conserva pero no se inventa una identidad para calcular personas. La pantalla avisa si la estimación está incompleta; si hay actividad sin ningún identificador disponible, muestra «—» y un estado de estimación no disponible en lugar de cero personas. Una IP no equivale a una persona. Se descartan ráfagas por encima de 120 vistas por tienda/IP/minuto (las vistas sin IP comparten ese límite); esto no pretende identificar todos los bots. El historial se conserva sin purga automática.
 
-Los días usan `src/config/businessData.json.timeZone` (actualmente `America/Adak`), como el resto de fechas de negocio. Cambiar esa configuración después de acumular datos requiere migrar `day` desde `_creationTime` para mantener una única zona horaria en los reportes.
+Los días usan `src/config/businessData.json.timeZone` (`Asia/Bangkok`, UTC+7), como el resto de fechas de negocio. Las visitas anteriores al cambio conservan el día registrado en `America/Adak`.
 
 El informe exige `requireAdmin` y la lectura paginada es interna. Pruebas locales cubren permisos, aislamiento por tienda, IPs faltantes, HMAC, fechas/DST, reintentos y más de 1000 vistas sin truncamiento. `convex-test` no implementa todavía el syscall nativo de metadatos: solo esa fuente de IP se sustituye en las pruebas. La medición real de IP en cloud debe verificarse tras desplegar frontend y backend juntos; no se ejecutó un despliegue durante esta implementación.
 

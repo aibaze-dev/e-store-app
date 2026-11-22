@@ -271,7 +271,8 @@ describe('IP identity and daily timeline', () => {
   it('respects business midnight, DST and calendar date bounds', () => {
     expect(dateKey(Date.parse('2026-11-01T08:59:59Z'), 'America/Adak')).toBe('2026-10-31');
     expect(dateKey(Date.parse('2026-11-01T09:00:00Z'), 'America/Adak')).toBe('2026-11-01');
-    expect(startOfDate('2026-11-02', business.timeZone) - startOfDate('2026-11-01', business.timeZone)).toBe(25 * 3_600_000);
+    expect(startOfDate('2026-11-02', 'America/Adak') - startOfDate('2026-11-01', 'America/Adak')).toBe(25 * 3_600_000);
+    expect(startOfDate('2026-11-02', business.timeZone)).toBe(Date.parse('2026-11-01T17:00:00Z'));
     expect(shiftDate('2026-11-01', 1)).toBe('2026-11-02');
     expect(validRange('2024-02-29', '2024-03-01')).toBe(true);
     expect(validRange('2026-02-29', '2026-03-01')).toBe(false);

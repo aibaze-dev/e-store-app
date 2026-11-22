@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BROWSER_ID_KEY, createVisitTracker, visitStorageKey } from '../src/storefront/visitTracking.js';
 import { dateKey } from '../shared/analytics.js';
+import business from '../src/config/businessData.json';
 
 const storage = () => {
   const values = new Map();
@@ -11,7 +12,7 @@ const start = Date.parse('2026-11-15T10:00:00Z');
 function setup(extra = {}) {
   const local = storage();
   let time = start;
-  const options = { getStorage: () => local, now: () => time, timeZone: 'America/Adak', ...extra };
+  const options = { getStorage: () => local, now: () => time, timeZone: business.timeZone, ...extra };
   const record = vi.fn(async () => ({ status: 'recorded', day: dateKey(time, options.timeZone) }));
   return { local, options, record, tracker: createVisitTracker(options), setTime: value => { time = value; } };
 }
@@ -35,10 +36,10 @@ describe('persistent daily visit guard', () => {
     await tracker.track(visit, record);
     await tracker.track({ ...visit, page: 'checkout' }, record);
     await tracker.track({ ...visit, storeId: 'store-two', subdomain: 'otro' }, record);
-    setTime(Date.parse('2026-11-16T09:59:59Z'));
-    await tracker.track(visit, record); // still Nov 15 in Adak
+    setTime(Date.parse('2026-11-15T16:59:59Z'));
+    await tracker.track(visit, record); // still Nov 15 in Bangkok
     expect(record).toHaveBeenCalledTimes(3);
-    setTime(Date.parse('2026-11-16T10:00:00Z'));
+    setTime(Date.parse('2026-11-15T17:00:00Z'));
     await tracker.track(visit, record);
     expect(record).toHaveBeenCalledTimes(4);
     expect(new Set(record.mock.calls.map(([args]) => args.eventId)).size).toBe(4);
@@ -115,7 +116,7 @@ describe('persistent daily visit guard', () => {
     const { tracker, setTime, record, local } = setup();
     record.mockResolvedValueOnce({ status: 'recorded', day: '2026-11-16' });
     await tracker.track(visit, record);
-    setTime(Date.parse('2026-11-16T10:00:01Z'));
+    setTime(Date.parse('2026-11-15T17:00:01Z'));
     await tracker.track(visit, record);
     expect(record).toHaveBeenCalledTimes(1);
     expect(JSON.parse(local.getItem(visitStorageKey('store-one', 'landing'))).day).toBe('2026-11-16');
