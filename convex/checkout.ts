@@ -2,12 +2,14 @@ import { checkoutRecord, forStore, purchaseContent } from './lib/landing_records
 import { authorizedSession } from './quizzes';
 import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
-import { action, internalMutation, query, type Doc, type Id, type MutationCtx } from './lib/functions';
+import { action, internalMutation, mutation, query, type Doc, type Id, type MutationCtx } from './lib/functions';
 import { buildDownsellOrder, buildInitialOrder, buildPostPurchaseOrder } from './lib/pricing';
 import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
 import { queueEmail } from './emails';
 import { queueSaleAlert } from './discord';
 import { fail } from './lib/validation';
+import { clientIp } from './lib/request_ip';
+import { normalizeIp } from './lib/analytics_ip';
 import { attributionMetadata, cleanAttribution } from '../shared/attribution.js';
 import { attribution as attributionArg } from './schema';
 import { sessionExpiresAt } from '../shared/checkout-session.js';
@@ -20,6 +22,9 @@ const downsell = v.optional(v.boolean());
 const finalDownsell = v.optional(v.boolean());
 const origin = v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct')));
 const quizToken = v.optional(v.string());
+// Address of the browser, read by the action from Convex's own request metadata (never from
+// the browser's arguments) and handed to the internal mutation.
+const ip = v.optional(v.string());
 // Set by the browser when the previous call for this attempt failed.
 const retry = v.optional(v.boolean());
 // Campaign of the ad link, as the browser remembers it. Cleaned again before it is stored.
@@ -69,7 +74,7 @@ async function loadProducts(ctx: MutationCtx, ids: Id<'products'>[]) {
 // Creates the order and its pending transaction once per attempt. A retry of the same
 // attempt returns the order already created, so it can never produce a second one.
 async function openOrder(ctx: MutationCtx, input: {
-  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; parentOrderId?: Id<'orders'>; downsell?: boolean; finalDownsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; attribution?: Doc<'orders'>['attribution']; retry?: boolean; build: () => Promise<Snapshot>;
+  store: Doc<'stores'>; landing: Doc<'landings'>; attemptId: string; ip?: string; parentOrderId?: Id<'orders'>; downsell?: boolean; finalDownsell?: boolean; origin?: 'classic'|'quiz'|'direct'; quizSessionId?: Id<'quizSessions'>; attribution?: Doc<'orders'>['attribution']; retry?: boolean; build: () => Promise<Snapshot>;
 }): Promise<OpenOrder> {
   checkAttempt(input.attemptId);
   const existing = await ctx.db.query('orders').withIndex('by_attempt', q => q.eq('attemptId', input.attemptId)).first();
@@ -86,6 +91,7 @@ async function openOrder(ctx: MutationCtx, input: {
     landingId: input.landing._id,
     parentOrderId: input.parentOrderId,
     attemptId: input.attemptId,
+    ...(input.ip ? { ip: input.ip } : {}),
     origin: input.origin ?? 'direct',
     quizSessionId: input.quizSessionId,
     ...(input.attribution ? { attribution: input.attribution } : {}),
@@ -117,7 +123,7 @@ function checkAttempt(attemptId: string) {
 }
 
 export const createOrder = internalMutation({
-  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, finalDownsell, origin, quizToken, retry, attribution },
+  args: { subdomain: v.string(), upsellProductIds: v.array(v.id('products')), attemptId, downsell, finalDownsell, origin, quizToken, retry, attribution, ip },
   handler: async (ctx, args): Promise<OpenOrder> => {
     if (args.finalDownsell && !args.downsell) fail('La última oferta requiere un descuento activo.');
     if (args.downsell && args.upsellProductIds.length > 0) fail('La oferta con descuento no incluye extras.');
@@ -130,7 +136,7 @@ export const createOrder = internalMutation({
     if(args.origin==='classic') {const classic=await forStore(ctx,store._id);if(!classic?.published)fail('Landing no publicada.');landing=classic;}
     if(session) {landing=(await ctx.db.get(session.landingId))!;await ctx.db.patch(session._id,{checkoutAt:session.checkoutAt ?? Date.now()});}
     return await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
+      store, landing, attemptId: args.attemptId, ip: args.ip, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin ?? 'direct', quizSessionId:session?._id, retry: args.retry,
       // A quiz buyer whose browser lost the campaign keeps the one their quiz started with.
       attribution: cleanAttribution(args.attribution) ?? session?.attribution,
       build: async () => {
@@ -170,7 +176,7 @@ export const createPostPurchaseOrder = internalMutation({
       if (transaction?.stripeSessionExpiresAt && transaction.stripeSessionExpiresAt > Date.now() + 2 * 60_000) { open = child; break; }
     }
     const order = open ? await reopen(ctx, open, landing.subdomain, args.retry) : await openOrder(ctx, {
-      store, landing, attemptId: args.attemptId, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, attribution: parent.attribution, retry: args.retry,
+      store, landing, attemptId: args.attemptId, ip: parent.ip, parentOrderId: parent._id, downsell: stage !== 'offer', finalDownsell: stage === 'final', origin:parent.origin, quizSessionId:parent.quizSessionId, attribution: parent.attribution, retry: args.retry,
       build: async () => buildPostPurchaseOrder(store, await loadProducts(ctx, store.postPurchase.productId ? [store.postPurchase.productId] : []), stage),
     });
     // The buyer just paid the parent order: their email is reused instead of asked again.
@@ -232,6 +238,8 @@ export const start = action({
     stripeSettings();
     const order: OpenOrder = await ctx.runMutation(internal.checkout.createOrder, {
       subdomain: args.subdomain, upsellProductIds: args.upsellProductIds, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, origin:args.origin, quizToken:args.quizToken, retry: args.retry, attribution: args.attribution,
+      // Best effort: not knowing where the buyer is never blocks a sale.
+      ip: normalizeIp(await clientIp(ctx).catch(() => null)) ?? undefined,
     });
     return await openSession(ctx, order, args.via, args.elements);
   },
@@ -245,6 +253,27 @@ export const startPostPurchase = action({
       parentSessionId: args.parentSessionId, attemptId: args.attemptId, downsell: args.downsell, finalDownsell: args.finalDownsell, retry: args.retry,
     });
     return await openSession(ctx, order, args.via, args.elements);
+  },
+});
+
+// What the visitor typed in the checkout before paying, kept on the still-pending order so an
+// abandoned checkout keeps its contact. Only the browser that holds the session id can write it,
+// and only while the order is pending: once paid, Stripe's own details replace it.
+const DRAFT_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const saveBuyerDraft = mutation({
+  args: { sessionId: v.string(), email: v.string(), name: v.string() },
+  handler: async (ctx, args): Promise<null> => {
+    if (!/^cs_(test|live)_[A-Za-z0-9]{1,200}$/.test(args.sessionId)) return null;
+    const email = args.email.trim();
+    const name = args.name.trim().replace(/\s+/g, ' ');
+    if (email.length > 254 || !DRAFT_EMAIL.test(email) || name.length > 100) return null;
+    const transaction = await ctx.db.query('transactions').withIndex('by_session', q => q.eq('stripeCheckoutSessionId', args.sessionId)).first();
+    if (!transaction || transaction.status !== 'pending') return null;
+    const order = await ctx.db.get(transaction.orderId);
+    if (!order || order.status !== 'pending') return null;
+    if (order.buyer?.email === email && order.buyer?.name === name) return null;
+    await ctx.db.patch(order._id, { buyer: { email, name } });
+    return null;
   },
 });
 

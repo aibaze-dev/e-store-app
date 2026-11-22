@@ -56,6 +56,7 @@ describe('simplified quiz authoring and shared presentation', () => {
   expect((await f.admin.query(api.landings.preview,{storeId:f.storeId,type:'quiz'})).quiz).toEqual(tiny());
  });
  it('counts each step and completion once despite retries, going back and recompleting',async()=>{
+  vi.stubEnv('BETTER_AUTH_SECRET','test-only-secret');
   const f=await fixture();await publish(f);const key=token();let d=await complete(f,key);
   d=await f.t.mutation(api.quizzes.saveAnswer,{token:key,...command(d.session,null,'back')});
   const args={token:key,...command(d.session,{name:'Ana',email:'ana@example.com',consent:false})};
@@ -68,6 +69,9 @@ describe('simplified quiz authoring and shared presentation', () => {
   await expect(f.t.query(api.quizzes.detail,{sessionId:row._id})).rejects.toThrow();
   await expect(f.t.mutation(api.quizzes.remove,{sessionId:row._id})).rejects.toThrow();
   expect(row.ipHash).toBeUndefined();
+  // The IP is kept for later location lookups but never leaves the server.
+  expect(row.ip).toBeUndefined();
+  expect((await f.t.run(ctx=>ctx.db.get(row._id))).ip).toBe('192.0.2.1');
  });
  it('retains bonuses, extras, downsell, post-purchase attribution and delivery after webhooks',async()=>{
   const f=await fixture();const extra=await f.admin.mutation(api.products.create,product('Extra','extra'));

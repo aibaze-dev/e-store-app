@@ -1,6 +1,6 @@
 import { CHECKOUT_DEFAULTS, checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
-import { useEffect, useRef, useState } from 'react';
-import { useAction, useQuery } from 'convex/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { CheckoutElementsProvider, PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { loadStripe } from '@stripe/stripe-js/pure';
 import { Clock, CreditCard, LoaderCircle, UserRound } from 'lucide-react';
@@ -24,9 +24,9 @@ const stripeFor = locale => {
 const appearance = { variables: { colorPrimary: '#075bd8', colorText: '#202a3b', borderRadius: '10px', fontFamily: 'Arial, sans-serif', fontSizeBase: '16px' } };
 
 // Only email and name: card, wallets and anything else are Stripe's own Payment Element.
-export function PersonalDetails({ buyer, setBuyer, disabled, formId, copy = CHECKOUT_DEFAULTS }) {
+export function PersonalDetails({ buyer, setBuyer, disabled, formId, onBlur, copy = CHECKOUT_DEFAULTS }) {
   const field = (key, label, autocomplete, type, placeholder, hint) => <Field label={label} hint={hint}>{ids => <Input {...ids} form={formId} name={key} type={type} placeholder={placeholder} autoComplete={autocomplete} required maxLength={key === 'email' ? 254 : 100} value={buyer[key]} disabled={disabled} onChange={event => setBuyer(current => ({ ...current, [key]: event.target.value }))} />}</Field>;
-  return <fieldset disabled={disabled} className="checkout-personal space-y-3">
+  return <fieldset disabled={disabled} onBlur={onBlur} className="checkout-personal space-y-3">
     <legend className="mb-6 flex items-center gap-3 text-2xl font-bold"><UserRound aria-hidden="true" />{copy.personalTitle}</legend>
     <div className="grid gap-5 sm:grid-cols-2">
       {field('email', copy.emailLabel, 'email', 'email', copy.emailPlaceholder)}
@@ -46,6 +46,32 @@ function useBuyer(initialBuyer) {
     if (email || name) setBuyer(current => ({ email: current.email || email, name: current.name || name }));
   }, [email, name]);
   return [buyer, setBuyer];
+}
+
+// Keeps what the visitor typed on the pending order of `sessionId`, so a checkout abandoned
+// before paying still has its contact. Saved shortly after typing stops (autofill included)
+// and when the fields lose focus; the server ignores anything that is not an email.
+const DRAFT_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function useBuyerDraft(sessionId, buyer) {
+  const save = useMutation(api.checkout.saveBuyerDraft);
+  const latest = useRef({ sessionId, buyer });
+  latest.current = { sessionId, buyer };
+  const sent = useRef('');
+  const flush = useCallback(() => {
+    const { sessionId: id, buyer: current } = latest.current;
+    const email = current.email.trim();
+    const name = current.name.trim();
+    if (!id || !DRAFT_EMAIL.test(email)) return;
+    const key = JSON.stringify([id, email, name]);
+    if (key === sent.current) return;
+    sent.current = key;
+    save({ sessionId: id, email, name }).catch(() => { if (sent.current === key) sent.current = ''; });
+  }, [save]);
+  useEffect(() => {
+    const timer = setTimeout(flush, 800);
+    return () => clearTimeout(timer);
+  }, [sessionId, buyer.email, buyer.name, flush]);
+  return flush;
 }
 
 // Countdown to the real end of a Stripe session ({ sessionId, expiresAt }) and whether it can
@@ -138,6 +164,7 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
   const ready = session?.key === key;
   const live = ready ? session : null;
   const clock = useSessionClock(live);
+  const saveDraft = useBuyerDraft(live?.sessionId, buyer);
   // The page shows the countdown next to the order summary.
   useEffect(() => { onSession?.(live ? { sessionId: live.sessionId, expiresAt: live.expiresAt } : null); }, [live?.sessionId, live?.expiresAt]); // eslint-disable-line react-hooks/exhaustive-deps
   // A new attempt is a new order and a new Stripe session; the expired one stays expired.
@@ -145,7 +172,7 @@ export default function CheckoutPayment({ view, via, selected, total, totalLabel
   const setProcessing = value => { setPaying(value); onPayingChange(value); };
   const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-9">
-    <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />
+    <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" onBlur={saveDraft} copy={copy} />
     {ready && clock.ended && !paying ? <SessionExpired copy={copy} onRenew={renew} /> : ready ? <CheckoutElementsProvider key={`${session.clientSecret}:${copy.paymentLocale}`} stripe={stripe} options={{ clientSecret: session.clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
       <PaymentForm copy={copy} total={total} currency={view.store.currency} buyer={buyer} totalLabel={totalLabel} onPayingChange={setProcessing} payRef={payRef} onInitiate={() => trackPixel(view.store.metaPixelId, 'InitiateCheckout', { value: total / 100, currency: view.store.currency })} />
     </CheckoutElementsProvider> : <div className="space-y-6">
@@ -166,11 +193,13 @@ export function SessionPayment({ clientSecret, sessionId, expiresAt, onRenew, to
   const [buyer, setBuyer] = useBuyer(initialBuyer);
   const [paying, setPayingState] = useState(false);
   const clock = useSessionClock(sessionId ? { sessionId, expiresAt } : null);
+  // Only where this form asks for the contact; otherwise the session already has it.
+  const saveDraft = useBuyerDraft(askContact ? sessionId : undefined, buyer);
   const ended = Boolean(onRenew) && clock.ended && !paying;
   const setPaying = value => { setPayingState(value); onPayingChange(value); };
   const stripe = stripeKey ? stripeFor(copy.paymentLocale) : null;
   return <div className="space-y-8 rounded-xl border bg-card p-5 sm:p-6">
-    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" copy={copy} />}
+    {askContact && <PersonalDetails buyer={buyer} setBuyer={setBuyer} disabled={paying} formId="checkout-payment" onBlur={saveDraft} copy={copy} />}
     {ended ? <SessionExpired copy={copy} onRenew={onRenew} heading={false} /> : <CheckoutElementsProvider key={clientSecret} stripe={stripe} options={{ clientSecret, elementsOptions: { appearance }, adaptivePricing: { allowed: false } }}>
       <PaymentForm copy={copy} total={total} currency={currency} buyer={askContact ? buyer : null} totalLabel={totalLabel} onPayingChange={setPaying} onInitiate={onInitiate} />
     </CheckoutElementsProvider>}

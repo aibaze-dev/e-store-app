@@ -3,7 +3,7 @@ import { ConvexError, v } from 'convex/values';
 import { makeFunctionReference, paginationOptsValidator } from 'convex/server';
 import { action, internalQuery, mutation, query } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
-import { hashIp, requestIp } from './lib/analytics_ip';
+import { hashIp, normalizeIp, requestIp } from './lib/analytics_ip';
 import { createIntervalReport, createReport, dateKey, shiftDate, startOfDate, validRange, PRESENCE_WINDOW_MS } from '../shared/analytics';
 import business from '../src/config/businessData.json';
 import { cleanAttribution } from '../shared/attribution.js';
@@ -21,14 +21,15 @@ export const recordView = mutation({
     // A separate key is optional; the existing server secret is domain-separated above.
     const secret = process.env.ANALYTICS_IP_SECRET || process.env.BETTER_AUTH_SECRET;
     if (!secret) throw new ConvexError('La medición de visitas no está configurada.');
-    const ipHash = await hashIp(await requestIp(ctx), store._id, secret);
+    const ip = normalizeIp(await requestIp(ctx));
+    const ipHash = await hashIp(ip, store._id, secret);
     const now = Date.now();
     // Bound accidental loops/abuse without a second table. Missing IPs share a bucket.
     const recent = await ctx.db.query('pageViews').withIndex('by_store_ip', q => q.eq('storeId', store._id).eq('ipHash', ipHash).gte('_creationTime', now - 60_000)).take(120);
     if (recent.length >= 120) return null;
     const day = dateKey(now, business.timeZone);
     const campaign = cleanAttribution(attribution);
-    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, eventId, origin:origin ?? (page==='landing'?'classic':'direct'), ...(campaign ? { attribution: campaign } : {}) });
+    await ctx.db.insert('pageViews', { storeId: store._id, page, day, ipHash, ...(ip ? { ip } : {}), eventId, origin:origin ?? (page==='landing'?'classic':'direct'), ...(campaign ? { attribution: campaign } : {}) });
     return { status: 'recorded' as const, day };
   },
 });

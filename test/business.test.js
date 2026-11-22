@@ -1227,6 +1227,49 @@ describe('landing copy assistant', () => {
     expect(requests).toHaveLength(0);
   });
 
+  it('builds a copyable prompt with the store data and the exact JSON structure, only for admins', async () => {
+    const { t, admin, storeId } = await campaign();
+    const stranger = await signedIn(t, 'stranger@example.com');
+    const prompt = await admin.query(api.landing_wizard.importPrompt, { storeId });
+    expect(prompt).toContain('Tienda: ');
+    expect(prompt).toContain('Instrucciones de redacción');
+    const template = JSON.parse(prompt.slice(prompt.lastIndexOf('\n{\n') + 1));
+    expect(template.guaranteeDays).toBe(0);
+    expect(Object.keys(template)).toEqual(expect.arrayContaining(['hero', 'faq', 'socialProof', 'promotion', 'activity', 'postPurchase']));
+    expect(template.benefits.items[0]).toEqual({ title: '', description: '', icon: 'check' });
+    await expect(stranger.query(api.landing_wizard.importPrompt, { storeId })).rejects.toThrow('no tiene acceso');
+    await expect(t.query(api.landing_wizard.importPrompt, { storeId })).rejects.toThrow();
+  });
+
+  it('imports pasted JSON through the same cleaning as the assistant, without calling OpenAI or saving', async () => {
+    const { t, admin, storeId } = await campaign();
+    const requests = mockOpenAI();
+    const before = await rows(t, 'landings');
+    const pasted = `Acá tenés tu JSON:\n\`\`\`json\n${JSON.stringify({ ...copy, guaranteeDays: 14 })}\n\`\`\``;
+    const draft = await admin.action(api.landing_wizard.importJson, { storeId, json: pasted });
+    expect(requests).toHaveLength(0);
+    expect(await rows(t, 'landings')).toEqual(before);
+    expect(draft.hero.title).toBe('Tu primera inversión');
+    expect(draft.closing.ctaText).toHaveLength(60);
+    expect(draft.guarantee).toMatchObject({ title: 'Garantía', days: 14 });
+    expect(draft.socialProof.items.every(item => item.isExample)).toBe(true);
+    expect(draft.postPurchaseVideo).toEqual({ title: 'Conocé el curso' });
+
+    const noGuarantee = await admin.action(api.landing_wizard.importJson, { storeId, json: JSON.stringify({ ...copy, guaranteeDays: 0 }) });
+    expect(noGuarantee.guarantee).toBeUndefined();
+  });
+
+  it('rejects invalid pasted JSON with a readable message and only for admins', async () => {
+    const { t, admin, storeId } = await campaign();
+    const stranger = await signedIn(t, 'stranger@example.com');
+    const json = JSON.stringify(copy);
+    await expect(t.action(api.landing_wizard.importJson, { storeId, json })).rejects.toThrow();
+    await expect(stranger.action(api.landing_wizard.importJson, { storeId, json })).rejects.toThrow('no tiene acceso');
+    await expect(admin.action(api.landing_wizard.importJson, { storeId, json: '{ "hero": ' })).rejects.toThrow('no es un JSON válido');
+    await expect(admin.action(api.landing_wizard.importJson, { storeId, json: '[1, 2]' })).rejects.toThrow('no es un JSON válido');
+    await expect(admin.action(api.landing_wizard.importJson, { storeId, json: '{"faq": {}}' })).rejects.toThrow('hero.title');
+  });
+
   it('reports a missing key and an OpenAI failure or refusal with a readable message', async () => {
     const { admin, storeId } = await campaign();
     mockOpenAI({ status: 500, body: { error: { type: 'server_error' } } });

@@ -106,7 +106,7 @@ describe('rolling 12-hour activity', () => {
 });
 
 describe('minimal visit history', () => {
-  it('records distinct events, deduplicates retries and only persists a store-scoped IP hash', async () => {
+  it('records distinct events, deduplicates retries and keeps the IP for later location lookups', async () => {
     const { t, storeId } = await campaign();
     const eventId = crypto.randomUUID();
     await Promise.all([record(t, 'landing', eventId), record(t, 'landing', eventId)]);
@@ -117,8 +117,8 @@ describe('minimal visit history', () => {
     expect(new Set(history.map(row => row.ipHash)).size).toBe(1);
     expect(history[0]).toMatchObject({ storeId, page: 'landing', day: dateKey(Date.now(), business.timeZone), ipHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
     expect(history[0]._creationTime).toBeGreaterThan(0);
-    expect(JSON.stringify(history)).not.toContain('192.0.2.1');
-    expect(Object.keys(history[0]).sort()).toEqual(['_creationTime', '_id', 'day', 'eventId', 'ipHash', 'origin', 'page', 'storeId'].sort());
+    expect(history.every(row => row.ip === '192.0.2.1')).toBe(true);
+    expect(Object.keys(history[0]).sort()).toEqual(['_creationTime', '_id', 'day', 'eventId', 'ip', 'ipHash', 'origin', 'page', 'storeId'].sort());
   });
 
   it('deduplicates browser reloads and a lost ACK end-to-end with confirmed server responses', async () => {
@@ -158,7 +158,7 @@ describe('minimal visit history', () => {
     await record(t, 'checkout');
     const history = await rows(t);
     expect(history).toHaveLength(2);
-    expect(history.every(row => !row.ipHash)).toBe(true);
+    expect(history.every(row => !row.ipHash && !row.ip)).toBe(true);
     const day = history[0].day;
     const report = createReport(day, day); report.add(history);
     expect(report.finish().total).toMatchObject({ views: 2, uniques: 0, unknownIpViews: 2 });

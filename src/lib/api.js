@@ -13,9 +13,9 @@ export const api = {
   products: { getByArtifactSlug: ref('products:getByArtifactSlug'), saveArtifact: ref('products:saveArtifact'), list: ref('products:list'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update') },
   stores: { list: ref('stores:list'), get: ref('stores:get'), create: ref('stores:create'), update: ref('stores:update'), updateCheckout: ref('stores:updateCheckout') },
   landings: {list:ref('landings:list'),unpublish:ref('landings:unpublish'), getForStore: ref('landings:getForStore'), preview: ref('landings:preview'), saveDraft: ref('landings:saveDraft'), publish: ref('landings:publish') },
-  landingWizard: { generate: ref('landing_wizard:generate') },
+  landingWizard: { generate: ref('landing_wizard:generate'), importPrompt: ref('landing_wizard:importPrompt'), importJson: ref('landing_wizard:importJson') },
   orders: { list: ref('orders:list') },
   storefront: {getCheckout:ref('storefront:getCheckout'), getLanding: ref('storefront:getLanding'), getDelivery: ref('storefront:getDelivery'), heartbeat: ref('storefront:heartbeat'), checkoutVisitors: ref('storefront:checkoutVisitors') },
-  checkout: { start: ref('checkout:start'), startPostPurchase: ref('checkout:startPostPurchase'), sessionStatus: ref('checkout:sessionStatus') },
+  checkout: { start: ref('checkout:start'), startPostPurchase: ref('checkout:startPostPurchase'), sessionStatus: ref('checkout:sessionStatus'), saveBuyerDraft: ref('checkout:saveBuyerDraft') },
   contactRequests: { page: ref('contact_requests:page'), create: ref('contact_requests:create'), list: ref('contact_requests:list'), counts: ref('contact_requests:counts'), setStatus: ref('contact_requests:setStatus') },
 };

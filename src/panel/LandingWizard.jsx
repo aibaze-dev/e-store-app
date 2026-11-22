@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
 import { ErrorAlert, Field } from '@/components/Field.jsx';
+import LandingJsonImport from './LandingJsonImport.jsx';
 
 const QUESTIONS = [
   { key: 'audience', label: '¿Para quién es tu ebook?', hint: 'Contá quién lo compra: edad, situación, nivel de experiencia.', placeholder: 'Personas de 25 a 40 años que cobran un sueldo y nunca invirtieron', required: true },
@@ -49,8 +50,11 @@ export default function LandingWizard({ storeId, hasContent, disabled, onApply }
 
   if (!open) return <div className="landing-wizard is-closed">
     <Sparkles aria-hidden="true" />
-    <div><strong>Generá tu landing con IA</strong><p>Respondé {LAST + 1} preguntas y armamos la landing completa, lista para revisar y publicar.</p></div>
-    <Button type="button" variant="outline" disabled={disabled} onClick={() => { setMoved(true); setOpen(true); }}>{hasContent ? 'Volver a generar' : 'Empezar'}</Button>
+    <div><strong>Generá tu landing con IA</strong><p>Respondé {LAST + 1} preguntas y armamos la landing completa, lista para revisar y publicar. También podés pegar un JSON escrito con otro chat de IA.</p></div>
+    <div className="landing-wizard-actions">
+      <LandingJsonImport storeId={storeId} hasContent={hasContent} disabled={disabled} onApply={onApply} />
+      <Button type="button" variant="outline" disabled={disabled} onClick={() => { setMoved(true); setOpen(true); }}>{hasContent ? 'Volver a generar' : 'Empezar'}</Button>
+    </div>
   </div>;
 
   const question = QUESTIONS[step];
@@ -69,6 +73,7 @@ export default function LandingWizard({ storeId, hasContent, disabled, onApply }
         <p className="text-xs leading-6 text-muted-foreground">No genera fotos ni videos: “Antes y después” queda escrita y se publica cuando subís su foto; “Qué viene adentro”, cuando subís su foto o su video. Se conservan tus fotos, métricas, cupos, precios, color, enlaces, el video subido y las opciones que activaste o apagaste. {hasContent ? 'Los textos actuales de esas secciones se reemplazan. ' : ''}Al terminar la guardamos como borrador{hasContent ? ', junto con los cambios sin guardar del formulario' : ''}; no se publica hasta que vos lo decidas.</p>
       </>}
     <ErrorAlert>{error}</ErrorAlert>
+    <div className="landing-wizard-alt"><span>¿Preferís usar otro chat de IA? Copiá nuestro prompt y pegá el JSON que te devuelva.</span><LandingJsonImport storeId={storeId} hasContent={hasContent} disabled={busy || disabled} onApply={onApply} variant="ghost" /></div>
     <div className="flex flex-wrap justify-between gap-3">
       <Button type="button" variant="ghost" disabled={busy || step === 0} onClick={() => go(step - 1)}><ArrowLeft aria-hidden="true" />Anterior</Button>
       <Button type="submit" disabled={busy}>{step < LAST ? <>Siguiente<ArrowRight aria-hidden="true" /></> : <>{busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}{busy ? 'Generando la landing…' : 'Generar landing'}</>}</Button>

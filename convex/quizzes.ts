@@ -1,5 +1,5 @@
 import { makeFunctionReference } from 'convex/server';
-import { hashIp, requestIp } from './lib/analytics_ip';
+import { hashIp, normalizeIp, requestIp } from './lib/analytics_ip';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { v } from 'convex/values';
 import { action, internalQuery, mutation, query, type QueryCtx } from './lib/functions';
@@ -62,13 +62,14 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string(),attri
  const existing=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
  if(existing){if(existing.storeId!==store._id)fail('Sesión de otra tienda.');return response(ctx,existing);}
  const secret=process.env.ANALYTICS_IP_SECRET||process.env.BETTER_AUTH_SECRET;
- const ipHash=secret?await hashIp(await requestIp(ctx),`quiz:${store._id}`,secret):undefined;
+ const ip=secret?normalizeIp(await requestIp(ctx)):null;
+ const ipHash=secret?await hashIp(ip,`quiz:${store._id}`,secret):undefined;
  const recent=await ctx.db.query('quizSessions').withIndex('by_store_ip',q=>q.eq('storeId',store._id).eq('ipHash',ipHash).gte('_creationTime',Date.now()-60000)).take(120);
  if(recent.length>=120)fail('Demasiados intentos. Esperá un minuto antes de comenzar.');
  const publication=(await ctx.db.get(landing.publicationId))!;
  // The campaign of the ad link that opened the quiz; a recovered session keeps its own.
  const campaign=cleanAttribution(attribution);
- const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,...(campaign?{attribution:campaign}:{}),tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
+ const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,...(ip?{ip}:{}),...(campaign?{attribution:campaign}:{}),tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
  return response(ctx,await ctx.db.get(id));
 }});
 export const recover = query({args:{token:v.string()},handler:async(ctx,{token})=>response(ctx,await authorizedSession(ctx,token))});
@@ -87,11 +88,11 @@ export const saveAnswer = mutation({args:{token:v.string(),revision:v.number(),c
 }});
 export const sessions = query({args:{storeId:v.id('stores'),cursor:v.union(v.string(),v.null())},handler:async(ctx,{storeId,cursor})=>{
  await requireAdmin(ctx);const page=await ctx.db.query('quizSessions').withIndex('by_store',q=>q.eq('storeId',storeId)).order('desc').paginate({cursor,numItems:40});
- return {...page,page:page.page.map(({tokenHash,ipHash,...row})=>row)};
+ return {...page,page:page.page.map(({tokenHash,ipHash,ip,...row})=>row)};
 }});
 export const detail = query({args:{sessionId:v.id('quizSessions')},handler:async(ctx,{sessionId})=>{
  await requireAdmin(ctx);const session=await ctx.db.get(sessionId);if(!session)return null;
- const {tokenHash,ipHash,...row}=session;
+ const {tokenHash,ipHash,ip,...row}=session;
  const orders=await ctx.db.query('orders').withIndex('by_quiz',q=>q.eq('quizSessionId',sessionId)).collect();
  return {...row,quiz:(await ctx.db.get(session.publicationId))!.content,orders};
 }});

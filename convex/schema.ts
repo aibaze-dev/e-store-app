@@ -119,14 +119,17 @@ export const itemRole = v.union(
 );
 
 export default defineSchema({
-  // Minimal view history. _creationTime is the server timestamp; no raw IP or UA.
+  // Minimal view history. _creationTime is the server timestamp; no UA.
   // `attribution` is the campaign of the ad link, when the visit came from one.
+  // `ip` is the visitor's address as Convex saw it, kept to look up city/region later.
+  // `ipHash` stays the store-scoped identity used for unique counts and rate limits.
   pageViews: defineTable({
     storeId: v.id('stores'),
     page: v.union(v.literal('landing'), v.literal('checkout')),
     origin: v.optional(v.union(v.literal('classic'),v.literal('quiz'),v.literal('direct'))),
     day: v.string(),
     ipHash: v.optional(v.string()),
+    ip: v.optional(v.string()),
     eventId: v.string(),
     attribution: v.optional(attribution),
   }).index('by_store', ['storeId']).index('by_store_day', ['storeId', 'day'])
@@ -190,6 +193,9 @@ export default defineSchema({
     // Post-purchase only: the last, fixed extra discount offered after the downsell. Also has `downsell`.
     finalDownsell: v.optional(v.boolean()),
     buyer: v.optional(v.object({ email: v.string(), name: v.string() })),
+    // Address of the browser that opened the checkout, kept to look up city/region later.
+    // A post-purchase order repeats its parent's.
+    ip: v.optional(v.string()),
     status: paymentStatus,
     currency: v.string(),
     total: v.number(),
@@ -231,7 +237,7 @@ export default defineSchema({
   quizPublications: defineTable({ storeId: v.id('stores'), landingId: v.id('landings'), content: v.any() }).index('by_store', ['storeId']),
   quizSessions: defineTable({
     storeId: v.id('stores'), landingId: v.id('landings'), publicationId: v.id('quizPublications'),
-    ipHash:v.optional(v.string()), attribution: v.optional(attribution), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
+    ipHash:v.optional(v.string()), ip:v.optional(v.string()), attribution: v.optional(attribution), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
     stepEvents: v.optional(v.array(v.object({stepId:v.string(),at:v.number()}))), firstCompletedAt:v.optional(v.number()), contactCapturedAt:v.optional(v.number()),
     history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
     contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),
