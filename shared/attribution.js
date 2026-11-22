@@ -80,18 +80,29 @@ export function createSourceRow(attribution) {
   return { attribution: attribution ?? null, landingViews: 0, checkoutViews: 0, purchases: 0, revenue: {} };
 }
 
+const groupKey = (attribution, levels) => attribution && levels.some(level => levelKey(attribution, level))
+  ? JSON.stringify(levels.map(level => levelKey(attribution, level))) : '';
+
+// Rows of one campaign. `key` is the key groupSources(rows, 'campaign') gives that campaign.
+export function filterByCampaign(rows, key) {
+  return rows.filter(row => groupKey(row.attribution, ['campaign']) === key);
+}
+
+const money = group => Object.values(group.revenue).reduce((sum, amount) => sum + amount, 0);
+
 // Adds up the rows of a report by one dimension. Rows without campaign data stay together
-// in a single row with an empty name.
+// in a single row with an empty name. `id` is the campaign, ad set or ad ID of the group,
+// when the link carried one.
 export function groupSources(rows, dimension) {
   const { levels } = SOURCE_DIMENSIONS[dimension];
+  const last = LEVELS[levels.at(-1)];
   const groups = new Map();
   for (const row of rows) {
-    const known = row.attribution && levels.some(level => levelKey(row.attribution, level));
-    const key = known ? JSON.stringify(levels.map(level => levelKey(row.attribution, level))) : '';
+    const key = groupKey(row.attribution, levels);
     let group = groups.get(key);
     if (!group) {
-      const names = known ? levels.map(level => levelName(row.attribution, level) || '—') : [];
-      group = { key, name: names.at(-1) ?? '', parents: names.slice(0, -1), landingViews: 0, checkoutViews: 0, purchases: 0, revenue: {} };
+      const names = key ? levels.map(level => levelName(row.attribution, level) || '—') : [];
+      group = { key, id: (key && last.id && row.attribution[last.id]) || '', name: names.at(-1) ?? '', parents: names.slice(0, -1), landingViews: 0, checkoutViews: 0, purchases: 0, revenue: {} };
       groups.set(key, group);
     }
     group.landingViews += row.landingViews;
@@ -99,8 +110,32 @@ export function groupSources(rows, dimension) {
     group.purchases += row.purchases;
     for (const [currency, amount] of Object.entries(row.revenue)) group.revenue[currency] = (group.revenue[currency] ?? 0) + amount;
   }
-  const money = group => Object.values(group.revenue).reduce((sum, amount) => sum + amount, 0);
   return [...groups.values()].sort((a, b) => money(b) - money(a) || b.purchases - a.purchases || b.landingViews - a.landingViews
     // On a tie, visits without campaign go last.
     || (a.key === '') - (b.key === '') || a.name.localeCompare(b.name));
+}
+
+// Columns the report can be ordered by. Conversion compares purchases with landing visits;
+// a group without visits has none and goes last.
+export const SOURCE_METRICS = {
+  landingViews: group => group.landingViews,
+  checkoutViews: group => group.checkoutViews,
+  purchases: group => group.purchases,
+  conversion: group => group.landingViews > 0 ? group.purchases / group.landingViews : -1,
+  revenue: money,
+};
+
+// Orders the groups of groupSources by one column. Ties keep the order they came in.
+export function sortSources(groups, metric, descending = true) {
+  const value = SOURCE_METRICS[metric];
+  return [...groups].sort((a, b) => descending ? value(b) - value(a) : value(a) - value(b));
+}
+
+// The group with the highest value of a column among those that came from an ad link, or
+// null when none has any.
+export function topSource(groups, metric) {
+  const value = SOURCE_METRICS[metric];
+  let top = null;
+  for (const group of groups) if (group.key && value(group) > 0 && (!top || value(group) > value(top))) top = group;
+  return top;
 }

@@ -3,6 +3,7 @@ import { Route, Routes, useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { api } from '@/lib/api.js';
 import { trackPixel } from '@/lib/pixel.js';
+import { clarityTags, startClarity } from '@/lib/clarity.js';
 import { templateFor } from '@/templates/index.js';
 import { plainText } from '../../shared/classic-design.js';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
@@ -11,7 +12,7 @@ import ExitIntentModal from './ExitIntentModal.jsx';
 import { useStorePresence } from './useStorePresence.js';
 import { useViewTracking } from './useViewTracking.js';
 import { useEarlyLanding } from './early-landing.js';
-import { captureAttribution } from './attribution.js';
+import { attributionArgs, captureAttribution } from './attribution.js';
 
 const quizModule = () => import('./Quiz.jsx');
 const Quiz = lazy(quizModule);
@@ -59,6 +60,9 @@ function LandingRoutes({ subdomain, via }) {
   const view = useQuery(api.storefront.getCheckout, { subdomain });
   const loading = <Page><PageSkeleton label="Loading" /></Page>;
   const ready = element => view === undefined ? loading : element;
+  // Recordings of the funnel of a store that exists: landing, quiz, checkout and offer.
+  const exists = Boolean(classic || view);
+  useEffect(() => { if (exists) startClarity(clarityTags(subdomain, attributionArgs(subdomain).attribution)); }, [exists, subdomain]);
   return <Suspense fallback={loading}><Routes>
     <Route index element={classic === undefined ? loading : classic ? <Landing view={classic} /> : <Unavailable />} />
     {/* The quiz starts on its own data; offer blocks appear once the store's view arrives. */}

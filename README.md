@@ -184,6 +184,14 @@ Los anuncios de Meta deben usar esta plantilla de parámetros de URL:
 
 No hay datos retroactivos: visitas y pedidos anteriores quedan en «Sin campaña». Los campos son opcionales y no requieren migración. Frontend y backend deben publicarse juntos: un frontend nuevo contra un backend anterior enviaría un argumento que este rechaza. Pendiente y no implementado: guardar `fbclid` y enviar compras por Conversions API, e importar el gasto de Meta para calcular ROAS.
 
+### Anuncios por campaña
+
+La plantilla del enlace no cambió: el nombre del anuncio llega en `utm_content` (`{{ad.name}}`) y se guarda como `content` junto a `adId` en visitas, sesiones de quiz, pedidos y metadata de Stripe. Los anuncios se distinguen por ID cuando el enlace lo trae (dos anuncios con el mismo nombre son filas distintas) y se muestran por nombre, con el ID debajo.
+
+«Campañas y anuncios» abre agrupado por anuncio y responde qué anuncio de una campaña trae más visitas, más checkouts y más compras: un selector de campaña limita la tabla a sus conjuntos, anuncios, ubicaciones o fuentes; tres indicadores nombran al que lidera cada métrica (aparecen con dos o más filas con campaña); y cada columna numérica ordena la tabla, de mayor a menor en el primer clic. `shared/attribution.js` suma `filterByCampaign`, `sortSources`, `topSource` y el campo `id` de cada grupo de `groupSources`. Es un cambio solo de panel: no toca el esquema, los argumentos de las funciones ni los datos ya guardados.
+
+Verificación: `pnpm test` (363 pruebas, una nueva en `test/attribution.test.js` para anuncios por campaña, líderes y orden) y `pnpm build` correctos. Revisión visual local con un fixture temporal, ya retirado, en escritorio y móvil: filtro de campaña, orden por columna, indicadores y estado vacío. No se desplegó ni se revisó contra los datos reales de producción: que los anuncios aparezcan por nombre depende de que los enlaces en curso traigan `utm_content`.
+
 Verificación de esta implementación: `pnpm test` (294 pruebas, 12 nuevas en `test/attribution.test.js`) y `pnpm build` correctos. Las pruebas cubren lectura y limpieza de parámetros, memoria del navegador (último enlace, 7 días, almacenamiento bloqueado), guardado en vistas, sesiones de quiz, pedidos y post-compra, metadata enviada a Stripe (con la API simulada) y los informes del panel. Revisión visual local de la tabla y de la captura con un fixture temporal en escritorio y móvil, ya retirado. No se desplegó ni se probó contra Stripe real ni con un clic real de un anuncio de Meta.
 
 ### Gráficos de analíticas
@@ -409,3 +417,16 @@ Títulos, botones y nombres accesibles de post-compra, popups y checkout son obl
 - **Quiz:** una visita que abre en `/quiz` descarga el código del quiz junto con la app y pide la sesión (`quizzes:start`) sin esperar a `quizzes:publicConfig` ni a `storefront:getCheckout`; los bloques de oferta, garantía y promoción aparecen cuando llega la vista de la tienda. Los gráficos de línea y barras viven en `src/storefront/QuizChart.jsx` y se descargan solo si el resultado tiene uno. La imagen de la pantalla actual carga con prioridad y la de la pantalla siguiente se pide por adelantado.
 
 Verificación: 282 pruebas y build correctos. Revisión local en navegador de landing, checkout, acceso y redirección del panel sin sesión; compresión probada con dos fotos reales (2,4 MB a 214 kB y 2,6 MB a 156 kB). Sin despliegue ni medición en producción con estos cambios.
+
+## Microsoft Clarity (22/11/2026)
+
+Grabaciones de sesión y mapas de calor del embudo público. El ID del proyecto está en `src/config/trackingData.json` (`clarityProjectId`); es público, viaja en el script. Con el campo vacío Clarity queda apagado.
+
+- **Dónde arranca**: en `LandingRoutes` (`src/storefront/Storefront.jsx`), es decir landing, `/quiz/*`, `/checkout` y `/oferta` de una tienda que existe. No arranca en `/gracias` (se llega con una carga completa desde Stripe) ni en `/soporte`, el panel, el acceso o los artefactos. Tampoco en desarrollo local: solo en builds de producción.
+- **Última prioridad** (`src/lib/clarity.js`): espera el evento `load`, después 3 s (la landing precarga el checkout a los 2 s) y recién entonces el primer momento libre del navegador (`requestIdleCallback`, con un timer de respaldo en Safari). El paquete `@microsoft/clarity` se importa en ese momento, en un chunk aparte. Si falla, la página sigue igual. Consecuencia: cada grabación empieza unos segundos después de abrir la página y las visitas más cortas no se graban.
+- **Etiquetas**: `store` (subdominio) y, si la visita vino de un anuncio, `campaign` y `ad` con los nombres de la atribución guardada en el navegador. Sirven para filtrar grabaciones por tienda y por anuncio.
+- **Privacidad**: Clarity enmascara por defecto lo que se escribe en inputs; los campos de pago están en iframes de Stripe y no se graban.
+
+Pendiente y no implementado: aviso de cookies y señal de consentimiento (`consentV2`), que Clarity exige para visitantes de Europa y Reino Unido; excluir las visitas propias se configura por IP en el proyecto de Clarity.
+
+Verificación: `pnpm test` (368 pruebas, 5 nuevas en `test/clarity.test.js`: orden de carga, respaldo sin `requestIdleCallback`, etiquetas y que no arranca fuera de producción) y `pnpm build` correctos; el paquete queda en un chunk aparte de 0,7 kB que `index.html` no precarga. Con el build servido en local contra una tienda publicada del entorno de desarrollo, el pedido a `www.clarity.ms/tag/<id>` salió entre 4,1 y 4,7 s después de abrir la página en landing, `/quiz`, `/checkout` y `/oferta`, y no salió en `/gracias`, `/soporte`, una tienda inexistente ni la página de acceso. Esa prueba abrió sesiones reales en el proyecto de Clarity y sumó algunas visitas de prueba a las analíticas de esa tienda. No se desplegó ni se revisó que las grabaciones aparezcan en el panel de Clarity; las etiquetas se probaron solo con tests, no en el panel.

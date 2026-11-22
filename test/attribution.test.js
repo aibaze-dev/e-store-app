@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
 import { backend, signedIn, mockStripe, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
-import { ATTRIBUTION_MAX_LENGTH, MAX_SOURCE_ROWS, attributionMetadata, cleanAttribution, groupSources, parseAttribution } from '../shared/attribution.js';
+import { ATTRIBUTION_MAX_LENGTH, MAX_SOURCE_ROWS, attributionMetadata, cleanAttribution, filterByCampaign, groupSources, parseAttribution, sortSources, topSource } from '../shared/attribution.js';
 import { createReport, dateKey } from '../shared/analytics.js';
 import { ATTRIBUTION_TTL_MS, attributionStorageKey, createAttributionStore } from '../src/storefront/attribution.js';
 import { createQuizTemplate, newStep } from '../shared/quiz.js';
@@ -115,8 +115,8 @@ describe('campaign report', () => {
     const rows = sources();
     expect(rows).toHaveLength(3);
     expect(groupSources(rows, 'campaign')).toEqual([
-      { key: '["120210000000001"]', name: 'Ventas 🔥 Noviembre', parents: [], landingViews: 3, checkoutViews: 1, purchases: 2, revenue: { USD: 10100 } },
-      { key: '', name: '', parents: [], landingViews: 1, checkoutViews: 1, purchases: 1, revenue: { USD: 2700 } },
+      { key: '["120210000000001"]', id: '120210000000001', name: 'Ventas 🔥 Noviembre', parents: [], landingViews: 3, checkoutViews: 1, purchases: 2, revenue: { USD: 10100 } },
+      { key: '', id: '', name: '', parents: [], landingViews: 1, checkoutViews: 1, purchases: 1, revenue: { USD: 2700 } },
     ]);
     const ads = groupSources(rows, 'ad');
     expect(ads.map(row => [row.name, row.landingViews, row.checkoutViews, row.purchases, row.revenue.USD])).toEqual([
@@ -126,6 +126,46 @@ describe('campaign report', () => {
     expect(groupSources(rows, 'adset').map(row => row.name)).toEqual(['Conjunto Mujeres 25-34', '']);
     expect(groupSources(rows, 'placement').map(row => row.name)).toEqual(['Instagram_Reels', 'Facebook_Feed', '']);
     expect(groupSources(rows, 'source').map(row => [row.name, row.purchases])).toEqual([['ig', 1], ['fb', 1], ['', 1]]);
+  });
+
+  it('answers which ad of one campaign brings more visits, checkouts and purchases', () => {
+    const REMARKETING = { ...AD, campaign: 'Remarketing', campaignId: '120210000000050', content: 'Oferta final', adId: '120210000000051' };
+    // Same name as an ad of the other campaign and a link whose ad has a name but no ID.
+    const SAME_NAME = { ...REMARKETING, content: 'Carrusel', adId: '120210000000052' };
+    const NAME_ONLY = { source: 'ig', campaign: 'Ventas 🔥 Noviembre', campaignId: AD.campaignId, content: 'Imagen estática' };
+    const report = createReport(day, day);
+    report.add([
+      view('landing', AD), view('landing', AD), view('checkout', AD),
+      view('landing', OTHER_AD), view('landing', OTHER_AD), view('landing', OTHER_AD), view('checkout', OTHER_AD), view('checkout', OTHER_AD),
+      view('landing', NAME_ONLY),
+      ...Array.from({ length: 9 }, () => view('landing', REMARKETING)), view('landing', SAME_NAME), view('landing'),
+    ]);
+    report.addPurchases([sale(2700, AD), sale(2700, AD), sale(2700, OTHER_AD), sale(2700, REMARKETING), sale(2700)]);
+    const rows = report.finish().sources;
+
+    const campaigns = groupSources(rows, 'campaign');
+    expect(campaigns.map(row => [row.name, row.id])).toEqual([['Ventas 🔥 Noviembre', AD.campaignId], ['Remarketing', REMARKETING.campaignId], ['', '']]);
+    const ads = groupSources(filterByCampaign(rows, campaigns[0].key), 'ad');
+    // Each ad keeps its name and its ID; other campaigns and visits without campaign stay out.
+    expect(ads.map(row => [row.name, row.id, row.landingViews, row.checkoutViews, row.purchases])).toEqual([
+      ['Video testimonio', AD.adId, 2, 1, 2], ['Carrusel', OTHER_AD.adId, 3, 2, 1], ['Imagen estática', '', 1, 0, 0],
+    ]);
+    expect(['landingViews', 'checkoutViews', 'purchases'].map(metric => topSource(ads, metric).name)).toEqual(['Carrusel', 'Carrusel', 'Video testimonio']);
+    expect(sortSources(ads, 'landingViews').map(row => row.name)).toEqual(['Carrusel', 'Video testimonio', 'Imagen estática']);
+    expect(sortSources(ads, 'landingViews', false).map(row => row.name)).toEqual(['Imagen estática', 'Video testimonio', 'Carrusel']);
+    expect(sortSources(ads, 'conversion').map(row => row.name)).toEqual(['Video testimonio', 'Carrusel', 'Imagen estática']);
+    expect(sortSources(ads, 'revenue').map(row => row.name)).toEqual(['Video testimonio', 'Carrusel', 'Imagen estática']);
+    expect(ads.map(row => row.name)).toEqual(['Video testimonio', 'Carrusel', 'Imagen estática']);
+
+    // Without the filter, ads of the same name in different campaigns are different ads.
+    const all = groupSources(rows, 'ad');
+    expect(all.filter(row => row.name === 'Carrusel').map(row => [row.id, row.parents[0]])).toEqual([[OTHER_AD.adId, 'Ventas 🔥 Noviembre'], [SAME_NAME.adId, 'Remarketing']]);
+    expect(topSource(all, 'landingViews').name).toBe('Oferta final');
+    // Visits without campaign never lead, and an empty report has no leader.
+    expect(topSource(groupSources(filterByCampaign(rows, ''), 'ad'), 'landingViews')).toBeNull();
+    expect(topSource(ads, 'revenue').name).toBe('Video testimonio');
+    expect(topSource(groupSources(filterByCampaign(rows, campaigns[1].key), 'ad'), 'checkoutViews')).toBeNull();
+    expect(filterByCampaign(rows, '["no existe"]')).toEqual([]);
   });
 
   it('adds up links beyond the limit in one row instead of growing without bound', () => {
@@ -226,8 +266,8 @@ describe('campaign stored with visits, quiz sessions and orders', () => {
     const today = dateKey(Date.now(), business.timeZone);
     for (const report of [await admin.action(api.analytics.report, { storeId, from: today, to: today }), await admin.action(api.analytics.rollingActivity, { storeId })]) {
       expect(groupSources(report.sources, 'ad')).toEqual([
-        { key: '["120210000000001","120210000000002","120210000000003"]', name: 'Video testimonio', parents: ['Ventas 🔥 Noviembre', 'Conjunto Mujeres 25-34'], landingViews: 1, checkoutViews: 1, purchases: 1, revenue: { USD: 7400 } },
-        { key: '', name: '', parents: [], landingViews: 1, checkoutViews: 0, purchases: 1, revenue: { USD: 2700 } },
+        { key: '["120210000000001","120210000000002","120210000000003"]', id: '120210000000003', name: 'Video testimonio', parents: ['Ventas 🔥 Noviembre', 'Conjunto Mujeres 25-34'], landingViews: 1, checkoutViews: 1, purchases: 1, revenue: { USD: 7400 } },
+        { key: '', id: '', name: '', parents: [], landingViews: 1, checkoutViews: 0, purchases: 1, revenue: { USD: 2700 } },
       ]);
     }
     const listed = await admin.query(api.orders.list, { storeId });
