@@ -5,6 +5,8 @@ import { api } from '@/lib/api.js';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton, ErrorAlert } from '@/components/Field.jsx';
 import { errorText } from '@/lib/format.js';
+import { landingUrls } from '@/lib/site.js';
+import { ExternalLink } from 'lucide-react';
 import { QuizPreview } from '@/storefront/Quiz.jsx';
 import { clone, migrateGaugeRanges, removeCalculation, removeOption, validateQuiz } from '../../shared/quiz.js';
 import QuizWizard from './QuizWizard.jsx';
@@ -38,6 +40,7 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
    <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz)});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
    <Button variant="outline" disabled={busy} onClick={()=>{if(errors.length&&!preview)blocked('probar el quiz');else setPreview(!preview);}}>{preview?'Volver a editar':'Probar quiz'}</Button>
    <Button disabled={busy} onClick={publish}>{busy?'Guardando…':'Publicar quiz'}</Button>
+   {published&&address&&<Button variant="outline" asChild><a href={`${landingUrls(address).path}/quiz`} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden="true" />Ver publicado</a></Button>}
   </div>}
   <ErrorAlert>{error&&<span className="whitespace-pre-line">{error}</span>}</ErrorAlert>{status&&<p role="status">{status}</p>}
   {!address&&<div className="qe-card" role="note"><p>Antes de guardar o publicar, definí el subdominio de tu tienda en <Link to={settingsPath||'../configuracion'}>Configuración</Link>.</p></div>}
