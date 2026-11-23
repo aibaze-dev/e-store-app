@@ -196,9 +196,9 @@ function refsIn(value) {
 export function validateQuiz(input, publishing = false) {
   try { return validateQuizStructure(input, publishing); } catch { return ['Estructura de quiz inválida. Revisá los tipos y las listas de campos.']; }
 }
-const TEXT_KEYS = ['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText','eyebrow','badge','note','sealText','sealUnit'];
+const TEXT_KEYS = ['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText','eyebrow','badge','note','sealText','sealUnit','priceLabel','priceNote','priceBadge'];
 const BOOLEAN_KEYS = ['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels','showBonuses','showPrice','confetti'];
-const FIELD_NAMES = { title: 'el título', description: 'la descripción', text: 'el texto', eyebrow: 'la etiqueta del encabezado', badge: 'la cinta destacada', note: 'el texto debajo del precio', sealText: 'el texto del sello', sealUnit: 'la unidad del sello', trust: 'un sello de confianza', label: 'la etiqueta', name: 'el nombre', buttonText: 'el texto del botón', consentText: 'el texto de consentimiento', icon: 'el ícono', legend: 'la leyenda', suffix: 'el sufijo', placeholder: 'la ayuda del campo', imageAlt: 'el texto alternativo de la imagen', backText: 'el botón Atrás', skipText: 'el botón Omitir', imageUrl: 'la imagen', sideImageUrl: 'la imagen lateral', videoUrl: 'el video', logoUrl: 'el logo', termsUrl: 'la URL de términos', privacyUrl: 'la URL de privacidad', beforeImageUrl: 'la imagen «antes»', afterImageUrl: 'la imagen «después»', photoUrl: 'la foto', color: 'el color de botones', background: 'el color de fondo', textColor: 'el color de texto', items: 'un mensaje' };
+const FIELD_NAMES = { title: 'el título', description: 'la descripción', text: 'el texto', eyebrow: 'la etiqueta del encabezado', priceLabel: 'el texto arriba del precio', priceNote: 'el subtítulo del precio', priceBadge: 'la cinta del precio', badge: 'la cinta destacada', note: 'el texto debajo del precio', sealText: 'el texto del sello', sealUnit: 'la unidad del sello', trust: 'un sello de confianza', label: 'la etiqueta', name: 'el nombre', buttonText: 'el texto del botón', consentText: 'el texto de consentimiento', icon: 'el ícono', legend: 'la leyenda', suffix: 'el sufijo', placeholder: 'la ayuda del campo', imageAlt: 'el texto alternativo de la imagen', backText: 'el botón Atrás', skipText: 'el botón Omitir', imageUrl: 'la imagen', sideImageUrl: 'la imagen lateral', videoUrl: 'el video', logoUrl: 'el logo', termsUrl: 'la URL de términos', privacyUrl: 'la URL de privacidad', beforeImageUrl: 'la imagen «antes»', afterImageUrl: 'la imagen «después»', photoUrl: 'la foto', color: 'el color de botones', background: 'el color de fondo', textColor: 'el color de texto', items: 'un mensaje' };
 const fieldName = key => FIELD_NAMES[key] || `el campo «${key}»`;
 // Errors name screens by their title: IDs are internal and mean nothing to the editor.
 const stepName = s => typeof s?.title === 'string' && s.title.trim() ? `Pantalla «${s.title.trim().slice(0, 60)}»` : `Pantalla ${s?.id ?? ''}`.trim();
@@ -298,7 +298,9 @@ function validateQuizStructure(input, publishing) {
       if (b.type === 'rating' && b.rating != null) check(finite(b.rating) != null && b.rating >= 0 && b.rating <= 5, `${label}: la puntuación va de 0 a 5.`); });
   };
   q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, stepName(s)); });
-  q.results.forEach(r => { const name = r.default ? 'Página final' : `Perfil «${r.title || r.id}»`; group(r.when, name); blocks(r.blocks, name); });
+  q.results.forEach(r => { const name = r.default ? 'Página final' : `Perfil «${r.title || r.id}»`; group(r.when, name); blocks(r.blocks, name);
+    check(r.compareAtPrice == null || (Number.isInteger(r.compareAtPrice) && r.compareAtPrice > 0), `${name}: el precio tachado tiene que ser un importe positivo.`);
+    check(r.trust == null || (Array.isArray(r.trust) && r.trust.length <= 4 && r.trust.every(x => typeof x === 'string' && x.length <= 80)), `${name}: hasta 4 sellos de confianza cortos.`); });
   // Field checks name the screen/block and the field as the editor shows them. Keys set to
   // undefined are skipped: Convex drops them on save, so they must not block publishing.
   const where = (base, key, child, i) => {
@@ -490,7 +492,6 @@ export function finalPageBlocks(productName = 'tu guía', ids = { level: 'welcom
     { id: 'features', type: 'features', title: 'Qué vas a recibir:', mockups: [], items: [{ icon: '📘', title: `${productName}, completo`, text: '' }, { icon: '🗓️', title: 'Un plan fácil de seguir', text: '' }, { icon: '📈', title: 'Avances visibles desde las primeras semanas', text: '' }, { icon: '💬', title: 'Ejercicios para aplicarlo', text: '' }] },
     { id: 'rating', type: 'rating', enabled: false, laurels: true, title: '', text: '', rating: 0 },
     { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
-    { id: 'offer', type: 'offer', title: '', label: '', badge: '', note: '', buttonText: '', trust: [] },
     { id: 'guarantee', type: 'guarantee', text: '', imageUrl: '' },
     { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
   ];
@@ -557,6 +558,17 @@ export function advanceSession(quiz, session, command, now = Date.now()) {
   const context = contextFor(quiz,answers);
   return {revision:session.revision+1,lastCommand:command.commandId,currentStep,history,answers,calculations:context.calculations,
     ...(currentStep === null ? {resultId:resultFor(quiz,answers).id,completedAt:now} : {}), contact:context.contact};
+}
+// A visitor who comes back after the quiz was published again moves to the new version.
+// Their place and answers are kept when every screen they went through still exists;
+// otherwise they start over. Returns the fields to store on the session.
+export function moveSession(quiz, session) {
+  const ids = new Set(quiz.steps.map(s => s.id));
+  const fits = session.history.every(id => ids.has(id)) && (session.currentStep === null || ids.has(session.currentStep));
+  if (!fits) { const fresh = initialSession(quiz); return { ...fresh, revision: session.revision + 1, resultId: undefined, completedAt: undefined }; }
+  const answers = Object.fromEntries(Object.entries(session.answers || {}).filter(([id]) => ids.has(id)));
+  return { revision: session.revision + 1, answers, calculations: contextFor(quiz, answers).calculations,
+    ...(session.currentStep === null ? { resultId: resultFor(quiz, answers).id } : {}) };
 }
 export function applicableQuestions(quiz, session) {
   const ids=[...session.history]; let id=session.currentStep;

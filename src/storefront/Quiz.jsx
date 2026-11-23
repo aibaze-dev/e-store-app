@@ -148,8 +148,10 @@ export default function Quiz({ subdomain, view }) {
   return <QuizPlayer quiz={data.quiz} session={data.session} view={view} onCommand={command} onCheckout={checkout} busy={busy} error={error} />;
 }
 
-// Shown while the session starts: an animated ring in the quiz's own colors.
+// Shown while the session starts: an animated ring in the quiz's own colors. Until those
+// colors arrive nothing colored is drawn, so the ring never starts in the default green.
 function QuizLoader({ identity, error, onRetry }) {
+  if (!identity && !error) return <div className="quiz-loading-blank" role="status" aria-label="Loading quiz" />;
   return <div className="quiz-public quiz-loading" style={quizTheme(identity)}>
     {error ? <div className="quiz-loading-error" role="alert">
       <p>{error}</p>

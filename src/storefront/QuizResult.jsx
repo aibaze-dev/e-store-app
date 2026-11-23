@@ -149,35 +149,35 @@ export function trustItems(block, t) {
 }
 export const TrustRow = ({ items }) => items.length ? <ul className="quiz-trust">{items.map(item => <li key={item}>{item}</li>)}</ul> : null;
 
-// The price block. The price charged is always the store's; the crossed-out price is the
-// block's own (or the product's reference price) and only shows when it is higher.
-export function OfferCard({ block = {}, view, t, onCheckout, busy, withButton = true }) {
+// The price card, on the quiz's main color. The price charged is always the store's; the
+// crossed-out price is the card's own (or the product's reference price) and only shows
+// when it is higher. `config` is an offer block or the final page's own price settings.
+export function OfferCard({ block: config = {}, view, t, onCheckout, busy, withButton = true }) {
   if (!view?.offer?.main) return null;
   const currency = view.store?.currency || 'USD', money = value => storefrontMoney(value, currency);
   const { main, bonuses = [] } = view.offer;
-  const price = main.price, compare = Number.isFinite(block.compareAtPrice) && block.compareAtPrice > 0 ? block.compareAtPrice : main.compareAtPrice;
+  const price = main.price, compare = Number.isFinite(config.compareAtPrice) && config.compareAtPrice > 0 ? config.compareAtPrice : main.compareAtPrice;
   const was = compare > price ? compare : null, save = was ? Math.round((was - price) / was * 100) : 0;
-  const bonusValue = bonuses.reduce((total, b) => total + (b.referenceValue || 0), 0);
   const promotion = view.content?.promotion?.enabled && String(view.content.promotion.message || '').trim();
   const sales = view.activity?.sales >= 10 ? view.activity.sales : 0;
-  const showBonuses = block.showBonuses !== false && bonuses.length > 0;
+  const showBonuses = config.showBonuses !== false && bonuses.length > 0;
+  const badge = t(config.badge) || (save > 0 ? `Save ${save}% today` : '');
   return <div className="quiz-offer-wrap">
-    {block.title && <h2><Rich text={t(block.title)} /></h2>}
+    {config.title && <h2><Rich text={t(config.title)} /></h2>}
     <div className="quiz-offer">
-      {(block.badge || save > 0) && <span className="quiz-offer-ribbon">{t(block.badge) || `Save ${save}% today`}</span>}
+      {badge && <span className="quiz-offer-ribbon">{badge}</span>}
       {promotion && <p className="quiz-offer-promo">{promotion}</p>}
-      <p className="quiz-offer-label">{t(block.label) || main.name}</p>
-      {was && <p className="quiz-offer-was"><s aria-label={`Regular price ${money(was)}`}>{money(was)}</s><span className="quiz-offer-save">−{save}%</span></p>}
-      <p className="quiz-offer-price"><span className="sr-only">{was ? 'Today’s price ' : 'Price '}</span>{money(price)}</p>
-      <p className="quiz-offer-note">{t(block.note) || 'One-time payment · No subscription'}</p>
+      <p className="quiz-offer-label">{t(config.label) || main.name}</p>
+      {was && <p className="quiz-offer-was"><s aria-label={`Regular price ${money(was)}`}>{money(was)}</s>{save > 0 && <span className="quiz-offer-save">−{save}%</span>}</p>}
+      <p className="quiz-offer-price"><span className="quiz-sparkle is-left" aria-hidden="true">✦</span><span className="sr-only">{was ? 'Today’s price ' : 'Price '}</span><span className="quiz-offer-amount">{money(price)}</span><span className="quiz-sparkle is-right" aria-hidden="true">✦</span></p>
+      <p className="quiz-offer-note">{t(config.note) || 'One-time payment · No subscription'}</p>
       {showBonuses && <ul className="quiz-offer-bonuses">
-        {bonuses.map(b => <li key={b.productId}><Gift aria-hidden="true" /><span>{b.name}</span>{b.referenceValue > 0 ? <><s>{money(b.referenceValue)}</s><strong>FREE</strong></> : <strong>FREE</strong>}</li>)}
-        {bonusValue > 0 && <li className="quiz-offer-total"><span>Total value</span><s>{money(Math.max(was || price, price) + bonusValue)}</s><strong>{money(price)}</strong></li>}
+        {bonuses.map(b => <li key={b.productId}><Gift aria-hidden="true" /><span>{b.name}</span>{b.referenceValue > 0 && <s>{money(b.referenceValue)}</s>}<strong>FREE</strong></li>)}
       </ul>}
+      {withButton && <button className="quiz-offer-cta" type="button" disabled={busy} onClick={onCheckout}>{t(config.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>}
+      {withButton && <TrustRow items={trustItems(config, t)} />}
       {sales > 0 && <p className="quiz-offer-proof"><Star aria-hidden="true" />{sales.toLocaleString('en-US')} people already got it</p>}
     </div>
-    {withButton && <><button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(block.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
-      <TrustRow items={trustItems(block, t)} /></>}
   </div>;
 }
 
@@ -228,8 +228,8 @@ function useRevealConfetti(canvas, color, enabled) {
   }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-// Final page: a hero that confirms the plan, the blocks, and the store's price before the
-// call to the store's own checkout. Without an offer block, the price card is added here.
+// Final page: a hero that confirms the plan, the store's price right under it (unless an
+// offer block places it elsewhere), the blocks, and the call to the store's own checkout.
 export default function QuizResult({ result, context, view, onCheckout, busy, preview = false }) {
   const t = text => personalize(text, context);
   const canvas = useRef(null);
@@ -237,7 +237,9 @@ export default function QuizResult({ result, context, view, onCheckout, busy, pr
   useRevealConfetti(canvas, context.quiz.identity?.color || '#2e8b62', celebrate);
   const blocks = result.blocks || [];
   const hasOffer = blocks.some(b => b.type === 'offer' && b.enabled !== false && matches(b.when, context));
-  const autoOffer = !hasOffer && result.showPrice !== false && view?.offer;
+  // Without an offer block of its own, the price goes right under the title.
+  const priceTop = !hasOffer && result.showPrice !== false && view?.offer;
+  const price = { compareAtPrice: result.compareAtPrice, label: result.priceLabel, note: result.priceNote, badge: result.priceBadge, buttonText: result.buttonText, trust: result.trust };
   const name = context.contact?.name ? String(context.contact.name).trim().split(/\s+/)[0] : '';
   return <div className="quiz-result">
     {celebrate && <canvas ref={canvas} className="quiz-confetti" aria-hidden="true" />}
@@ -247,12 +249,12 @@ export default function QuizResult({ result, context, view, onCheckout, busy, pr
       {result.title ? <h1 className="quiz-title quiz-result-title"><Rich text={t(result.title)} /></h1> : <h1 className="sr-only">Your result</h1>}
       {result.description && <p className="quiz-description quiz-result-description">{t(result.description)}</p>}
     </header>
+    {priceTop && <section className="quiz-block is-offer is-plain is-top"><OfferCard block={price} view={view} t={t} onCheckout={onCheckout} busy={busy} /></section>}
     <QuizBlocks blocks={blocks} context={context} view={view} onCheckout={onCheckout} busy={busy} />
-    {autoOffer && <section className="quiz-block is-offer is-plain"><OfferCard view={view} t={t} withButton={false} /></section>}
     <div className={result.stickyCta === false ? 'quiz-result-cta' : 'quiz-cta-bar'}>
       <div>
         <button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(result.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
-        {(autoOffer || result.stickyCta === false) && <TrustRow items={trustItems(null, t)} />}
+        {result.stickyCta === false && !priceTop && <TrustRow items={trustItems(null, t)} />}
       </div>
     </div>
   </div>;

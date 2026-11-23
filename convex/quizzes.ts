@@ -7,7 +7,7 @@ import { requireAdmin } from './lib/permissions';
 import { forStore, publicStore, purchaseContent } from './lib/landing_records';
 import { buildLandingView } from './lib/landing_view';
 import { fail } from './lib/validation';
-import { assertQuiz, createQuizTemplate, initialSession, advanceSession } from '../shared/quiz.js';
+import { assertQuiz, createQuizTemplate, initialSession, advanceSession, moveSession } from '../shared/quiz.js';
 import { cleanAttribution } from '../shared/attribution.js';
 import { attribution as attributionArg } from './schema';
 
@@ -60,7 +60,12 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string(),attri
  if(!store || store.status!=='active')fail('This quiz is not available.');
  const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)fail('This quiz is not published.');
  const existing=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
- if(existing){if(existing.storeId!==store._id)fail('This session belongs to another store.');return response(ctx,existing);}
+ if(existing){if(existing.storeId!==store._id)fail('This session belongs to another store.');
+  // Published again since this visitor started: they continue on the current version.
+  if(existing.publicationId!==landing.publicationId){const current=(await ctx.db.get(landing.publicationId))!;
+   await ctx.db.patch(existing._id,{publicationId:current._id,...moveSession(current.content,existing),updatedAt:Date.now()});
+   return response(ctx,await ctx.db.get(existing._id));}
+  return response(ctx,existing);}
  const secret=process.env.ANALYTICS_IP_SECRET||process.env.BETTER_AUTH_SECRET;
  const ip=secret?normalizeIp(await requestIp(ctx)):null;
  const ipHash=secret?await hashIp(ip,`quiz:${store._id}`,secret):undefined;

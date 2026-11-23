@@ -370,6 +370,27 @@ function BlockEditor({ block, quiz, view, onChange }) {
   return <Blocks quiz={quiz} value={[block]} onChange={([next]) => next ? onChange(next) : onChange(null)} />;
 }
 
+// The price card right under the final page's title. The amount is the store's; only the
+// crossed-out price and the texts around it are set here.
+function PriceSettings({ result, view, onChange, hasOfferBlock }) {
+  const currency = view?.store?.currency || 'USD', main = view?.offer?.main, compare = result.compareAtPrice;
+  return <section className="qe-section">
+    <h3>Precio (debajo del título)</h3>
+    <Toggle label="Mostrar el precio debajo del título" value={result.showPrice !== false} onChange={showPrice => onChange({ showPrice })} />
+    {hasOfferBlock && <p className="qe-hint">Tenés un bloque «Precio y oferta» en las secciones: el precio se muestra ahí en lugar de acá.</p>}
+    {result.showPrice !== false && !hasOfferBlock && <>
+      <p className="qe-hint">Precio real (el que se cobra en el checkout): <strong>{main ? storefrontMoney(main.price, currency) : '—'}</strong>. Se cambia en la oferta de la tienda.</p>
+      <PriceField label={`Precio tachado en ${currency} (opcional)`} currency={currency} value={compare} onChange={compareAtPrice => onChange({ compareAtPrice })} />
+      {compare && main && compare <= main.price ? <p className="qe-hint">El precio tachado tiene que ser mayor que el real para mostrarse.</p> : <p className="qe-hint">Vacío usa el precio de referencia del producto, si tiene. El % de ahorro se calcula solo.</p>}
+      <QField label="Texto arriba del precio" placeholder={main?.name || 'Complete 21-day plan'} value={result.priceLabel} onChange={priceLabel => onChange({ priceLabel })} />
+      <QField label="Subtítulo debajo del precio" placeholder="One-time payment · No subscription" value={result.priceNote} onChange={priceNote => onChange({ priceNote })} />
+      <QField label="Cinta arriba (vacío muestra el ahorro)" placeholder="Special offer" value={result.priceBadge} onChange={priceBadge => onChange({ priceBadge })} />
+      <QField label="Sellos debajo del botón (uno por línea, máx. 4)" multiline placeholder={'🔒 Secure payment\n⚡ Instant access'} value={(result.trust || []).join('\n')} onChange={text => onChange({ trust: text.split('\n').slice(0, 4) })} />
+      <p className="qe-hint">El botón de la tarjeta usa el texto de «Botón al checkout».</p>
+    </>}
+  </section>;
+}
+
 function ResultInspector({ quiz, result, view, onChange }) {
   const [open, setOpen] = useState(null), [adding, setAdding] = useState(false);
   const blocks = result.blocks || [];
@@ -382,11 +403,12 @@ function ResultInspector({ quiz, result, view, onChange }) {
       <QField label="Texto" multiline value={result.description} onChange={description => onChange({ description })} />
       <ImageField label="Imagen del encabezado (opcional)" value={result.imageUrl} onChange={imageUrl => onChange({ imageUrl })} />
       <Toggle label="Confeti al mostrar el resultado" value={result.confetti !== false} onChange={confetti => onChange({ confetti })} />
-      <Toggle label="Tarjeta de precio antes del botón (si no agregaste «Precio y oferta»)" value={result.showPrice !== false} onChange={showPrice => onChange({ showPrice })} />
+
       <QField label="Botón al checkout" value={result.buttonText} onChange={buttonText => onChange({ buttonText })} />
       <Toggle label="Botón fijo abajo de la pantalla" value={result.stickyCta !== false} onChange={stickyCta => onChange({ stickyCta })} />
       <p className="qe-hint">{'{{contact:name}}'} pone el nombre; si no lo dejó, se omite. El botón lleva al checkout de la tienda con nombre y email precargados.</p>
     </section>
+    <PriceSettings result={result} view={view} onChange={onChange} hasOfferBlock={blocks.some(b => b.type === 'offer' && b.enabled !== false)} />
     <section className="qe-section">
       <h3>Secciones</h3>
       {!blocks.some(b => b.type === 'video') && <Button type="button" variant="outline" onClick={() => { const block = { id: uid(), type: 'video', ...NEW_BLOCKS.video() }; setBlocks([block, ...blocks]); setOpen(block.id); }}>+ Agregar VSL</Button>}
