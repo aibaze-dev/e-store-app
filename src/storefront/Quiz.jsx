@@ -144,6 +144,29 @@ export default function Quiz({ subdomain, view }) {
     finally { setBusy(false); }
   }
   if (config === null) return <p className="p-8">This quiz is not available.</p>;
-  if (!data) return <div className="p-8" role="status">{error || 'Preparing your quiz…'}{error && <button onClick={() => setRetry(n => n + 1)}>Try again</button>}</div>;
+  if (!data) return <QuizLoader identity={config?.identity} error={error} onRetry={() => setRetry(n => n + 1)} />;
   return <QuizPlayer quiz={data.quiz} session={data.session} view={view} onCommand={command} onCheckout={checkout} busy={busy} error={error} />;
+}
+
+// Shown while the session starts: an animated ring in the quiz's own colors.
+function QuizLoader({ identity, error, onRetry }) {
+  return <div className="quiz-public quiz-loading" style={quizTheme(identity)}>
+    {error ? <div className="quiz-loading-error" role="alert">
+      <p>{error}</p>
+      <button type="button" className="quiz-loading-retry" onClick={onRetry}>Try again</button>
+    </div> : <div className="quiz-loader" role="status" aria-label="Loading quiz">
+      <span className="quiz-loader-glow" aria-hidden="true" />
+      <svg className="quiz-loader-ring" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <linearGradient id="quiz-loader-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="var(--quiz-accent)" stopOpacity="0" />
+            <stop offset="100%" stopColor="var(--quiz-accent)" />
+          </linearGradient>
+        </defs>
+        <circle className="quiz-loader-track" cx="50" cy="50" r="42" />
+        <circle className="quiz-loader-arc" cx="50" cy="50" r="42" stroke="url(#quiz-loader-gradient)" />
+      </svg>
+      <span className="quiz-loader-core" aria-hidden="true" />
+    </div>}
+  </div>;
 }

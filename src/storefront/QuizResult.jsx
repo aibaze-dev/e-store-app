@@ -130,62 +130,22 @@ function BeforeAfter({ block, t }) {
   </div>;
 }
 
-// The store's guarantee, only when it is active and has written conditions.
-export function storeGuarantee(view) {
-  const g = view?.content?.guarantee;
-  return g && g.enabled !== false && String(g.text || '').trim() ? g : null;
-}
-const guaranteeDays = g => Number.isInteger(g?.days) && g.days > 0 ? g.days : null;
-
-// Gold seal: the store's guarantee days in the middle, its label around the edge.
-const SEAL_POINTS = Array.from({ length: 48 }, (_, i) => {
-  const angle = i / 48 * Math.PI * 2, radius = i % 2 ? 90 : 98;
-  return `${(100 + Math.cos(angle) * radius).toFixed(1)},${(100 + Math.sin(angle) * radius).toFixed(1)}`;
-}).join(' ');
-export function GuaranteeSeal({ days, label = 'GUARANTEE', unit = 'DAYS', className = '' }) {
-  const id = useRef(`seal-${Math.random().toString(36).slice(2, 8)}`).current;
-  const words = String(label || 'GUARANTEE').toUpperCase().slice(0, 18);
-  return <svg className={`quiz-seal ${className}`} viewBox="0 0 200 200" aria-hidden="true">
-    <defs>
-      <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fbe7a1" /><stop offset=".45" stopColor="#d6a434" /><stop offset=".7" stopColor="#f6d77a" /><stop offset="1" stopColor="#a8761d" /></linearGradient>
-      <radialGradient id={`${id}-core`} cx=".5" cy=".42" r=".6"><stop offset="0" stopColor="#25305a" /><stop offset="1" stopColor="#0c1227" /></radialGradient>
-      <path id={`${id}-top`} d="M38,100 A62,62 0 0 1 162,100" />
-      <path id={`${id}-bottom`} d="M30,100 A70,70 0 0 0 170,100" />
-    </defs>
-    <polygon points={SEAL_POINTS} fill={`url(#${id}-gold)`} />
-    <circle cx="100" cy="100" r="80" fill={`url(#${id}-core)`} stroke={`url(#${id}-gold)`} strokeWidth="5" />
-    <circle cx="100" cy="100" r="52" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="1.5" opacity=".7" />
-    <g fill={`url(#${id}-gold)`} fontWeight="800" letterSpacing="3" fontSize="15" textAnchor="middle">
-      <text><textPath href={`#${id}-top`} startOffset="50%">{words}</textPath></text>
-      <text><textPath href={`#${id}-bottom`} startOffset="50%">{words}</textPath></text>
-      {[[30, 100], [170, 100]].map(([x, y]) => <text key={x} x={x - (x < 100 ? -12 : 12)} y={y + 5} fontSize="12">★</text>)}
-    </g>
-    {days ? <g fill={`url(#${id}-gold)`} textAnchor="middle" fontWeight="900">
-      <text x="100" y="116" fontSize={days > 99 ? 44 : 58} letterSpacing="-1">{days}</text>
-      <text x="100" y="138" fontSize="14" letterSpacing="3">{String(unit || 'DAYS').toUpperCase().slice(0, 10)}</text>
-    </g> : <path d="M100 66 L126 76 V98 C126 116 115 128 100 134 C85 128 74 116 74 98 V76 Z M88 100 L97 109 L114 90" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />}
-  </svg>;
-}
-
-function GuaranteeCard({ block, view, t }) {
-  const g = storeGuarantee(view);
-  if (!g) return null;
-  const days = guaranteeDays(g);
+// The guarantee block: an optional badge image and an optional text, nothing else.
+// It does not read the store and is not affected by block conditions.
+const hasGuarantee = b => Boolean(String(b.text || '').trim() || b.imageUrl);
+function GuaranteeCard({ block, t }) {
   return <div className="quiz-guarantee">
-    <GuaranteeSeal days={days} label={t(block.sealText)} unit={t(block.sealUnit)} />
-    <h2><Rich text={t(block.title) || g.title || (days ? `${days}-day guarantee` : 'Our guarantee')} /></h2>
-    <p>{g.text}</p>
-    {block.text && <p className="quiz-guarantee-note">{t(block.text)}</p>}
+    {block.imageUrl && <Img src={block.imageUrl} alt="" className="quiz-guarantee-image" />}
+    {String(block.text || '').trim() && <p>{t(block.text)}</p>}
   </div>;
 }
 
-// Short reassurance line under a price or button. Typed lines win; otherwise only facts
-// the store set: secure payment, its guarantee and instant digital access.
-export function trustItems(block, view, t) {
+// Short reassurance line under a price or button. Typed lines win; otherwise secure
+// payment and instant digital access.
+export function trustItems(block, t) {
   const typed = (block?.trust || []).map(t).map(x => String(x || '').trim()).filter(Boolean);
   if (typed.length) return typed.slice(0, 4);
-  const g = storeGuarantee(view), days = guaranteeDays(g);
-  return ['🔒 Secure payment', g && (days ? `✓ ${days}-day guarantee` : '✓ Money-back guarantee'), '⚡ Instant access'].filter(Boolean);
+  return ['🔒 Secure payment', '⚡ Instant access'];
 }
 export const TrustRow = ({ items }) => items.length ? <ul className="quiz-trust">{items.map(item => <li key={item}>{item}</li>)}</ul> : null;
 
@@ -217,15 +177,15 @@ export function OfferCard({ block = {}, view, t, onCheckout, busy, withButton = 
       {sales > 0 && <p className="quiz-offer-proof"><Star aria-hidden="true" />{sales.toLocaleString('en-US')} people already got it</p>}
     </div>
     {withButton && <><button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(block.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
-      <TrustRow items={trustItems(block, view, t)} /></>}
+      <TrustRow items={trustItems(block, t)} /></>}
   </div>;
 }
 
 export function QuizBlocks({ blocks = [], context, view, onCheckout, busy }) {
   const t = text => personalize(text, context);
-  return blocks.filter(b => b.enabled !== false && matches(b.when, context)).map(b => {
+  return blocks.filter(b => b.enabled !== false && (b.type === 'guarantee' || matches(b.when, context))).map(b => {
     if (b.type === 'video' && !b.videoUrl) return null;
-    if (b.type === 'guarantee' && !storeGuarantee(view)) return null;
+    if (b.type === 'guarantee' && !hasGuarantee(b)) return null;
     if (b.type === 'offer' && !view?.offer) return null;
     if (b.type === 'promotion' && !(view?.content?.promotion?.enabled && view.content.promotion.message)) return null;
     const data = (b.points || []).map(p => ({ label: t(p.label), value: evaluate(p.expression, context) }));
@@ -235,7 +195,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout, busy }) {
     return <section className={`quiz-block is-${b.type} ${plain ? 'is-plain' : ''}`} key={b.id}>
       {b.title && !ownHeading && b.type !== 'gauge' && <h2><Rich text={t(b.title)} /></h2>}
       {b.text && !ownHeading && !['beforeAfter', 'gauge'].includes(b.type) && <p>{t(b.text)}</p>}
-      {b.type === 'guarantee' && <GuaranteeCard block={b} view={view} t={t} />}
+      {b.type === 'guarantee' && <GuaranteeCard block={b} t={t} />}
       {b.type === 'offer' && <OfferCard block={b} view={view} t={t} onCheckout={onCheckout} busy={busy} />}
       {b.type === 'planSummary' && <PlanSummary block={b} context={context} t={t} />}
       {b.type === 'goals' && <Goals block={b} context={context} t={t} />}
@@ -292,7 +252,7 @@ export default function QuizResult({ result, context, view, onCheckout, busy, pr
     <div className={result.stickyCta === false ? 'quiz-result-cta' : 'quiz-cta-bar'}>
       <div>
         <button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(result.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
-        {(autoOffer || result.stickyCta === false) && <TrustRow items={trustItems(null, view, t)} />}
+        {(autoOffer || result.stickyCta === false) && <TrustRow items={trustItems(null, t)} />}
       </div>
     </div>
   </div>;

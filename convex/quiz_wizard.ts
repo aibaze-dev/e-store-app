@@ -80,7 +80,7 @@ export function finalBlocks(page:any,inserted:any[],previous:any[]){
  ].filter(b=>b.type!=='stats'||b.items.length).filter(b=>b.type!=='planSummary'||b.items.length);
  const replaced=new Set(['nowAfter','gauge','stats','planSummary','goals','features','image']);
  const kept=previous.filter(b=>!replaced.has(b.type)&&!b.imagePrompt);
- if(!kept.some(b=>b.type==='guarantee'))kept.unshift({id:'guarantee',type:'guarantee',title:''});
+ if(!kept.some(b=>b.type==='guarantee'))kept.unshift({id:'guarantee',type:'guarantee',text:'',imageUrl:''});
  const ids=new Set(generated.map(b=>b.id));
  return [...generated,...kept.map(b=>{let id=b.id;while(ids.has(id))id+='_';ids.add(id);return {...b,id};})];
 }

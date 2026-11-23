@@ -286,7 +286,7 @@ function validateQuizStructure(input, publishing) {
     check(Array.isArray(list) && list.length <= 40, `${label}: máximo 40 bloques.`);
     if (!Array.isArray(list)) return;
     ids(list, label);
-    list.forEach(b => { check(BLOCK_TYPES.includes(b.type), `${label}: bloque inválido.`); group(b.when, label); if (b.ref) check(refs.has(b.ref), `${label}: referencia desconocida.`); if (b.type === 'scale') check(finite(b.min) != null && finite(b.max) != null && b.min < b.max, `${label}: escala inválida.`); (b.points || []).forEach(p => expression(p.expression, label));
+    list.forEach(b => { check(BLOCK_TYPES.includes(b.type), `${label}: bloque inválido.`); if (b.type !== 'guarantee') group(b.when, label); if (b.ref) check(refs.has(b.ref), `${label}: referencia desconocida.`); if (b.type === 'scale') check(finite(b.min) != null && finite(b.max) != null && b.min < b.max, `${label}: escala inválida.`); (b.points || []).forEach(p => expression(p.expression, label));
       if (b.type === 'planSummary') check(Array.isArray(b.items) && b.items.length <= 6 && b.items.every(i => q.steps.some(s => s.id === i?.stepId)), `${label}: el resumen usa pantallas inexistentes (máximo 6).`);
       if (b.type === 'goals') check((!b.stepId || q.steps.some(s => s.id === b.stepId && ['single', 'multiple'].includes(s.type))) && (b.items == null || (Array.isArray(b.items) && b.items.length <= 10)), `${label}: los objetivos deben salir de una pregunta con opciones.`);
       if (['features', 'beforeAfter'].includes(b.type)) check(Array.isArray(b.items) && b.items.length <= 10, `${label}: máximo 10 elementos.`);
@@ -491,7 +491,7 @@ export function finalPageBlocks(productName = 'tu guía', ids = { level: 'welcom
     { id: 'rating', type: 'rating', enabled: false, laurels: true, title: '', text: '', rating: 0 },
     { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
     { id: 'offer', type: 'offer', title: '', label: '', badge: '', note: '', buttonText: '', trust: [] },
-    { id: 'guarantee', type: 'guarantee', title: '' },
+    { id: 'guarantee', type: 'guarantee', text: '', imageUrl: '' },
     { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
   ];
 }
@@ -525,7 +525,7 @@ export function createAdvancedQuizTemplate(productName = 'tu próximo objetivo')
       { id: 'promotion', type: 'promotion', enabled: false, title: 'Propuesta disponible', text: '' },
       { id: 'offer', type: 'offer', title: 'Qué incluye tu compra' },
       { id: 'faq', type: 'faq', title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran cuando se confirma el pago.' }] },
-      { id: 'guarantee', type: 'guarantee', title: 'Condiciones de la oferta' },
+      { id: 'guarantee', type: 'guarantee', text: '', imageUrl: '' },
     ] }] };
 }
 

@@ -6,11 +6,10 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { fromMinor, toMinor } from '@/lib/format.js';
 import { storefrontMoney } from '@/lib/storefront-money.js';
-import { storeGuarantee } from '@/storefront/QuizResult.jsx';
 import { QuizPlayer } from '@/storefront/Quiz.jsx';
 import { advanceSession, choiceRanges, clone, hasOptionFeedback, isRequired, newStep, orderErrors, QUESTION_TYPES, removeOption, removeStep } from '../../shared/quiz.js';
 import { QField } from './QuizFields.jsx';
-import { Blocks, Toggle, blockNames, stepNames, uid } from './QuizAdvanced.jsx';
+import { Blocks, GuaranteeFields, Toggle, blockNames, stepNames, uid } from './QuizAdvanced.jsx';
 
 const TYPE_META = {
   single: { label: 'Una respuesta', icon: CircleDot, tone: 'blue' },
@@ -240,7 +239,7 @@ const NEW_BLOCKS = {
   gauge: quiz => { const step = quiz.steps.find(s => ['number', 'measure'].includes(s.type) || (['single', 'intro'].includes(s.type) && s.options?.length)); return { title: 'Tu punto de partida', stepId: step?.id, leftLabel: 'Inicial', rightLabel: 'Avanzado', ranges: [] }; },
   stats: () => ({ items: [{ icon: '📖', label: 'Tiempo diario recomendado', value: '15 min', badge: 'Recomendado', display: 'slider', percent: 30, minLabel: '5 min', maxLabel: '60 min' }] }),
   beforeAfter: () => ({ title: 'Resultados que nos enorgullecen', text: '*Historias reales. Los resultados dependen de cada persona.', items: [] }),
-  guarantee: () => ({ title: '' }),
+  guarantee: () => ({ text: '', imageUrl: '' }),
   offer: () => ({ title: '', label: '', badge: '', note: '', buttonText: '', trust: [] }),
   faq: () => ({ title: 'Preguntas frecuentes', items: [{ title: 'Pregunta', text: 'Respuesta' }] }),
   text: () => ({ title: 'Título', text: '' }), image: () => ({ title: '', imageUrl: '' }), video: () => ({ title: '', videoUrl: '' }),
@@ -346,17 +345,7 @@ function BlockEditor({ block, quiz, view, onChange }) {
     <ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar historia" empty={() => ({ title: '', text: '', name: '' })} fields={[['beforeImageUrl', 'Imagen antes', 'image'], ['afterImageUrl', 'Imagen después', 'image'], ['title', 'Frase destacada'], ['text', 'Testimonio', 'long'], ['name', 'Nombre (ej. Ana, 34)']]} />
     <p className="qe-hint">Solo testimonios reales, con permiso de la persona.</p>
   </div>;
-  if (block.type === 'guarantee') { const g = storeGuarantee(view), raw = view?.content?.guarantee;
-    return <div className="qe-stack">
-    <div className={`qe-card ${g ? '' : 'qe-warning'}`} role="note">{g
-      ? <p><strong>Se muestra la garantía de la tienda{g.days ? ` (${g.days} días)` : ''}.</strong><br />{g.text.slice(0, 160)}{g.text.length > 160 ? '…' : ''}</p>
-      : <p><strong>Este bloque no se ve en el quiz.</strong> {raw?.text?.trim() ? 'La garantía de la tienda está desactivada.' : 'La tienda todavía no tiene condiciones de garantía escritas.'} Activala y completá sus condiciones; el quiz publicado la muestra cuando publicás la landing.</p>}
-      {view?.store?.id && <Link className="text-sm underline underline-offset-4" to={`/panel/tiendas/${view.store.id}/landing#guarantee`}>Editar la garantía de la tienda</Link>}</div>
-    <QField label="Título (vacío usa el de la tienda)" value={block.title} onChange={title => set({ title })} />
-    <QField label="Nota destacada debajo (opcional)" value={block.text} onChange={text => set({ text })} />
-    <div className="qe-grid"><QField label="Texto del sello" placeholder="GUARANTEE" value={block.sealText} onChange={sealText => set({ sealText })} /><QField label="Unidad debajo de los días" placeholder="DAYS" value={block.sealUnit} onChange={sealUnit => set({ sealUnit })} /></div>
-    <p className="qe-hint">Los días del sello salen de la garantía de la tienda; sin días, el sello muestra un escudo.</p>
-  </div>; }
+  if (block.type === 'guarantee') return <GuaranteeFields block={block} onChange={onChange} />;
   if (block.type === 'offer') { const currency = view?.store?.currency || 'USD', main = view?.offer?.main;
     const compare = Number.isFinite(block.compareAtPrice) ? block.compareAtPrice : null;
     return <div className="qe-stack">
@@ -371,7 +360,7 @@ function BlockEditor({ block, quiz, view, onChange }) {
     <QField label="Texto debajo del precio" placeholder="One-time payment · No subscription" value={block.note} onChange={note => set({ note })} />
     <QField label="Texto del botón" placeholder="Get my plan" value={block.buttonText} onChange={buttonText => set({ buttonText })} />
     <QField label="Sellos de confianza (uno por línea, máx. 4)" multiline placeholder={'🔒 Pago seguro\n✓ Garantía 30 días\n⚡ Acceso inmediato'} value={(block.trust || []).join('\n')} onChange={text => set({ trust: text.split('\n').slice(0, 4) })} />
-    <p className="qe-hint">Vacío muestra pago seguro, la garantía de la tienda (si está activa) y acceso inmediato.</p>
+    <p className="qe-hint">Vacío muestra «Secure payment» y «Instant access».</p>
     <Toggle label="Mostrar bonos con su valor" value={block.showBonuses !== false} onChange={showBonuses => set({ showBonuses })} />
   </div>; }
   if (block.type === 'faq') return <div className="qe-stack">{head}<ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar pregunta" empty={() => ({ title: 'Pregunta', text: 'Respuesta' })} fields={[['title', 'Pregunta'], ['text', 'Respuesta', 'long']]} /></div>;
