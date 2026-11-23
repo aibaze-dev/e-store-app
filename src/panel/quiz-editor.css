@@ -119,3 +119,7 @@
 .qe-flow-card.qe-flow-result { flex-wrap: nowrap; }
 
 .qe-level-select { width: auto; flex-shrink: 0; }
+
+.qe-card.qe-warning { border-color: #f0b44c; background: #fff8eb; }
+.qe-card[role=note] { padding: 14px; }
+.qe-card[role=note] p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; }

@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { ImageField, VideoField, UploadContext } from './ImageField.jsx';
 export { ImageField, UploadContext };
 import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { fromMinor, toMinor } from '@/lib/format.js';
+import { storefrontMoney } from '@/lib/storefront-money.js';
+import { storeGuarantee } from '@/storefront/QuizResult.jsx';
 import { QuizPlayer } from '@/storefront/Quiz.jsx';
 import { advanceSession, choiceRanges, clone, hasOptionFeedback, isRequired, newStep, orderErrors, QUESTION_TYPES, removeOption, removeStep } from '../../shared/quiz.js';
 import { QField } from './QuizFields.jsx';
@@ -21,7 +25,7 @@ const TYPE_META = {
 const meta = type => TYPE_META[type] || { label: stepNames[type] || type, icon: LayoutList, tone: 'slate' };
 const ADD_TYPES = ['single', 'multiple', 'info', 'number', 'loading', 'contact'];
 const TONES = [{ value: 'good', label: '🟢 Bien' }, { value: 'warn', label: '🟡 Atención' }, { value: 'bad', label: '🔴 Te pasaste' }, { value: 'info', label: '🔵 Dato' }];
-const RESULT_BLOCKS = ['video', 'nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'guarantee', 'faq', 'text', 'image'];
+const RESULT_BLOCKS = ['offer', 'guarantee', 'video', 'nowAfter', 'gauge', 'stats', 'planSummary', 'goals', 'features', 'rating', 'beforeAfter', 'faq', 'text', 'image'];
 const RESULT = '$result';
 
 function IconButton({ label, children, ...props }) {
@@ -237,6 +241,7 @@ const NEW_BLOCKS = {
   stats: () => ({ items: [{ icon: '📖', label: 'Tiempo diario recomendado', value: '15 min', badge: 'Recomendado', display: 'slider', percent: 30, minLabel: '5 min', maxLabel: '60 min' }] }),
   beforeAfter: () => ({ title: 'Resultados que nos enorgullecen', text: '*Historias reales. Los resultados dependen de cada persona.', items: [] }),
   guarantee: () => ({ title: '' }),
+  offer: () => ({ title: '', label: '', badge: '', note: '', buttonText: '', trust: [] }),
   faq: () => ({ title: 'Preguntas frecuentes', items: [{ title: 'Pregunta', text: 'Respuesta' }] }),
   text: () => ({ title: 'Título', text: '' }), image: () => ({ title: '', imageUrl: '' }), video: () => ({ title: '', videoUrl: '' }),
 };
@@ -254,7 +259,16 @@ function ItemsEditor({ items = [], onChange, fields, empty, max = 10, addLabel }
   </div>;
 }
 
-function BlockEditor({ block, quiz, onChange }) {
+// Typed in major units and kept in the currency's minor unit, like the store's prices.
+function PriceField({ label, currency, value, onChange }) {
+  const [text, setText] = useState(() => value ? fromMinor(value, currency) : '');
+  return <QField label={label}><input type="text" inputMode="decimal" placeholder="49.90" value={text} onChange={e => {
+    setText(e.target.value); const minor = toMinor(e.target.value, currency);
+    onChange(Number.isFinite(minor) && minor > 0 ? minor : undefined);
+  }} /></QField>;
+}
+
+function BlockEditor({ block, quiz, view, onChange }) {
   const questions = quiz.steps.filter(s => QUESTION_TYPES.includes(s.type) || (s.type === 'intro' && s.options?.length));
   const set = patch => onChange({ ...block, ...patch });
   const head = <><QField label="Título (*palabra* la resalta)" value={block.title} onChange={title => set({ title })} />{!['planSummary', 'goals', 'guarantee'].includes(block.type) && <QField label={block.type === 'beforeAfter' ? 'Aclaración debajo' : 'Texto'} multiline value={block.text} onChange={text => set({ text })} />}</>;
@@ -332,7 +346,34 @@ function BlockEditor({ block, quiz, onChange }) {
     <ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar historia" empty={() => ({ title: '', text: '', name: '' })} fields={[['beforeImageUrl', 'Imagen antes', 'image'], ['afterImageUrl', 'Imagen después', 'image'], ['title', 'Frase destacada'], ['text', 'Testimonio', 'long'], ['name', 'Nombre (ej. Ana, 34)']]} />
     <p className="qe-hint">Solo testimonios reales, con permiso de la persona.</p>
   </div>;
-  if (block.type === 'guarantee') return <div className="qe-stack"><QField label="Título (vacío usa el de la tienda)" value={block.title} onChange={title => set({ title })} /><p className="qe-hint">El texto sale de la garantía configurada en la landing de la tienda.</p></div>;
+  if (block.type === 'guarantee') { const g = storeGuarantee(view), raw = view?.content?.guarantee;
+    return <div className="qe-stack">
+    <div className={`qe-card ${g ? '' : 'qe-warning'}`} role="note">{g
+      ? <p><strong>Se muestra la garantía de la tienda{g.days ? ` (${g.days} días)` : ''}.</strong><br />{g.text.slice(0, 160)}{g.text.length > 160 ? '…' : ''}</p>
+      : <p><strong>Este bloque no se ve en el quiz.</strong> {raw?.text?.trim() ? 'La garantía de la tienda está desactivada.' : 'La tienda todavía no tiene condiciones de garantía escritas.'} Activala y completá sus condiciones; el quiz publicado la muestra cuando publicás la landing.</p>}
+      {view?.store?.id && <Link className="text-sm underline underline-offset-4" to={`/panel/tiendas/${view.store.id}/landing#guarantee`}>Editar la garantía de la tienda</Link>}</div>
+    <QField label="Título (vacío usa el de la tienda)" value={block.title} onChange={title => set({ title })} />
+    <QField label="Nota destacada debajo (opcional)" value={block.text} onChange={text => set({ text })} />
+    <div className="qe-grid"><QField label="Texto del sello" placeholder="GUARANTEE" value={block.sealText} onChange={sealText => set({ sealText })} /><QField label="Unidad debajo de los días" placeholder="DAYS" value={block.sealUnit} onChange={sealUnit => set({ sealUnit })} /></div>
+    <p className="qe-hint">Los días del sello salen de la garantía de la tienda; sin días, el sello muestra un escudo.</p>
+  </div>; }
+  if (block.type === 'offer') { const currency = view?.store?.currency || 'USD', main = view?.offer?.main;
+    const compare = Number.isFinite(block.compareAtPrice) ? block.compareAtPrice : null;
+    return <div className="qe-stack">
+    <div className="qe-card" role="note"><p><strong>Precio que se cobra: {main ? storefrontMoney(main.price, currency) : '—'}</strong><br />Sale de la oferta de la tienda y es el mismo del checkout. {main?.compareAtPrice ? `Precio de referencia del producto: ${storefrontMoney(main.compareAtPrice, currency)}.` : ''}</p>
+      {view?.store?.id && <Link className="text-sm underline underline-offset-4" to={`/panel/tiendas/${view.store.id}`}>Editar la oferta de la tienda</Link>}</div>
+    <PriceField label={`Precio tachado en ${currency} (opcional)`} currency={currency} value={compare} onChange={compareAtPrice => set({ compareAtPrice })} />
+    {compare != null && main && compare <= main.price && <p className="qe-hint">El precio tachado tiene que ser mayor que {storefrontMoney(main.price, currency)} para mostrarse.</p>}
+    <p className="qe-hint">Vacío usa el precio de referencia del producto. El ahorro (%) se calcula solo.</p>
+    <QField label="Título arriba de la tarjeta (opcional)" value={block.title} onChange={title => set({ title })} />
+    <QField label="Nombre del plan (vacío usa el del producto)" placeholder="Plan completo de 21 días" value={block.label} onChange={label => set({ label })} />
+    <QField label="Cinta destacada (vacío muestra el ahorro)" placeholder="Oferta especial" value={block.badge} onChange={badge => set({ badge })} />
+    <QField label="Texto debajo del precio" placeholder="One-time payment · No subscription" value={block.note} onChange={note => set({ note })} />
+    <QField label="Texto del botón" placeholder="Get my plan" value={block.buttonText} onChange={buttonText => set({ buttonText })} />
+    <QField label="Sellos de confianza (uno por línea, máx. 4)" multiline placeholder={'🔒 Pago seguro\n✓ Garantía 30 días\n⚡ Acceso inmediato'} value={(block.trust || []).join('\n')} onChange={text => set({ trust: text.split('\n').slice(0, 4) })} />
+    <p className="qe-hint">Vacío muestra pago seguro, la garantía de la tienda (si está activa) y acceso inmediato.</p>
+    <Toggle label="Mostrar bonos con su valor" value={block.showBonuses !== false} onChange={showBonuses => set({ showBonuses })} />
+  </div>; }
   if (block.type === 'faq') return <div className="qe-stack">{head}<ItemsEditor items={block.items} onChange={items => set({ items })} addLabel="+ Agregar pregunta" empty={() => ({ title: 'Pregunta', text: 'Respuesta' })} fields={[['title', 'Pregunta'], ['text', 'Respuesta', 'long']]} /></div>;
   if (block.type === 'image') return <div className="qe-stack">{head}<ImageField label="Imagen" value={block.imageUrl} onChange={imageUrl => set({ imageUrl })} /></div>;
   if (block.type === 'video') return <div className="qe-stack">{head}<VideoField label="Archivo del VSL" value={block.videoUrl} onChange={videoUrl => set({ videoUrl })} /><p className="qe-hint">Se muestra al terminar el quiz, antes de ir al checkout. Subí tu video para que aparezca en la página final.</p></div>;
@@ -340,15 +381,19 @@ function BlockEditor({ block, quiz, onChange }) {
   return <Blocks quiz={quiz} value={[block]} onChange={([next]) => next ? onChange(next) : onChange(null)} />;
 }
 
-function ResultInspector({ quiz, result, onChange }) {
+function ResultInspector({ quiz, result, view, onChange }) {
   const [open, setOpen] = useState(null), [adding, setAdding] = useState(false);
   const blocks = result.blocks || [];
   const setBlocks = next => onChange({ blocks: next });
   return <div className="qe-stack">
     <div className="qe-inspector-head"><span className="qe-chip tone-green">Página final</span><span className="qe-hint">Después del último paso</span></div>
     <section className="qe-section">
+      <QField label="Etiqueta arriba del título" placeholder="Tu plan personalizado está listo" value={result.eyebrow} onChange={eyebrow => onChange({ eyebrow })} />
       <QField label="Título" value={result.title} onChange={title => onChange({ title })} />
       <QField label="Texto" multiline value={result.description} onChange={description => onChange({ description })} />
+      <ImageField label="Imagen del encabezado (opcional)" value={result.imageUrl} onChange={imageUrl => onChange({ imageUrl })} />
+      <Toggle label="Confeti al mostrar el resultado" value={result.confetti !== false} onChange={confetti => onChange({ confetti })} />
+      <Toggle label="Tarjeta de precio antes del botón (si no agregaste «Precio y oferta»)" value={result.showPrice !== false} onChange={showPrice => onChange({ showPrice })} />
       <QField label="Botón al checkout" value={result.buttonText} onChange={buttonText => onChange({ buttonText })} />
       <Toggle label="Botón fijo abajo de la pantalla" value={result.stickyCta !== false} onChange={stickyCta => onChange({ stickyCta })} />
       <p className="qe-hint">{'{{contact:name}}'} pone el nombre; si no lo dejó, se omite. El botón lleva al checkout de la tienda con nombre y email precargados.</p>
@@ -363,7 +408,7 @@ function ResultInspector({ quiz, result, onChange }) {
           <IconButton label={block.enabled === false ? 'Mostrar' : 'Ocultar'} onClick={() => setBlocks(blocks.map((b, j) => j === i ? { ...b, enabled: b.enabled === false } : b))}>{block.enabled === false ? <EyeOff /> : <Eye />}</IconButton>
           <IconButton label="Eliminar sección" onClick={() => window.confirm('¿Eliminar esta sección?') && setBlocks(blocks.filter((_, j) => j !== i))}><Trash2 /></IconButton>
         </div>
-        {open === block.id && <div className="qe-block-body"><BlockEditor block={block} quiz={quiz} onChange={next => setBlocks(next ? blocks.map((b, j) => j === i ? next : b) : blocks.filter((_, j) => j !== i))} /></div>}
+        {open === block.id && <div className="qe-block-body"><BlockEditor block={block} quiz={quiz} view={view} onChange={next => setBlocks(next ? blocks.map((b, j) => j === i ? next : b) : blocks.filter((_, j) => j !== i))} /></div>}
       </div>} />
       {adding ? <div className="qe-add-menu">{RESULT_BLOCKS.map(type => <button type="button" key={type} onClick={() => { const block = { id: uid(), type, ...NEW_BLOCKS[type](quiz) }; setBlocks([...blocks, block]); setOpen(block.id); setAdding(false); }}>{blockNames[type]}</button>)}<IconButton label="Cerrar" onClick={() => setAdding(false)}><X /></IconButton></div>
         : <Button type="button" variant="outline" onClick={() => setAdding(true)}>+ Agregar sección</Button>}
@@ -417,7 +462,7 @@ export default function QuizBuilder({ quiz, view, set }) {
   return <div className="qe-builder">
     <Flow quiz={quiz} selected={target} onSelect={setSelected} setSteps={setSteps} setQuiz={set} />
     <div className="qe-inspector">{target === RESULT
-      ? result && <ResultInspector quiz={quiz} result={result} onChange={patch => set({ results: quiz.results.map(r => r.id === result.id ? { ...r, ...patch } : r) })} />
+      ? result && <ResultInspector quiz={quiz} result={result} view={view} onChange={patch => set({ results: quiz.results.map(r => r.id === result.id ? { ...r, ...patch } : r) })} />
       : <StepInspector key={target} step={quiz.steps[index]} index={index} quiz={quiz} onChange={patch => setSteps(quiz.steps.map((s, i) => i === index ? { ...s, ...patch } : s))} onRemoveOption={optionId => set(removeOption(quiz, selected, optionId))} />}</div>
     <LivePreview quiz={quiz} view={view} target={target} />
   </div>;

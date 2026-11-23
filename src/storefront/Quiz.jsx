@@ -38,7 +38,7 @@ export function QuizPlayer({ quiz, session, view, onCommand, onCheckout, busy = 
   }, [quiz, session.currentStep, preview]);
   const context = contextFor(quiz, session.answers), raw = quiz.steps.find(s => s.id === session.currentStep), step = raw && effectiveStep(raw, context);
   const result = session.currentStep === null ? (quiz.results.find(r => r.id === session.resultId) || quiz.results.find(r => r.default)) : null;
-  if (!step && !result) return <p className="p-8">Este quiz no tiene pantallas disponibles.</p>;
+  if (!step && !result) return <p className="p-8">This quiz has no screens available.</p>;
   const questions = applicableQuestions(quiz, session), done = session.history.filter(id => questions.includes(id)).length;
   const position = Math.min(done + (QUESTION_TYPES.includes(step?.type) ? 1 : 0), questions.length);
   const progress = result ? 1 : questions.length ? Math.max(done, position - .5) / questions.length : 0;
@@ -52,18 +52,18 @@ export function QuizPlayer({ quiz, session, view, onCommand, onCheckout, busy = 
   return <div className={`quiz-public ${preview ? 'is-preview' : ''}`} style={quizTheme(identity)}>
     <header className="quiz-header">
       <div className="quiz-header-row">
-        {session.history.length > 0 && !result ? <button type="button" className="quiz-back" disabled={busy} onClick={() => onCommand('back', null)} aria-label={identity.backText || 'Atrás'}><ChevronLeft aria-hidden="true" /></button> : <span className="quiz-back" aria-hidden="true" />}
+        {session.history.length > 0 && !result ? <button type="button" className="quiz-back" disabled={busy} onClick={() => onCommand('back', null)} aria-label={identity.backText || 'Back'}><ChevronLeft aria-hidden="true" /></button> : <span className="quiz-back" aria-hidden="true" />}
         <span className="quiz-brand">{identity.logoUrl ? <img src={identity.logoUrl} alt={identity.name} /> : identity.name}</span>
         <span className="quiz-counter">{!result && QUESTION_TYPES.includes(step?.type) && questions.length > 0 ? <><strong>{position}</strong>/{questions.length}</> : ''}</span>
       </div>
-      <div className="quiz-progress" role="progressbar" aria-label="Progreso del quiz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}><span style={{ width: `${progress * 100}%` }} /></div>
+      <div className="quiz-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}><span style={{ width: `${progress * 100}%` }} /></div>
     </header>
     {preview && <p className="quiz-preview-label">Vista previa · no guarda contactos, pagos ni eventos</p>}
     <main className="quiz-column" ref={screenRef} key={session.currentStep ?? 'result'}>
-      {result ? <QuizResult result={result} context={context} view={view} onCheckout={onCheckout} busy={busy} />
+      {result ? <QuizResult result={result} context={context} view={view} onCheckout={onCheckout} busy={busy} preview={preview} />
         : <QuizStep step={step} context={context} value={value} setValue={v => { setValue(v); setValidation(''); }} next={next} busy={busy} skipText={identity.skipText} view={view} onCheckout={onCheckout} />}
       {(error || validation) && <p role="alert" className="quiz-error">{validation || error}</p>}
-      {(identity.termsUrl || identity.privacyUrl) && <footer className="quiz-legal">{identity.termsUrl && <a href={identity.termsUrl}>Términos</a>}{identity.privacyUrl && <a href={identity.privacyUrl}>Privacidad</a>}</footer>}
+      {(identity.termsUrl || identity.privacyUrl) && <footer className="quiz-legal">{identity.termsUrl && <a href={identity.termsUrl}>Terms</a>}{identity.privacyUrl && <a href={identity.privacyUrl}>Privacy</a>}</footer>}
     </main>
   </div>;
 }
@@ -107,8 +107,8 @@ export default function Quiz({ subdomain, view }) {
     let ignore = false; setBusy(true); setError('');
     let token = readQuizToken(subdomain);
     try { if (!token) { token = crypto.randomUUID() + crypto.randomUUID(); sessionStorage.setItem(quizTokenKey(subdomain), token); } }
-    catch { setError('Habilitá el almacenamiento de la pestaña para recuperar tu quiz.'); setBusy(false); return; }
-    start({ subdomain, token, ...attributionArgs(subdomain) }).then(value => { if (!ignore) setData(value); }, e => { if (!ignore) setError(errorText(e, 'No se pudo recuperar el quiz.')); }).finally(() => { if (!ignore) setBusy(false); });
+    catch { setError('Please enable browser storage so we can save your quiz progress.'); setBusy(false); return; }
+    start({ subdomain, token, ...attributionArgs(subdomain) }).then(value => { if (!ignore) setData(value); }, e => { if (!ignore) setError(errorText(e, 'We couldn’t load the quiz.')); }).finally(() => { if (!ignore) setBusy(false); });
     return () => { ignore = true; };
   }, [subdomain, retry, start]);
   // The visit is counted only for a published quiz.
@@ -129,7 +129,7 @@ export default function Quiz({ subdomain, view }) {
     const payload = { token: readQuizToken(subdomain), revision: data.session.revision, direction, value }, signature = JSON.stringify(payload);
     if (pending.current?.signature !== signature) pending.current = { signature, commandId: crypto.randomUUID() };
     try { setData(await save({ ...payload, commandId: pending.current.commandId })); pending.current = null; }
-    catch (e) { setError(errorText(e, 'No se guardó el paso. Tu respuesta sigue aquí; volvé a continuar.')); }
+    catch (e) { setError(errorText(e, 'Your answer wasn’t saved. It’s still here; please try again.')); }
     finally { setBusy(false); }
   }
   async function checkout() {
@@ -140,10 +140,10 @@ export default function Quiz({ subdomain, view }) {
       // The checkout starts with the contact the visitor already typed in the quiz.
       const contact = contextFor(data.quiz, data.session.answers).contact || {};
       navigate(`${base}/checkout`, { state: { origin: 'quiz', buyer: { email: contact.email || '', name: (contact.name || '').trim() } } });
-    } catch (e) { setError(errorText(e, 'No se pudo continuar.')); }
+    } catch (e) { setError(errorText(e, 'We couldn’t continue. Please try again.')); }
     finally { setBusy(false); }
   }
-  if (config === null) return <p className="p-8">Este quiz no está disponible.</p>;
-  if (!data) return <div className="p-8" role="status">{error || 'Preparando tu recorrido…'}{error && <button onClick={() => setRetry(n => n + 1)}>Reintentar</button>}</div>;
+  if (config === null) return <p className="p-8">This quiz is not available.</p>;
+  if (!data) return <div className="p-8" role="status">{error || 'Preparing your quiz…'}{error && <button onClick={() => setRetry(n => n + 1)}>Try again</button>}</div>;
   return <QuizPlayer quiz={data.quiz} session={data.session} view={view} onCommand={command} onCheckout={checkout} busy={busy} error={error} />;
 }

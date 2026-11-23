@@ -12,16 +12,16 @@ import { cleanAttribution } from '../shared/attribution.js';
 import { attribution as attributionArg } from './schema';
 
 export async function tokenHash(token: string) {
- if(!/^[a-zA-Z0-9-]{64,128}$/.test(token)) fail('Token de recuperación inválido.');
+ if(!/^[a-zA-Z0-9-]{64,128}$/.test(token)) fail('Invalid session token.');
  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
  return Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
 }
 export async function authorizedSession(ctx: QueryCtx, token: string) {
  const hash=await tokenHash(token);
  const session=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
- if(!session) fail('No se encontró la sesión.');
+ if(!session) fail('Quiz session not found.');
  const landing=await ctx.db.get(session.landingId),store=await ctx.db.get(session.storeId);
- if(!landing?.publicationId || store?.status!=='active') fail('Este quiz no está publicado.');
+ if(!landing?.publicationId || store?.status!=='active') fail('This quiz is not published.');
  return session;
 }
 async function response(ctx: QueryCtx, session: any) {
@@ -57,15 +57,15 @@ export const publicConfig = query({args:{subdomain:v.string()},handler:async(ctx
 }});
 export const start = mutation({args:{subdomain:v.string(),token:v.string(),attribution:v.optional(attributionArg)},handler:async(ctx,{subdomain,token,attribution})=>{
  const hash=await tokenHash(token);const store=await publicStore(ctx,subdomain);
- if(!store || store.status!=='active')fail('Quiz no disponible.');
- const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)fail('Quiz no publicado.');
+ if(!store || store.status!=='active')fail('This quiz is not available.');
+ const landing=await forStore(ctx,store._id,'quiz');if(!landing?.publicationId)fail('This quiz is not published.');
  const existing=await ctx.db.query('quizSessions').withIndex('by_token',q=>q.eq('tokenHash',hash)).unique();
- if(existing){if(existing.storeId!==store._id)fail('Sesión de otra tienda.');return response(ctx,existing);}
+ if(existing){if(existing.storeId!==store._id)fail('This session belongs to another store.');return response(ctx,existing);}
  const secret=process.env.ANALYTICS_IP_SECRET||process.env.BETTER_AUTH_SECRET;
  const ip=secret?normalizeIp(await requestIp(ctx)):null;
  const ipHash=secret?await hashIp(ip,`quiz:${store._id}`,secret):undefined;
  const recent=await ctx.db.query('quizSessions').withIndex('by_store_ip',q=>q.eq('storeId',store._id).eq('ipHash',ipHash).gte('_creationTime',Date.now()-60000)).take(120);
- if(recent.length>=120)fail('Demasiados intentos. Esperá un minuto antes de comenzar.');
+ if(recent.length>=120)fail('Too many attempts. Please wait a minute and try again.');
  const publication=(await ctx.db.get(landing.publicationId))!;
  // The campaign of the ad link that opened the quiz; a recovered session keeps its own.
  const campaign=cleanAttribution(attribution);
@@ -74,7 +74,7 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string(),attri
 }});
 export const recover = query({args:{token:v.string()},handler:async(ctx,{token})=>response(ctx,await authorizedSession(ctx,token))});
 export const saveAnswer = mutation({args:{token:v.string(),revision:v.number(),commandId:v.string(),direction:v.union(v.literal('next'),v.literal('back')),value:v.any()},handler:async(ctx,args)=>{
- if(!/^[a-zA-Z0-9-]{16,64}$/.test(args.commandId))fail('Comando inválido.');
+ if(!/^[a-zA-Z0-9-]{16,64}$/.test(args.commandId))fail('Invalid request.');
  const session=await authorizedSession(ctx,args.token);if(session.lastCommand===args.commandId)return response(ctx,session);
  const publication=(await ctx.db.get(session.publicationId))!;
  const state=advanceSession(publication.content,session,args);
@@ -113,7 +113,7 @@ export const checkoutContact = query({args:{subdomain:v.string(),token:v.string(
  return name||email?{name,email}:null;
 }});
 export const checkoutArrival = mutation({args:{token:v.string()},handler:async(ctx,{token})=>{
- const session=await authorizedSession(ctx,token);if(!session.completedAt)fail('Quiz incompleto.');
+ const session=await authorizedSession(ctx,token);if(!session.completedAt)fail('Please finish the quiz first.');
  if(!session.checkoutAt)await ctx.db.patch(session._id,{checkoutAt:Date.now()});
 }});
 const emptyFunnel=()=>({sources:['classic','quiz','direct'].map(origin=>({origin,visits:0,checkout:0,purchases:0})),started:0,completed:0,contacts:0,checkout:0,steps:{} as Record<string,number>});

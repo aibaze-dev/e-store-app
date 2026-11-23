@@ -164,25 +164,25 @@ export function validDate(value) { return typeof value === 'string' && /^\d{4}-\
 export function validateAnswer(step, value) {
   const fail = message => { throw new Error(message); };
   const empty = value == null || value === '' || (Array.isArray(value) && !value.length);
-  if (empty) { if ((isRequired(step) && (QUESTION_TYPES.includes(step.type) || (step.type === 'intro' && step.options?.length))) || (step.type === 'contact' && (step.required || step.nameRequired || step.emailRequired))) fail('Completá esta respuesta para continuar.'); return null; }
-  if ((step.type === 'single' || (step.type === 'intro' && step.options?.length)) && !step.options.some(o => o.id === value)) fail('Elegí una opción válida.');
+  if (empty) { if ((isRequired(step) && (QUESTION_TYPES.includes(step.type) || (step.type === 'intro' && step.options?.length))) || (step.type === 'contact' && (step.required || step.nameRequired || step.emailRequired))) fail('Please answer this question to continue.'); return null; }
+  if ((step.type === 'single' || (step.type === 'intro' && step.options?.length)) && !step.options.some(o => o.id === value)) fail('Please choose a valid option.');
   if (step.type === 'multiple') {
-    if (!Array.isArray(value) || new Set(value).size !== value.length || value.some(id => !step.options.some(o => o.id === id))) fail('Revisá las opciones seleccionadas.');
-    if (value.length < (step.minSelections ?? (step.required ? 1 : 0)) || value.length > (step.maxSelections ?? step.options.length)) fail('Revisá la cantidad de opciones seleccionadas.');
-    if (value.length > 1 && value.some(id => step.options.find(o => o.id === id)?.exclusive)) fail('La opción exclusiva no se puede combinar.');
+    if (!Array.isArray(value) || new Set(value).size !== value.length || value.some(id => !step.options.some(o => o.id === id))) fail('Please check the options you selected.');
+    if (value.length < (step.minSelections ?? (step.required ? 1 : 0)) || value.length > (step.maxSelections ?? step.options.length)) fail('Please check how many options you selected.');
+    if (value.length > 1 && value.some(id => step.options.find(o => o.id === id)?.exclusive)) fail('This option can’t be combined with others.');
   }
   if (['number', 'measure'].includes(step.type)) {
-    if (step.type === 'measure' && (!value || !step.units.some(u => u.id === value.unit))) fail('Elegí una unidad válida.');
+    if (step.type === 'measure' && (!value || !step.units.some(u => u.id === value.unit))) fail('Please choose a valid unit.');
     const number = step.type === 'measure' ? answerValue(step, value) : value;
-    if (finite(number) == null || (step.min != null && number < step.min) || (step.max != null && number > step.max)) fail('Ingresá un número dentro del rango permitido.');
+    if (finite(number) == null || (step.min != null && number < step.min) || (step.max != null && number > step.max)) fail('Please enter a number within the allowed range.');
   }
-  if (step.type === 'text' && (typeof value !== 'string' || value.length > 2000)) fail('Ingresá hasta 2.000 caracteres.');
-  if (step.type === 'date' && (!validDate(value) || (step.minDate && value < step.minDate) || (step.maxDate && value > step.maxDate))) fail('Ingresá una fecha válida dentro del rango permitido.');
+  if (step.type === 'text' && (typeof value !== 'string' || value.length > 2000)) fail('Please enter up to 2,000 characters.');
+  if (step.type === 'date' && (!validDate(value) || (step.minDate && value < step.minDate) || (step.maxDate && value > step.maxDate))) fail('Please enter a valid date within the allowed range.');
   if (step.type === 'contact') {
-    if (typeof value !== 'object' || Array.isArray(value)) fail('Revisá los datos de contacto.');
+    if (typeof value !== 'object' || Array.isArray(value)) fail('Please check your contact details.');
     const name = String(value.name || '').trim(), email = String(value.email || '').trim().toLowerCase();
-    if (name.length > 120 || email.length > 254 || (step.nameRequired && !name) || (step.emailRequired && !email) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) fail('Revisá tu nombre y email.');
-    if (value.consent != null && typeof value.consent !== 'boolean') fail('Consentimiento inválido.');
+    if (name.length > 120 || email.length > 254 || (step.nameRequired && !name) || (step.emailRequired && !email) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) fail('Please check your name and email.');
+    if (value.consent != null && typeof value.consent !== 'boolean') fail('Invalid consent value.');
     return { name, email, consent: Boolean(value.consent && step.consentText) };
   }
   if (step.type === 'measure') return { value: value.value, unit: value.unit };
@@ -196,9 +196,9 @@ function refsIn(value) {
 export function validateQuiz(input, publishing = false) {
   try { return validateQuizStructure(input, publishing); } catch { return ['Estructura de quiz inválida. Revisá los tipos y las listas de campos.']; }
 }
-const TEXT_KEYS = ['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText'];
-const BOOLEAN_KEYS = ['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels'];
-const FIELD_NAMES = { title: 'el título', description: 'la descripción', text: 'el texto', label: 'la etiqueta', name: 'el nombre', buttonText: 'el texto del botón', consentText: 'el texto de consentimiento', icon: 'el ícono', legend: 'la leyenda', suffix: 'el sufijo', placeholder: 'la ayuda del campo', imageAlt: 'el texto alternativo de la imagen', backText: 'el botón Atrás', skipText: 'el botón Omitir', imageUrl: 'la imagen', sideImageUrl: 'la imagen lateral', videoUrl: 'el video', logoUrl: 'el logo', termsUrl: 'la URL de términos', privacyUrl: 'la URL de privacidad', beforeImageUrl: 'la imagen «antes»', afterImageUrl: 'la imagen «después»', photoUrl: 'la foto', color: 'el color de botones', background: 'el color de fondo', textColor: 'el color de texto', items: 'un mensaje' };
+const TEXT_KEYS = ['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText','eyebrow','badge','note','sealText','sealUnit'];
+const BOOLEAN_KEYS = ['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels','showBonuses','showPrice','confetti'];
+const FIELD_NAMES = { title: 'el título', description: 'la descripción', text: 'el texto', eyebrow: 'la etiqueta del encabezado', badge: 'la cinta destacada', note: 'el texto debajo del precio', sealText: 'el texto del sello', sealUnit: 'la unidad del sello', trust: 'un sello de confianza', label: 'la etiqueta', name: 'el nombre', buttonText: 'el texto del botón', consentText: 'el texto de consentimiento', icon: 'el ícono', legend: 'la leyenda', suffix: 'el sufijo', placeholder: 'la ayuda del campo', imageAlt: 'el texto alternativo de la imagen', backText: 'el botón Atrás', skipText: 'el botón Omitir', imageUrl: 'la imagen', sideImageUrl: 'la imagen lateral', videoUrl: 'el video', logoUrl: 'el logo', termsUrl: 'la URL de términos', privacyUrl: 'la URL de privacidad', beforeImageUrl: 'la imagen «antes»', afterImageUrl: 'la imagen «después»', photoUrl: 'la foto', color: 'el color de botones', background: 'el color de fondo', textColor: 'el color de texto', items: 'un mensaje' };
 const fieldName = key => FIELD_NAMES[key] || `el campo «${key}»`;
 // Errors name screens by their title: IDs are internal and mean nothing to the editor.
 const stepName = s => typeof s?.title === 'string' && s.title.trim() ? `Pantalla «${s.title.trim().slice(0, 60)}»` : `Pantalla ${s?.id ?? ''}`.trim();
@@ -294,6 +294,7 @@ function validateQuizStructure(input, publishing) {
       if (b.type === 'stats') check(Array.isArray(b.items) && b.items.length <= 6 && b.items.every(i => i && ['none', 'slider', 'icons'].includes(i.display ?? 'none') && (!i.stepId || q.steps.some(s => s.id === i.stepId)) && (i.total == null || (Number.isInteger(i.total) && i.total >= 1 && i.total <= 12)) && (i.filled == null || (Number.isInteger(i.filled) && i.filled >= 0))), `${label}: tarjetas inválidas (máximo 6, hasta 12 íconos).`);
       if (b.type === 'nowAfter') check(['now', 'after'].every(k => b[k] && typeof b[k] === 'object') && Array.isArray(b.metrics) && b.metrics.length <= 4 && b.metrics.every(m => m && [m.now, m.after].every(n => n == null || typeof n === 'string' || (Number.isInteger(n) && n >= 0 && n <= 5))), `${label}: la comparación necesita «ahora», «después» y hasta 4 indicadores.`);
       if (b.mockups != null) check(Array.isArray(b.mockups) && b.mockups.length <= 2, `${label}: máximo 2 imágenes de producto.`);
+      if (b.type === 'offer') check((b.compareAtPrice == null || (Number.isInteger(b.compareAtPrice) && b.compareAtPrice > 0)) && (b.trust == null || (Array.isArray(b.trust) && b.trust.length <= 4 && b.trust.every(x => typeof x === 'string' && x.length <= 80))), `${label}: el precio tachado tiene que ser un importe positivo y los sellos de confianza, hasta 4 textos cortos.`);
       if (b.type === 'rating' && b.rating != null) check(finite(b.rating) != null && b.rating >= 0 && b.rating <= 5, `${label}: la puntuación va de 0 a 5.`); });
   };
   q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, stepName(s)); });
@@ -489,6 +490,7 @@ export function finalPageBlocks(productName = 'tu guía', ids = { level: 'welcom
     { id: 'features', type: 'features', title: 'Qué vas a recibir:', mockups: [], items: [{ icon: '📘', title: `${productName}, completo`, text: '' }, { icon: '🗓️', title: 'Un plan fácil de seguir', text: '' }, { icon: '📈', title: 'Avances visibles desde las primeras semanas', text: '' }, { icon: '💬', title: 'Ejercicios para aplicarlo', text: '' }] },
     { id: 'rating', type: 'rating', enabled: false, laurels: true, title: '', text: '', rating: 0 },
     { id: 'stories', type: 'beforeAfter', enabled: false, title: 'Resultados que nos enorgullecen', text: '*Historias de personas reales. Los resultados dependen de cada caso.', items: [] },
+    { id: 'offer', type: 'offer', title: '', label: '', badge: '', note: '', buttonText: '', trust: [] },
     { id: 'guarantee', type: 'guarantee', title: '' },
     { id: 'faq', type: 'faq', enabled: false, title: 'Preguntas frecuentes', items: [{ title: '¿Dónde accedo al material?', text: 'Los enlaces se muestran apenas se confirma el pago.' }] },
   ];
@@ -534,19 +536,19 @@ export function initialSession(quiz) {
 // so hidden data never influences a newly chosen branch.
 export function advanceSession(quiz, session, command, now = Date.now()) {
   if (command.commandId === session.lastCommand) return session;
-  if (command.revision !== session.revision) throw new Error('La sesión cambió. Recuperá el avance antes de reintentar.');
+  if (command.revision !== session.revision) throw new Error('Your session changed. Reload the page to continue where you left off.');
   let answers = clone(session.answers), history = [...session.history], currentStep = session.currentStep;
   if (command.direction === 'back') {
     let previous = history.pop();
     // Loading screens advance on their own, so going back skips them.
     while (previous && history.length && quiz.steps.find(s => s.id === previous)?.type === 'loading') previous = history.pop();
-    if (!previous) throw new Error('No hay una pantalla anterior.');
+    if (!previous) throw new Error('There is no previous screen.');
     const index = quiz.steps.findIndex(s=>s.id===previous);
     answers = Object.fromEntries(Object.entries(answers).filter(([id])=>quiz.steps.findIndex(s=>s.id===id)<=index));
     currentStep = previous;
   } else {
     const step = quiz.steps.find(s=>s.id===currentStep);
-    if (!step) throw new Error('Este recorrido ya terminó.');
+    if (!step) throw new Error('This quiz is already finished.');
     const value = validateAnswer(step, command.value);
     if (value !== null) answers[step.id] = value; else delete answers[step.id];
     history.push(step.id);

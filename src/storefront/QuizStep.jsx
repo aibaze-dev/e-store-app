@@ -63,7 +63,7 @@ function Loading({ step, t, onDone }) {
       </li>)}
     </ul>}
     {/* Only if saving the automatic step failed: lets the visitor retry by hand. */}
-    {stuck && <button className="quiz-primary" type="submit">Continuar</button>}
+    {stuck && <button className="quiz-primary" type="submit">Continue</button>}
   </div>;
 }
 
@@ -110,7 +110,7 @@ export default function QuizStep({ step, context, value, setValue, next, busy, s
         {step.suffix && <span className="quiz-number-suffix">{t(step.suffix)}</span>}
       </label>}
       {step.type === 'measure' && <div className="quiz-measure">
-        {step.units.length > 1 && <div className="quiz-units" role="group" aria-label="Unidad">{step.units.map(u => <button type="button" key={u.id} aria-pressed={(value?.unit || step.units[0].id) === u.id} onClick={() => setValue({ value: value?.value ?? '', unit: u.id })}>{u.label}</button>)}</div>}
+        {step.units.length > 1 && <div className="quiz-units" role="group" aria-label="Unit">{step.units.map(u => <button type="button" key={u.id} aria-pressed={(value?.unit || step.units[0].id) === u.id} onClick={() => setValue({ value: value?.value ?? '', unit: u.id })}>{u.label}</button>)}</div>}
         <label className="quiz-number"><span className="sr-only">{t(step.title)}</span>
           <input type="number" inputMode="decimal" step="any" placeholder={t(step.placeholder) || '0'} value={value?.value ?? ''} onChange={e => setValue({ unit: value?.unit || step.units[0].id, value: e.target.value === '' ? '' : Number(e.target.value) })} />
           <span className="quiz-number-suffix">{step.units.find(u => u.id === (value?.unit || step.units[0].id))?.label}</span>
@@ -121,17 +121,17 @@ export default function QuizStep({ step, context, value, setValue, next, busy, s
           : <input type="date" min={step.minDate} max={step.maxDate} value={value ?? ''} onChange={e => setValue(e.target.value)} />}
       </label>}
       {step.type === 'contact' && <div className="quiz-contact">
-        <label className="quiz-field"><span>Nombre{step.nameRequired ? '' : ' (opcional)'}</span><input autoComplete="given-name" maxLength={120} required={step.nameRequired} placeholder="Tu nombre" value={value?.name || ''} onChange={e => setValue({ ...value, name: e.target.value })} /></label>
-        <label className="quiz-field"><span>Email{step.emailRequired ? '' : ' (opcional)'}</span><input type="email" autoComplete="email" maxLength={254} required={step.emailRequired} placeholder="tu@email.com" value={value?.email || ''} onChange={e => setValue({ ...value, email: e.target.value })} /></label>
+        <label className="quiz-field"><span>Name{step.nameRequired ? '' : ' (optional)'}</span><input autoComplete="given-name" maxLength={120} required={step.nameRequired} placeholder="Your name" value={value?.name || ''} onChange={e => setValue({ ...value, name: e.target.value })} /></label>
+        <label className="quiz-field"><span>Email{step.emailRequired ? '' : ' (optional)'}</span><input type="email" autoComplete="email" maxLength={254} required={step.emailRequired} placeholder="you@email.com" value={value?.email || ''} onChange={e => setValue({ ...value, email: e.target.value })} /></label>
         {step.consentText && <label className="quiz-consent"><input type="checkbox" checked={value?.consent === true} onChange={e => setValue({ ...value, consent: e.target.checked })} />{t(step.consentText)}</label>}
       </div>}
 
       <div aria-live="polite"><FeedbackCard feedback={feedback} t={t} /></div>
-      <QuizBlocks blocks={step.blocks} context={context} view={view} onCheckout={onCheckout} />
+      <QuizBlocks blocks={step.blocks} context={context} view={view} onCheckout={onCheckout} busy={busy} />
       <StepImage step={step} t={t} layout="hero-bottom" />
 
-      {!instant && step.type !== 'loading' && <div className="quiz-cta-bar"><button className="quiz-primary" type="submit" disabled={blocked}>{busy ? 'Guardando…' : t(step.buttonText) || 'Continuar'}</button></div>}
-      {question && !isRequired(step) && <button type="button" className="quiz-skip" onClick={() => next(null)}>{skipText || 'Omitir'}</button>}
+      {!instant && step.type !== 'loading' && <div className="quiz-cta-bar"><button className="quiz-primary" type="submit" disabled={blocked}>{busy ? 'Saving…' : t(step.buttonText) || 'Continue'}</button></div>}
+      {question && !isRequired(step) && <button type="button" className="quiz-skip" onClick={() => next(null)}>{skipText || 'Skip'}</button>}
     </fieldset>
   </form>;
 }

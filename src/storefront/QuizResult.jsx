@@ -1,6 +1,7 @@
-import { lazy, Suspense, useRef, useState } from 'react';
-import { Info, ShieldCheck, Star, Target } from 'lucide-react';
-import { formatMoney } from '@/lib/format.js';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Check, Gift, Info, ShieldCheck, Star, Target } from 'lucide-react';
+import { storefrontMoney } from '@/lib/storefront-money.js';
+import { createConfetti, tint } from './confetti.js';
 import { displayRef, evaluate, gaugeFor, matches, personalize, resolveRef, statPercent } from '../../shared/quiz.js';
 
 // The chart library is large and only result pages with a chart block need it.
@@ -14,7 +15,7 @@ export function Rich({ text }) {
 
 const Img = ({ src, alt = '', className }) => src ? <img className={className} src={src} alt={alt} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} /> : null;
 
-// Answer labels for a step, without "Sin resultado" when it was skipped.
+// Answer labels for a step, empty when it was skipped.
 function answerText(stepId, context, suffix = '') {
   const value = resolveRef(`answer:${stepId}`, context);
   if (value == null || value === '' || (Array.isArray(value) && !value.length)) return '';
@@ -60,12 +61,12 @@ function Features({ block, t }) {
 
 function Level({ value, max = 5 }) {
   if (typeof value === 'string') return <strong className="quiz-compare-text">{value}</strong>;
-  return <span className="quiz-level" role="img" aria-label={`${value} de ${max}`}>{Array.from({ length: max }, (_, i) => <span key={i} className={i < value ? 'is-on' : ''} />)}</span>;
+  return <span className="quiz-level" role="img" aria-label={`${value} of ${max}`}>{Array.from({ length: max }, (_, i) => <span key={i} className={i < value ? 'is-on' : ''} />)}</span>;
 }
 function NowAfter({ block, t }) {
   const sides = [block.now || {}, block.after || {}];
   return <div className="quiz-compare">
-    <div className="quiz-compare-tabs">{sides.map((side, i) => <span key={i}>{t(side.label) || (i ? 'Después' : 'Ahora')}</span>)}</div>
+    <div className="quiz-compare-tabs">{sides.map((side, i) => <span key={i}>{t(side.label) || (i ? 'After' : 'Now')}</span>)}</div>
     <div className="quiz-compare-images">{sides.map((side, i) => <figure key={i} className={i ? 'is-after' : 'is-now'}>
       {side.imageUrl ? <Img src={side.imageUrl} alt={t(side.imageAlt)} /> : <span className="quiz-compare-icon" aria-hidden="true">{side.icon || (i ? '😄' : '😕')}</span>}
     </figure>)}</div>
@@ -95,7 +96,7 @@ function Stats({ block, context, t }) {
       <div className="quiz-stat-head">{item.icon && <span className="quiz-summary-icon" aria-hidden="true">{item.icon}</span>}<span><small>{t(item.label)}</small><strong>{t(item.value)}</strong></span></div>
       {item.display === 'slider' && <><div className="quiz-stat-slider" role="img" aria-label={`${Math.round(percent)}%`}><span style={{ width: `${percent}%` }} /><i style={{ left: `${percent}%` }} /></div>
         <div className="quiz-gauge-scale"><span>{t(item.minLabel)}</span><span>{t(item.maxLabel)}</span></div></>}
-      {item.display === 'icons' && <div className="quiz-stat-icons" role="img" aria-label={`${filled} de ${total}`}>{Array.from({ length: total }, (_, j) => <span key={j} className={j < filled ? 'is-on' : ''} aria-hidden="true">{item.unitIcon || '●'}</span>)}</div>}
+      {item.display === 'icons' && <div className="quiz-stat-icons" role="img" aria-label={`${filled} of ${total}`}>{Array.from({ length: total }, (_, j) => <span key={j} className={j < filled ? 'is-on' : ''} aria-hidden="true">{item.unitIcon || '●'}</span>)}</div>}
     </article>;
   })}</div>;
 }
@@ -105,7 +106,7 @@ function Rating({ block, t }) {
   const rating = Number(block.rating) || 0;
   return <div className="quiz-rating">
     {block.laurels !== false && (block.title || block.text) && <div className="quiz-laurels"><Laurel /><div>{block.title && <h2>{t(block.title)}</h2>}{block.text && <p>{t(block.text)}</p>}</div><Laurel flip /></div>}
-    {rating > 0 && <p className="quiz-stars" aria-label={`${rating} de 5`}>{[1, 2, 3, 4, 5].map(n => <Star key={n} aria-hidden="true" className={n <= Math.round(rating) ? 'is-on' : ''} />)}<span>{rating.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span></p>}
+    {rating > 0 && <p className="quiz-stars" aria-label={`${rating} out of 5`}>{[1, 2, 3, 4, 5].map(n => <Star key={n} aria-hidden="true" className={n <= Math.round(rating) ? 'is-on' : ''} />)}<span>{rating.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span></p>}
     {block.subtitle && <p className="quiz-rating-subtitle">{t(block.subtitle)}</p>}
   </div>;
 }
@@ -117,34 +118,125 @@ function BeforeAfter({ block, t }) {
   const go = i => track.current?.children[i]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   return <div className="quiz-stories">
     <div className="quiz-stories-track" ref={track} onScroll={e => setActive(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
-      {items.map((item, i) => <article className="quiz-story" key={i} aria-label={`Historia ${i + 1} de ${items.length}`}>
+      {items.map((item, i) => <article className="quiz-story" key={i} aria-label={`Story ${i + 1} of ${items.length}`}>
         {(item.beforeImageUrl || item.afterImageUrl) && <div className="quiz-story-images">
-          {item.beforeImageUrl && <figure><Img src={item.beforeImageUrl} alt={`${t(block.beforeLabel) || 'Antes'} · ${t(item.name)}`} /><figcaption>{t(block.beforeLabel) || 'Antes'}</figcaption></figure>}
-          {item.afterImageUrl && <figure><Img src={item.afterImageUrl} alt={`${t(block.afterLabel) || 'Después'} · ${t(item.name)}`} /><figcaption>{t(block.afterLabel) || 'Después'}</figcaption></figure>}
+          {item.beforeImageUrl && <figure><Img src={item.beforeImageUrl} alt={`${t(block.beforeLabel) || 'Before'} · ${t(item.name)}`} /><figcaption>{t(block.beforeLabel) || 'Before'}</figcaption></figure>}
+          {item.afterImageUrl && <figure><Img src={item.afterImageUrl} alt={`${t(block.afterLabel) || 'After'} · ${t(item.name)}`} /><figcaption>{t(block.afterLabel) || 'After'}</figcaption></figure>}
         </div>}
         <blockquote>{item.title && <strong>{t(item.title)}</strong>}{item.text && <p>{t(item.text)}</p>}{item.name && <footer>{t(item.name)}</footer>}</blockquote>
       </article>)}
     </div>
-    {items.length > 1 && <div className="quiz-dots">{items.map((_, i) => <button key={i} type="button" aria-label={`Ver historia ${i + 1}`} aria-current={i === active} onClick={() => go(i)} />)}</div>}
+    {items.length > 1 && <div className="quiz-dots">{items.map((_, i) => <button key={i} type="button" aria-label={`Show story ${i + 1}`} aria-current={i === active} onClick={() => go(i)} />)}</div>}
   </div>;
 }
 
-export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
+// The store's guarantee, only when it is active and has written conditions.
+export function storeGuarantee(view) {
+  const g = view?.content?.guarantee;
+  return g && g.enabled !== false && String(g.text || '').trim() ? g : null;
+}
+const guaranteeDays = g => Number.isInteger(g?.days) && g.days > 0 ? g.days : null;
+
+// Gold seal: the store's guarantee days in the middle, its label around the edge.
+const SEAL_POINTS = Array.from({ length: 48 }, (_, i) => {
+  const angle = i / 48 * Math.PI * 2, radius = i % 2 ? 90 : 98;
+  return `${(100 + Math.cos(angle) * radius).toFixed(1)},${(100 + Math.sin(angle) * radius).toFixed(1)}`;
+}).join(' ');
+export function GuaranteeSeal({ days, label = 'GUARANTEE', unit = 'DAYS', className = '' }) {
+  const id = useRef(`seal-${Math.random().toString(36).slice(2, 8)}`).current;
+  const words = String(label || 'GUARANTEE').toUpperCase().slice(0, 18);
+  return <svg className={`quiz-seal ${className}`} viewBox="0 0 200 200" aria-hidden="true">
+    <defs>
+      <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fbe7a1" /><stop offset=".45" stopColor="#d6a434" /><stop offset=".7" stopColor="#f6d77a" /><stop offset="1" stopColor="#a8761d" /></linearGradient>
+      <radialGradient id={`${id}-core`} cx=".5" cy=".42" r=".6"><stop offset="0" stopColor="#25305a" /><stop offset="1" stopColor="#0c1227" /></radialGradient>
+      <path id={`${id}-top`} d="M38,100 A62,62 0 0 1 162,100" />
+      <path id={`${id}-bottom`} d="M30,100 A70,70 0 0 0 170,100" />
+    </defs>
+    <polygon points={SEAL_POINTS} fill={`url(#${id}-gold)`} />
+    <circle cx="100" cy="100" r="80" fill={`url(#${id}-core)`} stroke={`url(#${id}-gold)`} strokeWidth="5" />
+    <circle cx="100" cy="100" r="52" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="1.5" opacity=".7" />
+    <g fill={`url(#${id}-gold)`} fontWeight="800" letterSpacing="3" fontSize="15" textAnchor="middle">
+      <text><textPath href={`#${id}-top`} startOffset="50%">{words}</textPath></text>
+      <text><textPath href={`#${id}-bottom`} startOffset="50%">{words}</textPath></text>
+      {[[30, 100], [170, 100]].map(([x, y]) => <text key={x} x={x - (x < 100 ? -12 : 12)} y={y + 5} fontSize="12">★</text>)}
+    </g>
+    {days ? <g fill={`url(#${id}-gold)`} textAnchor="middle" fontWeight="900">
+      <text x="100" y="116" fontSize={days > 99 ? 44 : 58} letterSpacing="-1">{days}</text>
+      <text x="100" y="138" fontSize="14" letterSpacing="3">{String(unit || 'DAYS').toUpperCase().slice(0, 10)}</text>
+    </g> : <path d="M100 66 L126 76 V98 C126 116 115 128 100 134 C85 128 74 116 74 98 V76 Z M88 100 L97 109 L114 90" fill="none" stroke={`url(#${id}-gold)`} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />}
+  </svg>;
+}
+
+function GuaranteeCard({ block, view, t }) {
+  const g = storeGuarantee(view);
+  if (!g) return null;
+  const days = guaranteeDays(g);
+  return <div className="quiz-guarantee">
+    <GuaranteeSeal days={days} label={t(block.sealText)} unit={t(block.sealUnit)} />
+    <h2><Rich text={t(block.title) || g.title || (days ? `${days}-day guarantee` : 'Our guarantee')} /></h2>
+    <p>{g.text}</p>
+    {block.text && <p className="quiz-guarantee-note">{t(block.text)}</p>}
+  </div>;
+}
+
+// Short reassurance line under a price or button. Typed lines win; otherwise only facts
+// the store set: secure payment, its guarantee and instant digital access.
+export function trustItems(block, view, t) {
+  const typed = (block?.trust || []).map(t).map(x => String(x || '').trim()).filter(Boolean);
+  if (typed.length) return typed.slice(0, 4);
+  const g = storeGuarantee(view), days = guaranteeDays(g);
+  return ['🔒 Secure payment', g && (days ? `✓ ${days}-day guarantee` : '✓ Money-back guarantee'), '⚡ Instant access'].filter(Boolean);
+}
+export const TrustRow = ({ items }) => items.length ? <ul className="quiz-trust">{items.map(item => <li key={item}>{item}</li>)}</ul> : null;
+
+// The price block. The price charged is always the store's; the crossed-out price is the
+// block's own (or the product's reference price) and only shows when it is higher.
+export function OfferCard({ block = {}, view, t, onCheckout, busy, withButton = true }) {
+  if (!view?.offer?.main) return null;
+  const currency = view.store?.currency || 'USD', money = value => storefrontMoney(value, currency);
+  const { main, bonuses = [] } = view.offer;
+  const price = main.price, compare = Number.isFinite(block.compareAtPrice) && block.compareAtPrice > 0 ? block.compareAtPrice : main.compareAtPrice;
+  const was = compare > price ? compare : null, save = was ? Math.round((was - price) / was * 100) : 0;
+  const bonusValue = bonuses.reduce((total, b) => total + (b.referenceValue || 0), 0);
+  const promotion = view.content?.promotion?.enabled && String(view.content.promotion.message || '').trim();
+  const sales = view.activity?.sales >= 10 ? view.activity.sales : 0;
+  const showBonuses = block.showBonuses !== false && bonuses.length > 0;
+  return <div className="quiz-offer-wrap">
+    {block.title && <h2><Rich text={t(block.title)} /></h2>}
+    <div className="quiz-offer">
+      {(block.badge || save > 0) && <span className="quiz-offer-ribbon">{t(block.badge) || `Save ${save}% today`}</span>}
+      {promotion && <p className="quiz-offer-promo">{promotion}</p>}
+      <p className="quiz-offer-label">{t(block.label) || main.name}</p>
+      {was && <p className="quiz-offer-was"><s aria-label={`Regular price ${money(was)}`}>{money(was)}</s><span className="quiz-offer-save">−{save}%</span></p>}
+      <p className="quiz-offer-price"><span className="sr-only">{was ? 'Today’s price ' : 'Price '}</span>{money(price)}</p>
+      <p className="quiz-offer-note">{t(block.note) || 'One-time payment · No subscription'}</p>
+      {showBonuses && <ul className="quiz-offer-bonuses">
+        {bonuses.map(b => <li key={b.productId}><Gift aria-hidden="true" /><span>{b.name}</span>{b.referenceValue > 0 ? <><s>{money(b.referenceValue)}</s><strong>FREE</strong></> : <strong>FREE</strong>}</li>)}
+        {bonusValue > 0 && <li className="quiz-offer-total"><span>Total value</span><s>{money(Math.max(was || price, price) + bonusValue)}</s><strong>{money(price)}</strong></li>}
+      </ul>}
+      {sales > 0 && <p className="quiz-offer-proof"><Star aria-hidden="true" />{sales.toLocaleString('en-US')} people already got it</p>}
+    </div>
+    {withButton && <><button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(block.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
+      <TrustRow items={trustItems(block, view, t)} /></>}
+  </div>;
+}
+
+export function QuizBlocks({ blocks = [], context, view, onCheckout, busy }) {
   const t = text => personalize(text, context);
-  const money = value => formatMoney(value, view?.store.currency || 'USD');
   return blocks.filter(b => b.enabled !== false && matches(b.when, context)).map(b => {
     if (b.type === 'video' && !b.videoUrl) return null;
+    if (b.type === 'guarantee' && !storeGuarantee(view)) return null;
+    if (b.type === 'offer' && !view?.offer) return null;
+    if (b.type === 'promotion' && !(view?.content?.promotion?.enabled && view.content.promotion.message)) return null;
     const data = (b.points || []).map(p => ({ label: t(p.label), value: evaluate(p.expression, context) }));
     const value = b.ref ? resolveRef(b.ref, context) : null;
-    const guarantee = view?.content?.guarantee;
-    if (b.type === 'guarantee' && (!guarantee || guarantee.enabled === false)) return null;
-    const plain = ['planSummary', 'goals', 'rating', 'nowAfter', 'gauge', 'stats', 'features'].includes(b.type);
-    const ownHeading = b.type === 'rating' && b.laurels !== false && (b.title || b.text);
+    const plain = ['planSummary', 'goals', 'rating', 'nowAfter', 'gauge', 'stats', 'features', 'offer', 'guarantee'].includes(b.type);
+    const ownHeading = (b.type === 'rating' && b.laurels !== false && (b.title || b.text)) || ['guarantee', 'offer'].includes(b.type);
     return <section className={`quiz-block is-${b.type} ${plain ? 'is-plain' : ''}`} key={b.id}>
-      {b.type === 'guarantee' ? <div className="quiz-guarantee"><ShieldCheck aria-hidden="true" /><div><h2>{t(b.title) || guarantee.title}</h2><p>{guarantee.text}</p></div></div> : <>
-        {b.title && !ownHeading && b.type !== 'gauge' && <h2><Rich text={t(b.title)} /></h2>}
-        {b.text && !ownHeading && !['beforeAfter', 'gauge'].includes(b.type) && <p>{t(b.text)}</p>}
-      </>}
+      {b.title && !ownHeading && b.type !== 'gauge' && <h2><Rich text={t(b.title)} /></h2>}
+      {b.text && !ownHeading && !['beforeAfter', 'gauge'].includes(b.type) && <p>{t(b.text)}</p>}
+      {b.type === 'guarantee' && <GuaranteeCard block={b} view={view} t={t} />}
+      {b.type === 'offer' && <OfferCard block={b} view={view} t={t} onCheckout={onCheckout} busy={busy} />}
       {b.type === 'planSummary' && <PlanSummary block={b} context={context} t={t} />}
       {b.type === 'goals' && <Goals block={b} context={context} t={t} />}
       {b.type === 'features' && <Features block={b} t={t} />}
@@ -154,28 +246,54 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout }) {
       {b.type === 'rating' && <Rating block={b} t={t} />}
       {b.type === 'beforeAfter' && <><BeforeAfter block={b} t={t} />{b.text && <p className="quiz-disclaimer">{t(b.text)}</p>}</>}
       {b.type === 'image' && <Img src={b.imageUrl} alt={t(b.alt)} className="quiz-image" />}
-      {b.type === 'video' && b.videoUrl && <video controls playsInline preload="metadata" src={b.videoUrl} aria-label={t(b.title) || 'Video de venta'} />}
+      {b.type === 'video' && b.videoUrl && <video controls playsInline preload="metadata" src={b.videoUrl} aria-label={t(b.title) || 'Video'} />}
       {b.type === 'answers' && <dl>{context.quiz.steps.filter(s => context.answers[s.id] != null && s.type !== 'contact').map(s => <div key={s.id}><dt>{t(s.title)}</dt><dd>{displayRef(`answer:${s.id}`, context)}</dd></div>)}</dl>}
       {['metric', 'scale'].includes(b.type) && <><strong className="quiz-metric">{displayRef(b.ref, context)} {t(b.suffix)}</strong>{b.type === 'scale' && typeof value === 'number' && <meter min={b.min} max={b.max} value={value} aria-label={t(b.title)} />}</>}
-      {b.type === 'comparison' && <dl className="quiz-comparison">{data.map((p, i) => <div key={i}><dt>{p.label}</dt><dd>{p.value ?? 'Sin resultado'}</dd></div>)}</dl>}
-      {['line', 'bar'].includes(b.type) && <><div className="quiz-chart" role="img" aria-label={t(b.title)}><Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}><QuizChart type={b.type} data={data} name={t(b.legend) || 'Valor'} height={CHART_HEIGHT} /></Suspense></div><table className="quiz-data"><caption>{t(b.legend) || 'Valores del gráfico'}</caption><tbody>{data.map((p, i) => <tr key={i}><th>{p.label}</th><td>{p.value ?? 'Sin resultado'}</td></tr>)}</tbody></table></>}
+      {b.type === 'comparison' && <dl className="quiz-comparison">{data.map((p, i) => <div key={i}><dt>{p.label}</dt><dd>{p.value ?? '—'}</dd></div>)}</dl>}
+      {['line', 'bar'].includes(b.type) && <><div className="quiz-chart" role="img" aria-label={t(b.title)}><Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}><QuizChart type={b.type} data={data} name={t(b.legend) || 'Value'} height={CHART_HEIGHT} /></Suspense></div><table className="quiz-data"><caption>{t(b.legend) || 'Chart values'}</caption><tbody>{data.map((p, i) => <tr key={i}><th>{p.label}</th><td>{p.value ?? '—'}</td></tr>)}</tbody></table></>}
       {['benefits', 'testimonials'].includes(b.type) && (b.items || []).map((item, i) => <article key={i}><Img src={item.imageUrl} className="quiz-image" /><h3>{t(item.title)}</h3><p>{t(item.text)}</p></article>)}
       {b.type === 'faq' && (b.items || []).map((item, i) => <details key={i}><summary>{t(item.title)}</summary><p>{t(item.text)}</p></details>)}
-      {b.type === 'offer' && view && <><Img src={view.offer.main.coverUrl} alt={view.offer.main.name} className="quiz-image" /><h3>{view.offer.main.name}</h3><p>{view.offer.main.description}</p><strong className="quiz-price">{money(view.offer.main.price)}</strong><p>Pago único</p>{view.offer.bonuses.length > 0 && <><h3>Bonos incluidos</h3><ul>{view.offer.bonuses.map(p => <li key={p.productId}>{p.name}</li>)}</ul></>}<button className="quiz-primary" type="button" onClick={onCheckout}>{t(b.buttonText) || 'Ir al checkout'}</button></>}
-      {b.type === 'promotion' && view?.content.promotion?.enabled && <p>{view.content.promotion.message}</p>}
+      {b.type === 'promotion' && <p className="quiz-offer-promo">{view.content.promotion.message}</p>}
     </section>;
   });
 }
 
-// Final page: personalised summary and a call to the store's own checkout. No prices here.
-export default function QuizResult({ result, context, view, onCheckout, busy }) {
+// A short confetti burst in the quiz colors when the result first appears.
+function useRevealConfetti(canvas, color, enabled) {
+  useEffect(() => {
+    if (!enabled || !canvas.current || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const confetti = createConfetti(canvas.current, [color, tint(color, .45), '#f5c542', '#ffffff']);
+    const timer = setTimeout(() => confetti.burst(.5, .18), 250);
+    return () => { clearTimeout(timer); confetti.destroy(); };
+  }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// Final page: a hero that confirms the plan, the blocks, and the store's price before the
+// call to the store's own checkout. Without an offer block, the price card is added here.
+export default function QuizResult({ result, context, view, onCheckout, busy, preview = false }) {
   const t = text => personalize(text, context);
+  const canvas = useRef(null);
+  const celebrate = !preview && result.confetti !== false;
+  useRevealConfetti(canvas, context.quiz.identity?.color || '#2e8b62', celebrate);
+  const blocks = result.blocks || [];
+  const hasOffer = blocks.some(b => b.type === 'offer' && b.enabled !== false && matches(b.when, context));
+  const autoOffer = !hasOffer && result.showPrice !== false && view?.offer;
+  const name = context.contact?.name ? String(context.contact.name).trim().split(/\s+/)[0] : '';
   return <div className="quiz-result">
-    {result.title ? <h1 className="quiz-title"><Rich text={t(result.title)} /></h1> : <h1 className="sr-only">Tu resultado</h1>}
-    {result.description && <p className="quiz-description">{t(result.description)}</p>}
-    <QuizBlocks blocks={result.blocks} context={context} view={view} onCheckout={onCheckout} />
+    {celebrate && <canvas ref={canvas} className="quiz-confetti" aria-hidden="true" />}
+    <header className="quiz-result-hero">
+      <span className="quiz-result-eyebrow"><span className="quiz-result-check" aria-hidden="true"><Check strokeWidth={3.5} /></span>{t(result.eyebrow) || (name ? `${name}, your plan is ready` : 'Your personalized plan is ready')}</span>
+      <Img src={result.imageUrl} alt={t(result.imageAlt)} className="quiz-result-image" />
+      {result.title ? <h1 className="quiz-title quiz-result-title"><Rich text={t(result.title)} /></h1> : <h1 className="sr-only">Your result</h1>}
+      {result.description && <p className="quiz-description quiz-result-description">{t(result.description)}</p>}
+    </header>
+    <QuizBlocks blocks={blocks} context={context} view={view} onCheckout={onCheckout} busy={busy} />
+    {autoOffer && <section className="quiz-block is-offer is-plain"><OfferCard view={view} t={t} withButton={false} /></section>}
     <div className={result.stickyCta === false ? 'quiz-result-cta' : 'quiz-cta-bar'}>
-      <button className="quiz-primary" type="button" disabled={busy} onClick={onCheckout}>{t(result.buttonText) || 'Quiero mi plan'}<span aria-hidden="true"> ›</span></button>
+      <div>
+        <button className="quiz-primary quiz-halo" type="button" disabled={busy} onClick={onCheckout}>{t(result.buttonText) || 'Get my plan'}<span aria-hidden="true"> ›</span></button>
+        {(autoOffer || result.stickyCta === false) && <TrustRow items={trustItems(null, view, t)} />}
+      </div>
     </div>
   </div>;
 }
