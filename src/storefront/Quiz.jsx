@@ -149,10 +149,10 @@ export default function Quiz({ subdomain, view }) {
 }
 
 // Shown while the session starts: an animated ring in the quiz's own colors. Until those
-// colors arrive nothing colored is drawn, so the ring never starts in the default green.
+// colors arrive the ring is a neutral slate blue, never the default green.
+const NEUTRAL_LOADER = { color: '#64748b', background: '#f5f6f8', textColor: '#1c2530' };
 function QuizLoader({ identity, error, onRetry }) {
-  if (!identity && !error) return <div className="quiz-loading-blank" role="status" aria-label="Loading quiz" />;
-  return <div className="quiz-public quiz-loading" style={quizTheme(identity)}>
+  return <div className="quiz-public quiz-loading" style={quizTheme(identity || NEUTRAL_LOADER)}>
     {error ? <div className="quiz-loading-error" role="alert">
       <p>{error}</p>
       <button type="button" className="quiz-loading-retry" onClick={onRetry}>Try again</button>

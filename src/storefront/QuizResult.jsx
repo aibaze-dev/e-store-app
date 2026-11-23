@@ -190,7 +190,7 @@ export function QuizBlocks({ blocks = [], context, view, onCheckout, busy }) {
     if (b.type === 'promotion' && !(view?.content?.promotion?.enabled && view.content.promotion.message)) return null;
     const data = (b.points || []).map(p => ({ label: t(p.label), value: evaluate(p.expression, context) }));
     const value = b.ref ? resolveRef(b.ref, context) : null;
-    const plain = ['planSummary', 'goals', 'rating', 'nowAfter', 'gauge', 'stats', 'features', 'offer', 'guarantee'].includes(b.type);
+    const plain = ['planSummary', 'goals', 'rating', 'nowAfter', 'gauge', 'stats', 'offer', 'guarantee'].includes(b.type);
     const ownHeading = (b.type === 'rating' && b.laurels !== false && (b.title || b.text)) || ['guarantee', 'offer'].includes(b.type);
     return <section className={`quiz-block is-${b.type} ${plain ? 'is-plain' : ''}`} key={b.id}>
       {b.title && !ownHeading && b.type !== 'gauge' && <h2><Rich text={t(b.title)} /></h2>}

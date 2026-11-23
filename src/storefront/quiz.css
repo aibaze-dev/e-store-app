@@ -168,7 +168,8 @@
 .quiz-goals { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
 .quiz-goals li { display: flex; gap: 12px; align-items: center; font-size: 17px; }
 .quiz-goals svg { flex-shrink: 0; width: 26px; height: 26px; color: var(--quiz-accent); }
-.quiz-block.is-features { background: none; box-shadow: none; padding: 0; }
+/* "What you get" sits on a white card like the other blocks, so it does not float. */
+.quiz-block.is-features { background: var(--quiz-card); box-shadow: var(--quiz-shadow); padding: 22px 18px; border-radius: 22px; }
 .quiz-features { display: grid; gap: 16px; align-items: center; }
 .quiz-features.has-image { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); }
 .quiz-features ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 22px; }
@@ -368,5 +369,3 @@
 .quiz-loading-error p { margin: 0 0 16px; color: var(--quiz-muted); }
 .quiz-loading-retry { min-height: 48px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--quiz-accent); color: white !important; font-weight: 700; }
 
-/* Before the quiz's colors are known: an empty page, no default-colored loader. */
-.quiz-loading-blank { min-height: 100vh; min-height: 100dvh; }
