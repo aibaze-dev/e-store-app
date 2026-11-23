@@ -11,7 +11,7 @@ export const api = {
   auth: { getCurrentUser: ref('auth:getCurrentUser') },
   access: { check: ref('access:check') },
   products: { getByArtifactSlug: ref('products:getByArtifactSlug'), saveArtifact: ref('products:saveArtifact'), list: ref('products:list'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update') },
-  stores: { list: ref('stores:list'), get: ref('stores:get'), create: ref('stores:create'), update: ref('stores:update'), updateCheckout: ref('stores:updateCheckout') },
+  stores: { list: ref('stores:list'), get: ref('stores:get'), create: ref('stores:create'), update: ref('stores:update'), updateCheckout: ref('stores:updateCheckout'), setSubdomain: ref('stores:setSubdomain') },
   landings: {list:ref('landings:list'),unpublish:ref('landings:unpublish'), getForStore: ref('landings:getForStore'), preview: ref('landings:preview'), saveDraft: ref('landings:saveDraft'), publish: ref('landings:publish') },
   landingWizard: { generate: ref('landing_wizard:generate'), importPrompt: ref('landing_wizard:importPrompt'), importJson: ref('landing_wizard:importJson') },
   orders: { list: ref('orders:list') },
