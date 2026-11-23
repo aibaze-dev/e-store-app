@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronRight, CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
-import { feedbackFor, hasOptionFeedback, personalize, QUESTION_TYPES } from '../../shared/quiz.js';
+import { feedbackFor, hasOptionFeedback, isRequired, personalize, QUESTION_TYPES } from '../../shared/quiz.js';
 import { QuizBlocks } from './QuizResult.jsx';
 
 export const Media = ({ src, alt = '', className = 'quiz-image', priority = false }) => src ? <img className={className} src={src} alt={alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} decoding="async" onError={e => { e.currentTarget.hidden = true; }} /> : null;
@@ -81,7 +81,7 @@ export default function QuizStep({ step, context, value, setValue, next, busy, s
   const feedback = feedbackFor(step, value);
   const instant = choice && step.autoAdvance !== false && !hasOptionFeedback(step);
   const empty = value == null || value === '' || (Array.isArray(value) && value.length === 0);
-  const blocked = (choice || step.type === 'multiple') && step.required !== false && empty;
+  const blocked = (choice || step.type === 'multiple') && isRequired(step) && empty;
   const question = QUESTION_TYPES.includes(step.type);
 
   function select(option) {
@@ -131,7 +131,7 @@ export default function QuizStep({ step, context, value, setValue, next, busy, s
       <StepImage step={step} t={t} layout="hero-bottom" />
 
       {!instant && step.type !== 'loading' && <div className="quiz-cta-bar"><button className="quiz-primary" type="submit" disabled={blocked}>{busy ? 'Guardando…' : t(step.buttonText) || 'Continuar'}</button></div>}
-      {question && step.required === false && <button type="button" className="quiz-skip" onClick={() => next(null)}>{skipText || 'Omitir'}</button>}
+      {question && !isRequired(step) && <button type="button" className="quiz-skip" onClick={() => next(null)}>{skipText || 'Omitir'}</button>}
     </fieldset>
   </form>;
 }

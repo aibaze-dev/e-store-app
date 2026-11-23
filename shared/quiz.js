@@ -125,7 +125,32 @@ export function gaugeFor(block, context) {
   const min = finite(block.min) ?? (choice ? 1 : finite(step.min) ?? 0), max = finite(block.max) ?? (choice ? step.options.length : finite(step.max) ?? 100);
   const percent = max > min ? Math.min(100, Math.max(0, (value - min) / (max - min) * 100)) : 50;
   const display = choice ? step.options[value - 1].label : `${Math.round(value * 10) / 10}`;
-  return { value, percent, display, feedback: feedbackFor({ type: 'number', feedbackRanges: block.ranges }, value) };
+  // Choice ranges follow the option ID, so reordering options keeps each feedback with its
+  // option. Older ranges without IDs still match by position.
+  const ranges = choice && block.ranges?.some(r => r?.optionId) ? block.ranges.filter(r => r?.optionId === answer).map(r => ({ ...r, min: value, max: value })) : block.ranges;
+  return { value, percent, display, feedback: feedbackFor({ type: 'number', feedbackRanges: ranges }, value) };
+}
+// One range per option of a choice question, in option order, each tied to its option ID.
+export function choiceRanges(block, step) {
+  const ranges = Array.isArray(block?.ranges) ? block.ranges : [];
+  const legacy = !ranges.some(r => r?.optionId);
+  return (step?.options || []).map((o, j) => ({ tone: 'good', title: '', text: '', ...(ranges.find(r => legacy ? r?.min === j + 1 : r?.optionId === o.id) || {}), optionId: o.id, min: j + 1, max: j + 1 }));
+}
+const isChoice = step => step?.options?.length > 0 && ['single', 'intro'].includes(step.type);
+// Gauge ranges saved by position are converted to option IDs before the options can move.
+export function migrateGaugeRanges(quiz) {
+  const fix = blocks => Array.isArray(blocks) ? blocks.map(b => {
+    if (b?.type !== 'gauge' || !Array.isArray(b.ranges) || !b.ranges.length || b.ranges.some(r => r?.optionId)) return b;
+    const step = quiz.steps.find(s => s.id === b.stepId);
+    return isChoice(step) ? { ...b, ranges: choiceRanges(b, step) } : b;
+  }) : blocks;
+  return { ...quiz, steps: quiz.steps.map(s => s.blocks ? { ...s, blocks: fix(s.blocks) } : s), results: quiz.results.map(r => ({ ...r, blocks: fix(r.blocks) })) };
+}
+// Answers are required unless the step says otherwise; a cover only asks when it has options.
+export function isRequired(step) {
+  if (!step) return false;
+  if (step.required != null) return Boolean(step.required);
+  return QUESTION_TYPES.includes(step.type) || (step.type === 'intro' && step.options?.length > 0);
 }
 // A stats card can follow a number answer within [scaleMin, scaleMax]; otherwise it uses `percent`.
 export function statPercent(item, context) {
@@ -139,7 +164,7 @@ export function validDate(value) { return typeof value === 'string' && /^\d{4}-\
 export function validateAnswer(step, value) {
   const fail = message => { throw new Error(message); };
   const empty = value == null || value === '' || (Array.isArray(value) && !value.length);
-  if (empty) { if ((step.required && [...QUESTION_TYPES, 'contact', 'intro'].includes(step.type)) || (step.type === 'contact' && (step.nameRequired || step.emailRequired))) fail('Completá esta respuesta para continuar.'); return null; }
+  if (empty) { if ((isRequired(step) && (QUESTION_TYPES.includes(step.type) || (step.type === 'intro' && step.options?.length))) || (step.type === 'contact' && (step.required || step.nameRequired || step.emailRequired))) fail('Completá esta respuesta para continuar.'); return null; }
   if ((step.type === 'single' || (step.type === 'intro' && step.options?.length)) && !step.options.some(o => o.id === value)) fail('Elegí una opción válida.');
   if (step.type === 'multiple') {
     if (!Array.isArray(value) || new Set(value).size !== value.length || value.some(id => !step.options.some(o => o.id === id))) fail('Revisá las opciones seleccionadas.');
@@ -171,6 +196,8 @@ function refsIn(value) {
 export function validateQuiz(input, publishing = false) {
   try { return validateQuizStructure(input, publishing); } catch { return ['Estructura de quiz inválida. Revisá los tipos y las listas de campos.']; }
 }
+// Errors name screens by their title: IDs are internal and mean nothing to the editor.
+const stepName = s => typeof s?.title === 'string' && s.title.trim() ? `Pantalla «${s.title.trim().slice(0, 60)}»` : `Pantalla ${s?.id ?? ''}`.trim();
 function validateQuizStructure(input, publishing) {
   const errors = [];
   const check = (test, message) => { if (!test) errors.push(message); };
@@ -203,29 +230,30 @@ function validateQuizStructure(input, publishing) {
     if (Array.isArray(e.args)) e.args.slice(0, 3).forEach(a => expression(a, label, depth + 1));
   };
   q.steps.forEach((s, index) => {
-    check(STEP_TYPES.includes(s.type), `${s.id}: tipo de pantalla inválido.`);
-    if (publishing && s.enabled !== false) check(typeof s.title === 'string' && s.title.trim(), `${s.id}: falta el título.`);
-    group(s.when, s.id);
+    const name = stepName(s);
+    check(STEP_TYPES.includes(s.type), `${name}: tipo de pantalla inválido.`);
+    if (publishing && s.enabled !== false) check(typeof s.title === 'string' && s.title.trim(), `${name}: falta el título.`);
+    group(s.when, name);
     if (['single', 'multiple'].includes(s.type) || (s.type === 'intro' && s.options?.length)) {
-      const opts = s.options || []; ids(opts, s.id); check(opts.length >= 1 && opts.length <= 30, `${s.id}: configurá entre 1 y 30 opciones.`);
-      opts.forEach(o => { check(typeof o.label === 'string' && o.label.trim(), `${s.id}: opción sin texto.`); if (o.score != null) check(finite(o.score) != null, `${s.id}: puntuación inválida.`); });
-      check((s.minSelections ?? 0) >= 0 && (s.maxSelections ?? opts.length) <= opts.length && (s.minSelections ?? 0) <= (s.maxSelections ?? opts.length), `${s.id}: límites de selección inválidos.`);
+      const opts = s.options || []; ids(opts, name); check(opts.length >= 1 && opts.length <= 30, `${name}: configurá entre 1 y 30 opciones.`);
+      opts.forEach(o => { check(typeof o.label === 'string' && o.label.trim(), `${name}: opción sin texto.`); if (o.score != null) check(finite(o.score) != null, `${name}: puntuación inválida.`); });
+      check((s.minSelections ?? 0) >= 0 && (s.maxSelections ?? opts.length) <= opts.length && (s.minSelections ?? 0) <= (s.maxSelections ?? opts.length), `${name}: límites de selección inválidos.`);
     }
-    if (s.imageLayout != null) check(IMAGE_LAYOUTS.includes(s.imageLayout), `${s.id}: posición de imagen inválida.`);
-    if (s.layout != null) check(OPTION_LAYOUTS.includes(s.layout), `${s.id}: presentación de opciones inválida.`);
-    for (const o of s.options || []) if (o?.feedback != null) check(typeof o.feedback === 'object' && TONES.includes(o.feedback.tone), `${s.id}: feedback de opción inválido.`);
+    if (s.imageLayout != null) check(IMAGE_LAYOUTS.includes(s.imageLayout), `${name}: posición de imagen inválida.`);
+    if (s.layout != null) check(OPTION_LAYOUTS.includes(s.layout), `${name}: presentación de opciones inválida.`);
+    for (const o of s.options || []) if (o?.feedback != null) check(typeof o.feedback === 'object' && TONES.includes(o.feedback.tone), `${name}: feedback de opción inválido.`);
     if (s.feedbackRanges != null) {
-      check(Array.isArray(s.feedbackRanges) && s.feedbackRanges.length <= 12, `${s.id}: máximo 12 rangos de feedback.`);
-      for (const r of Array.isArray(s.feedbackRanges) ? s.feedbackRanges : []) check(r && TONES.includes(r.tone) && (r.min == null || finite(r.min) != null) && (r.max == null || finite(r.max) != null) && (r.min == null || r.max == null || r.min <= r.max), `${s.id}: rango de feedback inválido.`);
+      check(Array.isArray(s.feedbackRanges) && s.feedbackRanges.length <= 12, `${name}: máximo 12 rangos de feedback.`);
+      for (const r of Array.isArray(s.feedbackRanges) ? s.feedbackRanges : []) check(r && TONES.includes(r.tone) && (r.min == null || finite(r.min) != null) && (r.max == null || finite(r.max) != null) && (r.min == null || r.max == null || r.min <= r.max), `${name}: rango de feedback inválido.`);
     }
-    if (s.type === 'loading') check(finite(s.durationMs) != null && s.durationMs >= 1000 && s.durationMs <= 20000 && Array.isArray(s.items) && s.items.length <= 8 && s.items.every(i => typeof i === 'string'), `${s.id}: configurá entre 1 y 20 segundos y hasta 8 mensajes.`);
-    if (s.type === 'measure') { ids(s.units || [], s.id); check(s.units?.length > 0 && s.units.length <= 8 && s.units.every(u => finite(u.factor) != null && u.factor > 0 && u.label), `${s.id}: unidades inválidas.`); }
-    if (s.min != null || s.max != null) check((s.min == null || finite(s.min) != null) && (s.max == null || finite(s.max) != null) && (s.min == null || s.max == null || s.min <= s.max), `${s.id}: límites numéricos inválidos.`);
-    if (s.minDate) check(validDate(s.minDate), `${s.id}: fecha mínima inválida.`);
-    if (s.maxDate) check(validDate(s.maxDate), `${s.id}: fecha máxima inválida.`);
-    if (s.minDate && s.maxDate) check(s.minDate <= s.maxDate, `${s.id}: rango de fechas inválido.`);
-    for (const rule of s.jumps || []) { group(rule.when, s.id); check(rule.target === '$result' || q.steps.findIndex(x => x.id === rule.target) > index, `${s.id}: los saltos deben ir hacia adelante.`); }
-    for (const variant of s.variants || []) { group(variant.when, s.id); check(variant.content && Object.keys(variant.content).every(k => ['title', 'description', 'imageUrl', 'sideImageUrl', 'buttonText'].includes(k)), `${s.id}: variante inválida.`); }
+    if (s.type === 'loading') check(finite(s.durationMs) != null && s.durationMs >= 1000 && s.durationMs <= 20000 && Array.isArray(s.items) && s.items.length <= 8 && s.items.every(i => typeof i === 'string'), `${name}: configurá entre 1 y 20 segundos y hasta 8 mensajes.`);
+    if (s.type === 'measure') { ids(s.units || [], name); check(s.units?.length > 0 && s.units.length <= 8 && s.units.every(u => finite(u.factor) != null && u.factor > 0 && u.label), `${name}: unidades inválidas.`); }
+    if (s.min != null || s.max != null) check((s.min == null || finite(s.min) != null) && (s.max == null || finite(s.max) != null) && (s.min == null || s.max == null || s.min <= s.max), `${name}: límites numéricos inválidos.`);
+    if (s.minDate) check(validDate(s.minDate), `${name}: fecha mínima inválida.`);
+    if (s.maxDate) check(validDate(s.maxDate), `${name}: fecha máxima inválida.`);
+    if (s.minDate && s.maxDate) check(s.minDate <= s.maxDate, `${name}: rango de fechas inválido.`);
+    for (const rule of s.jumps || []) { group(rule.when, name); check(rule.target === '$result' || q.steps.findIndex(x => x.id === rule.target) > index, `${name}: los saltos deben ir hacia adelante.`); }
+    for (const variant of s.variants || []) { group(variant.when, name); check(variant.content && Object.keys(variant.content).every(k => ['title', 'description', 'imageUrl', 'sideImageUrl', 'buttonText'].includes(k)), `${name}: variante inválida.`); }
     const dependencies = [...refsIn(s.when), ...refsIn(s.jumps), ...refsIn(s.variants)];
     const earlier = (ref, seen = new Set()) => {
       if (seen.has(ref)) return false; seen.add(ref);
@@ -234,14 +262,14 @@ function validateQuizStructure(input, publishing) {
       const pos = q.steps.findIndex(x => x.id === ref.split(':')[1]);
       return pos >= 0 && pos <= index;
     };
-    dependencies.forEach(ref => check(earlier(ref), `${s.id}: una regla depende de una respuesta futura o circular.`));
+    dependencies.forEach(ref => check(earlier(ref), `${name}: una regla depende de una respuesta futura o circular.`));
     const self = (ref, seen = new Set()) => { if (seen.has(ref)) return true; seen.add(ref); return ref === `answer:${s.id}` || ref === `score:${s.id}` || (ref.startsWith('calc:') && refsIn(q.calculations.find(c => `calc:${c.id}` === ref)?.expression).some(r=>self(r,new Set(seen)))); };
-    refsIn(s.when).forEach(ref => check(!self(ref), `${s.id}: la visibilidad no puede depender de su propia respuesta.`));
+    refsIn(s.when).forEach(ref => check(!self(ref), `${name}: la visibilidad no puede depender de su propia respuesta.`));
   });
-  q.calculations.forEach(c => expression(c.expression, c.id));
+  q.calculations.forEach(c => expression(c.expression, `Cálculo «${c.label || c.id}»`));
   const visited = new Set(), active = new Set();
   const visit = id => {
-    if (active.has(id)) { errors.push(`Cálculo circular: ${id}.`); return; }
+    if (active.has(id)) { errors.push(`Cálculo circular: «${q.calculations.find(c => c.id === id)?.label || id}».`); return; }
     if (visited.has(id)) return;
     active.add(id);
     const c = q.calculations.find(c => c.id === id);
@@ -264,8 +292,8 @@ function validateQuizStructure(input, publishing) {
       if (b.mockups != null) check(Array.isArray(b.mockups) && b.mockups.length <= 2, `${label}: máximo 2 imágenes de producto.`);
       if (b.type === 'rating' && b.rating != null) check(finite(b.rating) != null && b.rating >= 0 && b.rating <= 5, `${label}: la puntuación va de 0 a 5.`); });
   };
-  q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, s.id); });
-  q.results.forEach(r => { group(r.when, r.id); blocks(r.blocks, r.id); });
+  q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, stepName(s)); });
+  q.results.forEach(r => { const name = r.default ? 'Página final' : `Perfil «${r.title || r.id}»`; group(r.when, name); blocks(r.blocks, name); });
   const walk = value => {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
@@ -284,6 +312,101 @@ function validateQuizStructure(input, publishing) {
   return [...new Set(errors)];
 }
 export function assertQuiz(value, publishing = false) { const errors = validateQuiz(value, publishing); if (errors.length) throw new Error(errors.slice(0, 8).join('\n')); return clone(value); }
+
+// Editor operations that remove a screen, an option or a calculation and keep the draft valid.
+// Each condition that used the removed item is resolved the way it would evaluate without it:
+// a condition that can no longer be true makes an "all" group impossible, so that rule is
+// dropped (variant, jump, profile) or its screen/section hidden; one that is always true is
+// simply removed from the group.
+function pruneGroup(group, classify) {
+  if (!group?.conditions?.length) return { group, never: false };
+  const kept = []; let falses = 0, trues = 0;
+  for (const c of group.conditions) { const kind = classify(c); if (kind === 'false') falses++; else if (kind === 'true') trues++; else kept.push(c); }
+  if (!falses && !trues) return { group, never: false };
+  if (group.mode === 'any') {
+    if (trues) return { group: { ...group, conditions: [] }, never: false };
+    return { group: { ...group, conditions: kept }, never: !kept.length };
+  }
+  return { group: { ...group, conditions: kept }, never: falses > 0 };
+}
+function pruneExpression(e, classify, gone) {
+  if (!e || typeof e !== 'object') return e;
+  if (e.op === 'ref') return gone(e.ref) ? { op: 'const', value: 0 } : e;
+  if (e.op === 'if') {
+    const { group, never } = pruneGroup(e.when, classify);
+    return never ? pruneExpression(e.no, classify, gone) : { ...e, when: group, yes: pruneExpression(e.yes, classify, gone), no: pruneExpression(e.no, classify, gone) };
+  }
+  return Array.isArray(e.args) ? { ...e, args: e.args.map(a => pruneExpression(a, classify, gone)) } : e;
+}
+function pruneStrings(value, gone) {
+  if (typeof value === 'string') return value.replace(/\{\{((?:answer|score|calc|contact):[a-zA-Z0-9_-]+)\}\}/g, (match, ref) => gone(ref) ? '' : match);
+  if (Array.isArray(value)) return value.map(v => pruneStrings(v, gone));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, pruneStrings(v, gone)]));
+  return value;
+}
+function pruneQuiz(quiz, { classify, gone = () => false, stepGone = () => false, block: fixBlock = b => b }) {
+  const rules = list => (list || []).flatMap(rule => { const { group, never } = pruneGroup(rule.when, classify); return never ? [] : [{ ...rule, when: group }]; });
+  const blocks = list => Array.isArray(list) ? list.flatMap(b => {
+    let next = fixBlock(b);
+    if (!next) return [];
+    const { group, never } = pruneGroup(next.when, classify);
+    next = { ...next, ...(next.when ? { when: group } : {}), ...(never ? { enabled: false } : {}) };
+    if (next.ref && gone(next.ref)) { const { ref, ...rest } = next; next = rest; }
+    if (Array.isArray(next.points)) next.points = next.points.map(p => ({ ...p, expression: pruneExpression(p.expression, classify, gone) }));
+    return [next];
+  }) : list;
+  const steps = quiz.steps.map(s => {
+    const { group, never } = pruneGroup(s.when, classify);
+    return { ...s, ...(s.when ? { when: group } : {}), ...(never ? { enabled: false } : {}),
+      ...(s.jumps ? { jumps: rules(s.jumps).filter(r => r.target === '$result' || !stepGone(r.target)) } : {}),
+      ...(s.variants ? { variants: rules(s.variants) } : {}),
+      ...(s.blocks ? { blocks: blocks(s.blocks) } : {}) };
+  });
+  const calculations = quiz.calculations.map(c => ({ ...c, expression: pruneExpression(c.expression, classify, gone) }));
+  const results = quiz.results.flatMap(r => {
+    const { group, never } = pruneGroup(r.when, classify);
+    if (never && !r.default) return [];
+    return [{ ...r, ...(r.when ? { when: group } : {}), blocks: blocks(r.blocks) }];
+  });
+  return pruneStrings({ ...quiz, steps, calculations, results }, gone);
+}
+const refOf = id => ref => ref === `answer:${id}` || ref === `score:${id}`;
+// Without the screen, its answer is missing: every condition on it evaluates to false.
+export function removeStep(quiz, stepId) {
+  const gone = refOf(stepId);
+  const next = { ...quiz, steps: quiz.steps.filter(s => s.id !== stepId) };
+  return pruneQuiz(next, {
+    gone, stepGone: id => id === stepId, classify: c => gone(c?.ref) ? 'false' : 'keep',
+    block: b => {
+      if (b.type === 'gauge' && b.stepId === stepId) return null;
+      if (b.type === 'planSummary' && Array.isArray(b.items)) return { ...b, items: b.items.filter(i => i?.stepId !== stepId) };
+      if (b.type === 'goals' && b.stepId === stepId) { const { stepId: _, ...rest } = b; return rest; }
+      if (b.type === 'stats' && Array.isArray(b.items)) return { ...b, items: b.items.map(i => { if (i?.stepId !== stepId) return i; const { stepId: _, ...rest } = i; return rest; }) };
+      return b;
+    },
+  });
+}
+// A removed option is never chosen again: "equals/contains it" is false, "differs from it" is true.
+export function removeOption(quiz, stepId, optionId) {
+  const migrated = migrateGaugeRanges(quiz);
+  const next = { ...migrated, steps: migrated.steps.map(s => s.id === stepId ? { ...s, options: (s.options || []).filter(o => o.id !== optionId) } : s) };
+  const answer = `answer:${stepId}`;
+  return pruneQuiz(next, {
+    classify: c => c?.ref !== answer || String(c.value) !== optionId ? 'keep' : c.operator === 'neq' ? 'true' : ['eq', 'contains'].includes(c.operator) ? 'false' : 'keep',
+    block: b => b.type === 'gauge' && b.stepId === stepId && Array.isArray(b.ranges) ? { ...b, ranges: b.ranges.filter(r => r?.optionId !== optionId) } : b,
+  });
+}
+// A removed calculation has no value: conditions on it are false and formulas use 0.
+export function removeCalculation(quiz, calcId) {
+  const gone = ref => ref === `calc:${calcId}`;
+  return pruneQuiz({ ...quiz, calculations: quiz.calculations.filter(c => c.id !== calcId) }, { gone, classify: c => gone(c?.ref) ? 'false' : 'keep' });
+}
+// Rule errors a new step order would introduce (rules that would read a later answer).
+export function orderErrors(before, after) {
+  const rules = q => validateQuiz(q).filter(e => /respuesta futura|hacia adelante/.test(e));
+  const known = new Set(rules(before));
+  return rules(after).filter(e => !known.has(e));
+}
 const constant = value => ({ op: 'const', value });
 const STEP_DEFAULTS = {
   loading: { title: 'Analizando tus respuestas…', description: '', buttonText: 'Continuar', durationMs: 5000, items: ['Analizando tus respuestas', 'Eligiendo lo más importante para vos', 'Armando tu plan'] },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '@/lib/api.js';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { PageSkeleton, ErrorAlert } from '@/components/Field.jsx';
 import { errorText } from '@/lib/format.js';
 import { QuizPreview } from '@/storefront/Quiz.jsx';
-import { clone, validateQuiz } from '../../shared/quiz.js';
+import { clone, migrateGaugeRanges, removeCalculation, removeOption, validateQuiz } from '../../shared/quiz.js';
 import QuizWizard from './QuizWizard.jsx';
 import QuizBuilder from './QuizBuilder.jsx';
 import { ImageField, UploadContext, useMediaUpload } from './ImageField.jsx';
@@ -15,9 +15,11 @@ import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
 export { QField } from './QuizFields.jsx';
 
-export function QuizEditorForm({initial,subdomain:address,settingsPath,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
- const [quiz,setQuiz]=useState(()=>clone(initial)),[tab,setTab]=useState('Contenido');
- const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
+export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
+ const [quiz,setQuiz]=useState(()=>migrateGaugeRanges(clone(initial))),[tab,setTab]=useState('Contenido');
+ // With a saved quiz, editing is the main path; the assistant starts open only for a new one.
+ const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(!exists),[dirty,setDirty]=useState(false);
+ useEffect(()=>{if(!dirty)return;const warn=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  const busy=working||uploading;
  const set=patch=>{setQuiz(q=>({...q,...patch}));setDirty(true);setStatus('');};
  const errors=validateQuiz(quiz,true);
@@ -26,10 +28,10 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,view,onSa
  const setStep=(index,patch)=>set({steps:quiz.steps.map((s,i)=>i===index?{...s,...patch}:s)});
  const mainResult=quiz.results.find(r=>r.default);
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
- return <div className="quiz-editor qe-simple-editor">
+ return <>{backTo&&<Link to={backTo} onClick={event=>{if(dirty&&!window.confirm('Tenés cambios sin guardar en el quiz. ¿Salir igual?'))event.preventDefault();}}>← Landings</Link>}<div className="quiz-editor qe-simple-editor">
   <header className="qe-heading"><div><p className="qe-eyebrow">Landings / Quiz</p><h1>Tu quiz</h1><p>Ordená las pantallas, editá cada una y mirá cómo se ve al lado.</p></div><span className="qe-status">{published?'Publicado':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></header>
   {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} exists={exists} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onBusy={setBusy} onApply={async proposal=>{
-    await onSave({quiz:clone(proposal)});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
+    const next=migrateGaugeRanges(clone(proposal));await onSave({quiz:next});setQuiz(next);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
    }}/>}
   {(!aiOpen||preview)&&<div className="qe-toolbar">
    <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz)});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
@@ -50,17 +52,17 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,view,onSa
     {tab==='Avanzado'&&<>
      <p className="qe-hint">Opcional. El quiz funciona sin nada de esto: son reglas, saltos, cálculos y perfiles para casos especiales.</p>
      <details className="qe-card"><summary>Reglas por pantalla (mostrar si…, saltos, textos según respuestas)</summary><div className="qe-stack">
-      {quiz.steps.map((s,i)=><details className="qe-card" key={s.id}><summary>{i+1}. {s.title}</summary><StepForm step={s} quiz={quiz} index={i} onChange={patch=>setStep(i,patch)}/></details>)}
+      {quiz.steps.map((s,i)=><details className="qe-card" key={s.id}><summary>{i+1}. {s.title}</summary><StepForm step={s} quiz={quiz} index={i} onChange={patch=>setStep(i,patch)} onRemoveOption={optionId=>set(removeOption(quiz,s.id,optionId))}/></details>)}
      </div></details>
      <details className="qe-card"><summary>Cálculos y puntuaciones</summary><div className="qe-stack">
-      {quiz.calculations.map((c,i)=><div className="qe-card" key={c.id}><QField label="Nombre del cálculo" value={c.label} onChange={label=>set({calculations:quiz.calculations.map((x,j)=>j===i?{...x,label}:x)})}/><Expression quiz={quiz} value={c.expression} onChange={expression=>set({calculations:quiz.calculations.map((x,j)=>j===i?{...x,expression}:x)})}/><Button variant="outline" onClick={()=>set({calculations:quiz.calculations.filter((_,j)=>j!==i)})}>Eliminar cálculo</Button></div>)}
+      {quiz.calculations.map((c,i)=><div className="qe-card" key={c.id}><QField label="Nombre del cálculo" value={c.label} onChange={label=>set({calculations:quiz.calculations.map((x,j)=>j===i?{...x,label}:x)})}/><Expression quiz={quiz} value={c.expression} onChange={expression=>set({calculations:quiz.calculations.map((x,j)=>j===i?{...x,expression}:x)})}/><Button variant="outline" onClick={()=>window.confirm(`¿Eliminar el cálculo "${c.label||c.id}"? Las reglas que lo usan dejan de cumplirse y las fórmulas lo toman como 0.`)&&set(removeCalculation(quiz,c.id))}>Eliminar cálculo</Button></div>)}
       <Button variant="outline" onClick={()=>set({calculations:[...quiz.calculations,{id:uid(),label:'Nuevo cálculo',expression:{op:'const',value:0}}]})}>Agregar cálculo</Button>
       <p className="qe-hint">Usá “Probar quiz” para comprobar los resultados con tus respuestas.</p>
      </div></details>
      <details className="qe-card"><summary>Perfiles y resultados condicionales</summary><div className="qe-stack">
       <p className="qe-hint">Se usa el primer perfil que coincide. El predeterminado cubre los demás casos.</p>
       {quiz.results.map((r,i)=><details className="qe-card" key={r.id}><summary>{r.title}{r.default?' · Predeterminado':''}</summary><div className="qe-stack">
-       <Reorder list={quiz.results} index={i} onChange={results=>set({results})}/>
+       <Reorder list={quiz.results} index={i} onChange={results=>set({results})} copy={x=>({...x,default:false,title:`${x.title||'Perfil'} (copia)`,when:x.when||{mode:'all',conditions:[]}})} removable={!r.default}/>
        <Toggle label="Resultado predeterminado" value={r.default} onChange={v=>v&&set({results:quiz.results.map((x,j)=>({...x,default:i===j}))})}/>
        <CopyField quiz={quiz} label="Título del perfil" value={r.title} onChange={title=>set({results:quiz.results.map((x,j)=>j===i?{...x,title}:x)})}/>
        <CopyField quiz={quiz} label="Descripción del perfil" value={r.description} onChange={description=>set({results:quiz.results.map((x,j)=>j===i?{...x,description}:x)})}/>
@@ -74,12 +76,12 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,view,onSa
     </>}
    </fieldset></UploadContext.Provider>
   </>}
- </div>;
+ </div></>;
 }
 export default function QuizEditor(){
  const {storeId}=useParams();const data=useQuery(api.quizzes.get,{storeId});
  const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
  const upload=useMediaUpload();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
- return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} settingsPath={`/panel/tiendas/${storeId}/configuracion`} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
+ return <QuizEditorForm key={storeId} backTo={`/panel/tiendas/${storeId}/landings`} initial={data.quiz} subdomain={data.subdomain} settingsPath={`/panel/tiendas/${storeId}/configuracion`} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/>;
 }

@@ -4,7 +4,7 @@ export { ImageField, UploadContext };
 import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QuizPlayer } from '@/storefront/Quiz.jsx';
-import { advanceSession, clone, hasOptionFeedback, newStep, QUESTION_TYPES } from '../../shared/quiz.js';
+import { advanceSession, choiceRanges, clone, hasOptionFeedback, isRequired, newStep, orderErrors, QUESTION_TYPES, removeOption, removeStep } from '../../shared/quiz.js';
 import { QField } from './QuizFields.jsx';
 import { Blocks, Toggle, blockNames, stepNames, uid } from './QuizAdvanced.jsx';
 
@@ -65,7 +65,7 @@ function Thumb({ step }) {
   return <span className={`qe-thumb tone-${tone}`}>{step.imageUrl ? <img src={step.imageUrl} alt="" /> : icon ? <span>{icon}</span> : <Icon aria-hidden="true" />}</span>;
 }
 
-function Flow({ quiz, selected, onSelect, setSteps }) {
+function Flow({ quiz, selected, onSelect, setSteps, setQuiz }) {
   const [adding, setAdding] = useState(null);
   const steps = quiz.steps;
   function insert(type, at) {
@@ -75,9 +75,16 @@ function Flow({ quiz, selected, onSelect, setSteps }) {
     setSteps([...steps.slice(0, at), step, ...steps.slice(at)]); setAdding(null); onSelect(step.id);
   }
   function remove(i) {
-    if (!window.confirm(`¿Eliminar la pantalla "${steps[i].title}"? Podés deshacerlo sin guardar.`)) return;
-    const next = steps.filter((_, j) => j !== i); setSteps(next);
-    if (selected === steps[i].id) onSelect(next[Math.min(i, next.length - 1)]?.id ?? RESULT);
+    if (!window.confirm(`¿Eliminar la pantalla "${steps[i].title}"? También se quitan las reglas, variables y secciones que usan su respuesta.`)) return;
+    const next = removeStep(quiz, steps[i].id); setQuiz(next);
+    if (selected === steps[i].id) onSelect(next.steps[Math.min(i, next.steps.length - 1)]?.id ?? RESULT);
+  }
+  // A move that would make a rule read a later answer is refused, so the draft stays savable.
+  function reorder(from, to) {
+    const next = { ...quiz, steps: move(steps, from, to) };
+    const errors = orderErrors(quiz, next);
+    if (errors.length) { window.alert(`No se puede mover esta pantalla:\n\n${errors.join('\n')}\n\nRevisá esas reglas en Avanzado › Reglas por pantalla.`); return; }
+    setSteps(next.steps);
   }
   const plus = at => adding === at ? <AddMenu onPick={type => insert(type, at)} onClose={() => setAdding(null)} />
     : <button type="button" className="qe-insert" onClick={() => setAdding(at)} aria-label={`Agregar pantalla en la posición ${at + 1}`}><Plus aria-hidden="true" /></button>;
@@ -85,7 +92,7 @@ function Flow({ quiz, selected, onSelect, setSteps }) {
   return <div className="qe-flow">
     <div className="qe-flow-head"><h2>Recorrido</h2><span>{steps.length} pantallas</span></div>
     {plus(0)}
-    <Sortable label="Pantallas del quiz" items={steps} getKey={s => s.id} onMove={(from, to) => setSteps(move(steps, from, to))} render={(step, i, handle) => {
+    <Sortable label="Pantallas del quiz" items={steps} getKey={s => s.id} onMove={reorder} render={(step, i, handle) => {
       const { label, tone } = meta(step.type); if (QUESTION_TYPES.includes(step.type)) question++;
       return <>
         <div className={`qe-flow-card ${selected === step.id ? 'is-selected' : ''} ${step.enabled === false ? 'is-hidden' : ''}`}>
@@ -95,8 +102,8 @@ function Flow({ quiz, selected, onSelect, setSteps }) {
             <span className="qe-flow-text"><small className={`qe-chip tone-${tone}`}>{label}{QUESTION_TYPES.includes(step.type) ? ` · P${question}` : ''}</small><strong>{step.title || 'Sin título'}</strong></span>
           </button>
           {selected === step.id && <span className="qe-flow-actions">
-            <IconButton label="Subir" disabled={i === 0} onClick={() => setSteps(move(steps, i, i - 1))}><ArrowUp /></IconButton>
-            <IconButton label="Bajar" disabled={i === steps.length - 1} onClick={() => setSteps(move(steps, i, i + 1))}><ArrowDown /></IconButton>
+            <IconButton label="Subir" disabled={i === 0} onClick={() => reorder(i, i - 1)}><ArrowUp /></IconButton>
+            <IconButton label="Bajar" disabled={i === steps.length - 1} onClick={() => reorder(i, i + 1)}><ArrowDown /></IconButton>
             <IconButton label="Duplicar" onClick={() => { const copy = { ...clone(step), id: uid() }; setSteps([...steps.slice(0, i + 1), copy, ...steps.slice(i + 1)]); onSelect(copy.id); }}><Copy /></IconButton>
             <IconButton label={step.enabled === false ? 'Mostrar' : 'Ocultar'} onClick={() => setSteps(steps.map((s, j) => j === i ? { ...s, enabled: s.enabled === false } : s))}>{step.enabled === false ? <EyeOff /> : <Eye />}</IconButton>
             <IconButton label="Eliminar" onClick={() => remove(i)}><Trash2 /></IconButton>
@@ -122,7 +129,7 @@ function FeedbackEditor({ value, onChange }) {
   </div>;
 }
 
-function OptionsEditor({ step, onChange }) {
+function OptionsEditor({ step, onChange, onRemoveOption }) {
   const options = step.options || [];
   const set = (i, patch) => onChange({ options: options.map((o, j) => i === j ? { ...o, ...patch } : o) });
   const feedback = step.type !== 'multiple';
@@ -134,7 +141,7 @@ function OptionsEditor({ step, onChange }) {
         <input className="qe-input qe-emoji" aria-label={`Emoji de la opción ${i + 1}`} placeholder="🙂" maxLength={8} value={o.icon || ''} onChange={e => set(i, { icon: e.target.value })} />
         <input className="qe-input" aria-label={`Texto de la opción ${i + 1}`} value={o.label} onChange={e => set(i, { label: e.target.value })} />
         <IconButton label="Subir opción" disabled={i === 0} onClick={() => onChange({ options: move(options, i, i - 1) })}><ArrowUp /></IconButton>
-        <IconButton label="Quitar opción" disabled={options.length <= 1} onClick={() => onChange({ options: options.filter((_, j) => j !== i) })}><Trash2 /></IconButton>
+        <IconButton label="Quitar opción" disabled={options.length <= 1} onClick={() => onRemoveOption(o.id)}><Trash2 /></IconButton>
       </div>
       <details className="qe-option-more" open={Boolean(o.feedback) || undefined}>
         <summary>{feedback ? 'Imagen y feedback' : 'Imagen'}{o.imageUrl ? ' · 🖼' : ''}{o.feedback ? ` · ${TONES.find(t => t.value === o.feedback.tone)?.label.split(' ')[0]}` : ''}</summary>
@@ -167,7 +174,17 @@ function RangesEditor({ step, onChange }) {
   </section>;
 }
 
-function StepInspector({ step, index, quiz, onChange }) {
+// Typing in a number box may pass through empty; only a valid value is kept.
+function DurationField({ value, onChange }) {
+  const seconds = Math.round((value || 5000) / 1000);
+  const [text, setText] = useState(String(seconds));
+  useEffect(() => { setText(String(seconds)); }, [seconds]);
+  return <label className="qe-field"><span>Duración (1 a 20 segundos)</span><input type="number" min={1} max={20} value={text}
+    onChange={e => { setText(e.target.value); const n = Number(e.target.value); if (e.target.value !== '' && Number.isInteger(n) && n >= 1 && n <= 20) onChange(n * 1000); }}
+    onBlur={() => setText(String(seconds))} /></label>;
+}
+
+function StepInspector({ step, index, quiz, onChange, onRemoveOption }) {
   const { label, tone } = meta(step.type);
   const question = QUESTION_TYPES.includes(step.type);
   const choice = step.type === 'single' || (step.type === 'intro' && step.options?.length);
@@ -178,7 +195,7 @@ function StepInspector({ step, index, quiz, onChange }) {
       <QField label={question ? 'Pregunta' : 'Título'} value={step.title} onChange={title => onChange({ title })} />
       <QField label={step.type === 'info' ? 'Texto' : 'Texto de apoyo (opcional)'} multiline value={step.description} onChange={description => onChange({ description })} />
       {!instant && step.type !== 'loading' && <QField label="Texto del botón" value={step.buttonText} onChange={buttonText => onChange({ buttonText })} />}
-      {question && <Toggle label="Respuesta obligatoria" value={step.required !== false} onChange={required => onChange({ required })} />}
+      {question && <Toggle label="Respuesta obligatoria" value={isRequired(step)} onChange={required => onChange({ required })} />}
     </section>
     {step.type !== 'loading' && <section className="qe-section">
       <h3>Imagen de la pantalla</h3>
@@ -186,7 +203,7 @@ function StepInspector({ step, index, quiz, onChange }) {
       {step.imageUrl && <><Segmented label="Ubicación" value={step.imageLayout || 'top'} onChange={imageLayout => onChange({ imageLayout })} options={[{ value: 'top', label: 'Arriba' }, { value: 'hero-bottom', label: 'Grande abajo' }, { value: 'side', label: 'Al costado (escritorio)' }]} />
         <QField label="Texto alternativo (accesibilidad)" value={step.imageAlt} onChange={imageAlt => onChange({ imageAlt })} /></>}
     </section>}
-    {['single', 'multiple', 'intro'].includes(step.type) && (step.type !== 'intro' || step.options?.length > 0) && <OptionsEditor step={step} onChange={onChange} />}
+    {['single', 'multiple', 'intro'].includes(step.type) && (step.type !== 'intro' || step.options?.length > 0) && <OptionsEditor step={step} onChange={onChange} onRemoveOption={onRemoveOption} />}
     {step.type === 'intro' && !step.options?.length && <Button type="button" variant="outline" onClick={() => onChange({ options: [{ id: uid(), label: 'Primera opción' }, { id: uid(), label: 'Segunda opción' }], autoAdvance: true })}>+ Agregar respuestas a la portada</Button>}
     {step.type === 'number' && <section className="qe-section"><h3>Número</h3><div className="qe-grid">
       <QField label="Mínimo" type="number" value={step.min} onChange={min => onChange({ min })} /><QField label="Máximo" type="number" value={step.max} onChange={max => onChange({ max })} />
@@ -194,7 +211,7 @@ function StepInspector({ step, index, quiz, onChange }) {
     </div></section>}
     {['number', 'measure'].includes(step.type) && <RangesEditor step={step} onChange={onChange} />}
     {step.type === 'loading' && <section className="qe-section"><h3>Animación</h3>
-      <QField label="Duración (segundos)" type="number" value={Math.round((step.durationMs || 5000) / 1000)} onChange={s => onChange({ durationMs: Math.min(20, Math.max(1, Number(s) || 1)) * 1000 })} />
+      <DurationField value={step.durationMs} onChange={durationMs => onChange({ durationMs })} />
       {(step.items || []).map((item, i) => <div className="qe-option-row" key={i}>
         <input className="qe-input" aria-label={`Mensaje ${i + 1}`} value={item} onChange={e => onChange({ items: step.items.map((x, j) => j === i ? e.target.value : x) })} />
         <IconButton label="Quitar mensaje" onClick={() => onChange({ items: step.items.filter((_, j) => j !== i) })}><Trash2 /></IconButton>
@@ -280,12 +297,13 @@ function BlockEditor({ block, quiz, onChange }) {
   if (block.type === 'gauge') { const sources = quiz.steps.filter(s => ['number', 'measure'].includes(s.type) || (['single', 'intro'].includes(s.type) && s.options?.length)), source = quiz.steps.find(s => s.id === block.stepId);
     const choice = source?.options?.length && ['single', 'intro'].includes(source.type);
     const ranges = block.ranges || [];
-    const setRange = (i, patch) => { const next = choice ? source.options.map((_, j) => ({ min: j + 1, max: j + 1, tone: 'good', title: '', text: '', ...(ranges.find(r => r.min === j + 1) || {}), ...(j === i ? patch : {}) })) : ranges.map((r, j) => j === i ? { ...r, ...patch } : r); set({ ranges: next }); };
+    const byOption = choice ? choiceRanges(block, source) : [];
+    const setRange = (i, patch) => set({ ranges: (choice ? byOption : ranges).map((r, j) => j === i ? { ...r, ...patch } : r) });
     return <div className="qe-stack">
     <QField label="Título (ej. Tu punto de partida)" value={block.title} onChange={title => set({ title })} />
     <label className="qe-field"><span>Se mueve según la respuesta de</span><select value={block.stepId || ''} onChange={e => set({ stepId: e.target.value, ranges: [] })}>{sources.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
     <div className="qe-grid"><QField label="Texto a la izquierda" value={block.leftLabel} onChange={leftLabel => set({ leftLabel })} /><QField label="Texto a la derecha" value={block.rightLabel} onChange={rightLabel => set({ rightLabel })} /></div>
-    {choice ? source.options.map((o, i) => { const r = ranges.find(x => x.min === i + 1) || {}; return <div className={`qe-range tone-${r.tone || 'good'}`} key={o.id}>
+    {choice ? source.options.map((o, i) => { const r = byOption[i]; return <div className={`qe-range tone-${r.tone || 'good'}`} key={o.id}>
       <strong className="text-sm">Si eligió «{o.label}»</strong>
       <div className="qe-segmented" role="radiogroup" aria-label="Tono">{TONES.map(tone => <button type="button" role="radio" key={tone.value} aria-checked={(r.tone || 'good') === tone.value} onClick={() => setRange(i, { tone: tone.value })}>{tone.label}</button>)}</div>
       <QField label="Título" value={r.title} onChange={title => setRange(i, { title })} /><QField label="Texto" value={r.text} onChange={text => setRange(i, { text })} />
@@ -390,16 +408,17 @@ function LivePreview({ quiz, view, target }) {
 }
 
 export default function QuizBuilder({ quiz, view, set }) {
+  // `set` merges a patch, so a whole quiz replaces every top-level field.
   const [selected, setSelected] = useState(() => quiz.steps[0]?.id ?? RESULT);
   const index = quiz.steps.findIndex(s => s.id === selected);
   const target = index >= 0 ? selected : RESULT;
   const result = quiz.results.find(r => r.default);
   const setSteps = steps => set({ steps });
   return <div className="qe-builder">
-    <Flow quiz={quiz} selected={target} onSelect={setSelected} setSteps={setSteps} />
+    <Flow quiz={quiz} selected={target} onSelect={setSelected} setSteps={setSteps} setQuiz={set} />
     <div className="qe-inspector">{target === RESULT
       ? result && <ResultInspector quiz={quiz} result={result} onChange={patch => set({ results: quiz.results.map(r => r.id === result.id ? { ...r, ...patch } : r) })} />
-      : <StepInspector key={target} step={quiz.steps[index]} index={index} quiz={quiz} onChange={patch => setSteps(quiz.steps.map((s, i) => i === index ? { ...s, ...patch } : s))} />}</div>
+      : <StepInspector key={target} step={quiz.steps[index]} index={index} quiz={quiz} onChange={patch => setSteps(quiz.steps.map((s, i) => i === index ? { ...s, ...patch } : s))} onRemoveOption={optionId => set(removeOption(quiz, selected, optionId))} />}</div>
     <LivePreview quiz={quiz} view={view} target={target} />
   </div>;
 }
