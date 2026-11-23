@@ -24,7 +24,8 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
  const set=patch=>{setQuiz(q=>({...q,...patch}));setDirty(true);setStatus('');};
  const errors=validateQuiz(quiz,true);
  const task=async(fn,message)=>{setBusy(true);setError('');setStatus('');try{await fn();setStatus(message);}catch(e){setError(errorText(e,'No se pudo completar la operación.'));}finally{setBusy(false);}};
- const publish=()=>{if(errors.length){setError(errors.join('\n'));return;}task(async()=>{await onSave({quiz:clone(quiz)});await onPublish();setDirty(false);},'Quiz publicado.');};
+ const blocked=action=>setError(`No se puede ${action} todavía. Corregí:\n${errors.map(e=>`• ${e}`).join('\n')}`);
+ const publish=()=>{if(errors.length){blocked('publicar');return;}task(async()=>{await onSave({quiz:clone(quiz)});await onPublish();setDirty(false);},'Quiz publicado.');};
  const setStep=(index,patch)=>set({steps:quiz.steps.map((s,i)=>i===index?{...s,...patch}:s)});
  const mainResult=quiz.results.find(r=>r.default);
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
@@ -35,10 +36,10 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
    }}/>}
   {(!aiOpen||preview)&&<div className="qe-toolbar">
    <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz)});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
-   <Button variant="outline" disabled={busy} onClick={()=>{if(errors.length){setError(errors.join('\n'));}else setPreview(!preview);}}>{preview?'Volver a editar':'Probar quiz'}</Button>
+   <Button variant="outline" disabled={busy} onClick={()=>{if(errors.length&&!preview)blocked('probar el quiz');else setPreview(!preview);}}>{preview?'Volver a editar':'Probar quiz'}</Button>
    <Button disabled={busy} onClick={publish}>{busy?'Guardando…':'Publicar quiz'}</Button>
   </div>}
-  <ErrorAlert>{error}</ErrorAlert>{status&&<p role="status">{status}</p>}
+  <ErrorAlert>{error&&<span className="whitespace-pre-line">{error}</span>}</ErrorAlert>{status&&<p role="status">{status}</p>}
   {!address&&<div className="qe-card" role="note"><p>Antes de guardar o publicar, definí el subdominio de tu tienda en <Link to={settingsPath||'../configuracion'}>Configuración</Link>.</p></div>}
   {preview?<QuizPreview key={JSON.stringify(quiz)} quiz={quiz} view={view}/>:!aiOpen&&<>
    <nav className="qe-tabs" aria-label="Apartados del editor">{['Contenido','Diseño','Avanzado'].map(name=><button disabled={busy} key={name} onClick={()=>setTab(name)} aria-current={tab===name?'page':undefined}>{name}</button>)}</nav>

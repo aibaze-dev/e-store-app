@@ -196,6 +196,10 @@ function refsIn(value) {
 export function validateQuiz(input, publishing = false) {
   try { return validateQuizStructure(input, publishing); } catch { return ['Estructura de quiz inválida. Revisá los tipos y las listas de campos.']; }
 }
+const TEXT_KEYS = ['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText'];
+const BOOLEAN_KEYS = ['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels'];
+const FIELD_NAMES = { title: 'el título', description: 'la descripción', text: 'el texto', label: 'la etiqueta', name: 'el nombre', buttonText: 'el texto del botón', consentText: 'el texto de consentimiento', icon: 'el ícono', legend: 'la leyenda', suffix: 'el sufijo', placeholder: 'la ayuda del campo', imageAlt: 'el texto alternativo de la imagen', backText: 'el botón Atrás', skipText: 'el botón Omitir', imageUrl: 'la imagen', sideImageUrl: 'la imagen lateral', videoUrl: 'el video', logoUrl: 'el logo', termsUrl: 'la URL de términos', privacyUrl: 'la URL de privacidad', beforeImageUrl: 'la imagen «antes»', afterImageUrl: 'la imagen «después»', photoUrl: 'la foto', color: 'el color de botones', background: 'el color de fondo', textColor: 'el color de texto', items: 'un mensaje' };
+const fieldName = key => FIELD_NAMES[key] || `el campo «${key}»`;
 // Errors name screens by their title: IDs are internal and mean nothing to the editor.
 const stepName = s => typeof s?.title === 'string' && s.title.trim() ? `Pantalla «${s.title.trim().slice(0, 60)}»` : `Pantalla ${s?.id ?? ''}`.trim();
 function validateQuizStructure(input, publishing) {
@@ -294,20 +298,37 @@ function validateQuizStructure(input, publishing) {
   };
   q.steps.forEach(s => { if (s.blocks) blocks(s.blocks, stepName(s)); });
   q.results.forEach(r => { const name = r.default ? 'Página final' : `Perfil «${r.title || r.id}»`; group(r.when, name); blocks(r.blocks, name); });
-  const walk = value => {
+  // Field checks name the screen/block and the field as the editor shows them. Keys set to
+  // undefined are skipped: Convex drops them on save, so they must not block publishing.
+  const where = (base, key, child, i) => {
+    if (key === 'blocks') return `${base} › bloque «${String(child?.title || '').trim().slice(0, 40) || child?.type || i + 1}»`;
+    if (key === 'options') return `${base} › opción «${String(child?.label || '').trim().slice(0, 40) || i + 1}»`;
+    if (key === 'mockups') return `${base} › imagen de producto ${i + 1}`;
+    if (key === 'items') return `${base} › elemento ${i + 1}`;
+    if (key === 'variants') return `${base} › variante ${i + 1}`;
+    return base;
+  };
+  const walk = (value, at) => {
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value)) {
-      if (['title','description','text','label','name','buttonText','consentText','icon','legend','suffix','placeholder','imageAlt','backText','skipText'].includes(key) || /Url$/.test(key)) check(typeof child === 'string', `Texto inválido en ${key}.`);
-      if (['required','enabled','default','autoAdvance','exclusive','stickyCta','nameRequired','emailRequired','highlighted','laurels'].includes(key)) check(typeof child === 'boolean', `Opción inválida en ${key}.`);
+      if (child === undefined) continue;
+      const field = fieldName(key);
+      if (TEXT_KEYS.includes(key) || /Url$/.test(key)) check(typeof child === 'string', `${at}: ${field} tiene un valor que no es texto. Volvé a completar ese campo o dejalo vacío.`);
+      if (BOOLEAN_KEYS.includes(key)) check(typeof child === 'boolean', `${at}: la opción «${key}» tiene un valor inválido.`);
       if (typeof child === 'string') {
-        check(child.length <= 6000, `Texto demasiado largo en ${key}.`);
-        if (/Url$/.test(key) && child) { try { check(new URL(child).protocol === 'https:', `Usá una URL HTTPS en ${key}.`); } catch { errors.push(`URL inválida en ${key}.`); } }
-        if (['color', 'background', 'textColor'].includes(key)) check(/^#[a-f\d]{6}$/i.test(child), `Color inválido en ${key}.`);
-        for (const match of child.matchAll(/\{\{([^}]+)\}\}/g)) check(refs.has(match[1]), `Variable desconocida: ${match[1]}.`);
-      } else walk(child);
+        check(child.length <= 6000, `${at}: ${field} supera los 6.000 caracteres.`);
+        if (/Url$/.test(key) && child) { try { check(new URL(child).protocol === 'https:', `${at}: ${field} tiene que empezar con https://.`); } catch { errors.push(`${at}: ${field} no es una dirección web válida («${child.slice(0, 60)}»).`); } }
+        if (['color', 'background', 'textColor'].includes(key)) check(/^#[a-f\d]{6}$/i.test(child), `${at}: ${field} tiene que ser un color como #1a2b3c.`);
+        for (const match of child.matchAll(/\{\{([^}]+)\}\}/g)) check(refs.has(match[1]), `${at}: variable desconocida {{${match[1]}}} en ${field}. Puede venir de una pregunta o cálculo que borraste.`);
+      } else if (Array.isArray(child)) child.forEach((item, i) => item && typeof item === 'object' ? walk(item, where(at, key, item, i)) : walk({ [key]: item }, at));
+      else walk(child, at);
     }
   };
-  walk(q);
+  walk(q.identity, 'Diseño');
+  q.steps.forEach(s => walk(s, stepName(s)));
+  q.calculations.forEach(c => walk(c, `Cálculo «${c?.label || c?.id}»`));
+  q.results.forEach(r => walk(r, r?.default ? 'Página final' : `Perfil «${r?.title || r?.id}»`));
+  for (const [key, child] of Object.entries(q)) if (!['identity', 'steps', 'calculations', 'results'].includes(key)) walk({ [key]: child }, 'Quiz');
   if (publishing && !errors.length) check(Boolean(firstStep(q)), 'El quiz necesita una primera pantalla visible.');
   return [...new Set(errors)];
 }
