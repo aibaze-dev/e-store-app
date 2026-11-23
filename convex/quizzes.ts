@@ -33,7 +33,7 @@ export const get = query({args:{storeId:v.id('stores')},handler:async(ctx,{store
  const landing=await forStore(ctx,storeId,'quiz'); const product=await ctx.db.get(store.offer.mainProductId);
  return {landing,quiz:landing?.quizDraft ?? createQuizTemplate(product?.name),subdomain:store.subdomain ?? (await forStore(ctx,storeId))?.subdomain ?? '',view:await buildLandingView(ctx,store,landing ?? {_id:'',storeId,subdomain:'',template:'quiz'} as any,await purchaseContent(ctx,store,true))};
 }});
-export const save = mutation({args:{storeId:v.id('stores'),subdomain:v.string(),quiz:v.any()},handler:async(ctx,args)=>{
+export const save = mutation({args:{storeId:v.id('stores'),subdomain:v.optional(v.string()),quiz:v.any()},handler:async(ctx,args)=>{
  await requireAdmin(ctx);return saveQuizDraft(ctx,args.storeId,args.subdomain,args.quiz);
 }});
 // Step images: the browser uploads straight to Convex storage and the quiz keeps the served

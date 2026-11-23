@@ -19,7 +19,7 @@ import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import OfferSection from './OfferSection.jsx';
 
 const EMPTY = {
-  name: '', status: 'draft', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
+  name: '', subdomain: '', status: 'draft', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
   bonuses: [], upsells: [], postEnabled: false, postProductId: '', postPrice: '', postDownPercent: '', metaPixelIds: [],
   downEnabled: false, downPercent: '', downTexts: DOWNSELL_DEFAULTS, downVideoUrl: '',
 };
@@ -38,7 +38,7 @@ const percentOf = text => (/^\d{1,2}$/.test(String(text).trim()) && Number(text)
 
 function fromStore(store) {
   return {
-    name: store.name, status: store.status, currency: store.currency,
+    name: store.name, subdomain: store.subdomain ?? '', status: store.status, currency: store.currency,
     mainProductId: store.offer.mainProductId, price: fromMinor(store.offer.price, store.currency),
     compareAtPrice: fromMinor(store.offer.compareAtPrice, store.currency),
     bonusValues: Object.fromEntries(store.offer.bonuses.map(bonus => [bonus.productId, fromMinor(bonus.referenceValue, store.currency)])),
@@ -105,6 +105,7 @@ export default function StoreFormPage({ section }) {
   const existing = useQuery(api.stores.get, storeId ? { id: storeId } : 'skip');
   const create = useMutation(api.stores.create);
   const update = useMutation(api.stores.update);
+  const setSubdomain = useMutation(api.stores.setSubdomain);
   const [form, setForm] = useState(storeId ? null : EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -154,13 +155,16 @@ export default function StoreFormPage({ section }) {
     }
     setBusy(true);
     try {
+      const subdomain = form.subdomain.trim().toLowerCase();
       if (storeId) {
+        // The address is validated first, so a taken or invalid one stops the whole save.
+        if (subdomain && subdomain !== (existing.subdomain ?? '')) await setSubdomain({ id: storeId, subdomain });
         await update({ id: storeId, ...args });
         // The server drops empty and repeated pixels: show what was saved.
-        setForm(current => ({ ...current, metaPixelIds: [...new Set(args.tracking.metaPixelIds)] }));
+        setForm(current => ({ ...current, subdomain, metaPixelIds: [...new Set(args.tracking.metaPixelIds)] }));
         setSaved(true);
       }
-      else navigate(`/panel/tiendas/${await create(args)}/landing`);
+      else navigate(`/panel/tiendas/${await create({ ...args, ...(subdomain ? { subdomain } : {}) })}/landing`);
     } catch (failure) { setError(errorText(failure, 'No se pudo guardar la tienda. Volvé a intentar.')); }
     finally { setBusy(false); }
   }
@@ -179,6 +183,7 @@ export default function StoreFormPage({ section }) {
       <CardHeader><CardTitle>Campaña</CardTitle><CardDescription>Solo las tiendas activas con landing publicada reciben visitas y ventas.</CardDescription></CardHeader>
       <CardContent className="grid gap-5 sm:grid-cols-2">
         <Field label="Nombre" className="sm:col-span-2">{props => <Input {...props} value={form.name} onChange={event => set({ name: event.target.value })} maxLength={120} required disabled={busy} />}</Field>
+        <Field label="Subdominio" hint="Minúsculas, números y guiones. Es la dirección pública de la landing clásica y del quiz; guardar un cambio lo aplica de inmediato. Solo se edita acá." className="sm:col-span-2">{props => <Input {...props} value={form.subdomain} onChange={event => set({ subdomain: event.target.value })} maxLength={63} autoCapitalize="none" spellCheck={false} disabled={busy} />}</Field>
         <Field label="Estado">{props => <NativeSelect {...props} value={form.status} onChange={event => set({ status: event.target.value })} disabled={busy}>
           <option value="draft">Borrador</option><option value="active">Activa</option>
         </NativeSelect>}</Field>

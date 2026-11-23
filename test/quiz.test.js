@@ -29,6 +29,23 @@ describe('quiz persistence and checkout',()=>{
  it('AI returns validated review-only proposal, handles invalid output and provider failure',async()=>{const f=await fixture();const q=tiny();const args={storeId:f.storeId,quiz:q,audience:'Lectores',goal:'Aprender',tone:'Cercano',length:3};await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow(/configurada/);vi.stubEnv('OPENAI_API_KEY','test');const result={title:'Inicio',description:'Conocé tu guía',steps:[{type:'single',title:'¿Qué buscás?',description:'Elegí',options:[{label:'Aprender',description:''},{label:'Practicar',description:''}]}],results:[{id:'general',title:'Tu propuesta',description:'Revisá el contenido'}]};vi.stubGlobal('fetch',async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(result)}}]})));const proposal=await f.admin.action(api.quiz_wizard.generate,args);expect(validateQuiz(proposal,true)).toEqual([]);expect(proposal.steps).toHaveLength(3);expect(await f.admin.query(api.landings.list,{storeId:f.storeId})).toHaveLength(0);result.steps[0].type='javascript';await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow();vi.stubGlobal('fetch',async()=>{throw new Error('offline');});await expect(f.admin.action(api.quiz_wizard.generate,args)).rejects.toThrow(/válida/);});
 });
 
+describe('subdomain is edited only from the store settings', () => {
+  it('quiz and landing saves cannot change it; stores.setSubdomain can', async () => {
+    const f = await fixture();
+    await f.admin.mutation(api.quizzes.save, { storeId: f.storeId, subdomain: 'guide', quiz: tiny() });
+    await expect(f.admin.mutation(api.quizzes.save, { storeId: f.storeId, subdomain: 'otro', quiz: tiny() })).rejects.toThrow(/Configuración/);
+    await expect(f.admin.mutation(api.landings.saveDraft, { storeId: f.storeId, subdomain: 'otro', template: 'classic', draft: content })).rejects.toThrow(/Configuración/);
+    await f.admin.mutation(api.quizzes.save, { storeId: f.storeId, quiz: tiny() });
+    await f.admin.mutation(api.stores.setSubdomain, { id: f.storeId, subdomain: 'nuevo' });
+    expect((await f.admin.query(api.stores.get, { id: f.storeId })).subdomain).toBe('nuevo');
+    expect((await f.admin.query(api.quizzes.get, { storeId: f.storeId })).subdomain).toBe('nuevo');
+    await expect(f.t.mutation(api.stores.setSubdomain, { id: f.storeId, subdomain: 'hack' })).rejects.toThrow();
+  });
+  it('a store without an address cannot save a quiz until one is set', async () => {
+    const f = await fixture();
+    await expect(f.admin.mutation(api.quizzes.save, { storeId: f.storeId, quiz: tiny() })).rejects.toThrow(/Configuración/);
+  });
+});
 describe('simplified quiz authoring and shared presentation', () => {
  it('generates a replacement proposal without accumulating questions or touching the published version', async () => {
   const f=await fixture();const q=createQuizTemplate('Guía');await publish(f,q);

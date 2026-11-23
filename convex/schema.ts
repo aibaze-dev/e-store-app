@@ -194,6 +194,8 @@ export default defineSchema({
     // Post-purchase only: the last, fixed extra discount offered after the downsell. Also has `downsell`.
     finalDownsell: v.optional(v.boolean()),
     buyer: v.optional(v.object({ email: v.string(), name: v.string() })),
+    // Normalized `buyer.email` (see lib/buyer_email.ts), always written together with `buyer`.
+    buyerEmailKey: v.optional(v.string()),
     // Address of the browser that opened the checkout, kept to look up city/region later.
     // A post-purchase order repeats its parent's.
     ip: v.optional(v.string()),
@@ -201,7 +203,8 @@ export default defineSchema({
     currency: v.string(),
     total: v.number(),
     items: v.array(v.object({ productId: v.id('products'), name: v.string(), role: itemRole, price: v.number() })),
-  }).index('by_attempt', ['attemptId']).index('by_parent', ['parentOrderId']).index('by_store', ['storeId']).index('by_quiz', ['quizSessionId']),
+  }).index('by_attempt', ['attemptId']).index('by_parent', ['parentOrderId']).index('by_store', ['storeId']).index('by_quiz', ['quizSessionId'])
+    .index('by_store_status_email', ['storeId', 'status', 'buyerEmailKey']),
 
   // Shown in the panel as "Cobros y entregas". Deliveries are only exposed once paid.
   transactions: defineTable({

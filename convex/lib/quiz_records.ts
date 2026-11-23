@@ -1,10 +1,10 @@
 import type { MutationCtx, Id } from './functions';
-import { forStore, setAddress, purchaseContent } from './landing_records';
+import { forStore, resolveAddress, purchaseContent } from './landing_records';
 import { fail } from './validation';
 import { assertQuiz } from '../../shared/quiz.js';
-export async function saveQuizDraft(ctx:MutationCtx,storeId:Id<'stores'>,address:string,value:unknown){
+export async function saveQuizDraft(ctx:MutationCtx,storeId:Id<'stores'>,address:string|undefined,value:unknown){
  const store=await ctx.db.get(storeId);if(!store)fail('Tienda no disponible.');
- const quiz=assertQuiz(value);const subdomain=await setAddress(ctx,storeId,address);
+ const quiz=assertQuiz(value);const subdomain=await resolveAddress(ctx,storeId,address);
  const landing=await forStore(ctx,storeId,'quiz');
  if(landing){await ctx.db.patch(landing._id,{quizDraft:quiz});return landing._id;}
  return ctx.db.insert('landings',{storeId,subdomain,template:'quiz',draft:await purchaseContent(ctx,store,true),quizDraft:quiz});

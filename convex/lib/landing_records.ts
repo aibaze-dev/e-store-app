@@ -33,3 +33,17 @@ export async function setAddress(ctx: MutationCtx, storeId: Id<'stores'>, addres
   for (const row of await ctx.db.query('landings').withIndex('by_store', q => q.eq('storeId', storeId)).collect()) await ctx.db.patch(row._id, { subdomain });
   return subdomain;
 }
+
+// The address is edited only from the store settings (`stores.setSubdomain`). Landing and quiz saves reuse it:
+// a different value is rejected, and only a store that still has no address may be given one here.
+export async function resolveAddress(ctx: MutationCtx, storeId: Id<'stores'>, requested?: string) {
+  const store = await ctx.db.get(storeId);
+  if (!store) fail('Tienda no disponible.');
+  const current = store.subdomain ?? (await forStore(ctx, storeId))?.subdomain ?? (await forStore(ctx, storeId, 'quiz'))?.subdomain;
+  if (!current) {
+    if (!requested?.trim()) fail('Definí el subdominio en Configuración antes de guardar.');
+    return await setAddress(ctx, storeId, requested);
+  }
+  if (requested !== undefined && requested.trim() && cleanSubdomain(requested) !== current) fail('El subdominio solo se puede cambiar desde Configuración.');
+  return current;
+}

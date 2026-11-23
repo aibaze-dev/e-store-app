@@ -70,7 +70,7 @@ export default function LandingEditPage() {
   const upload = useMediaUpload();
   if (landing === undefined || !store || !products) return <PageSkeleton label="Cargando landing" />;
   async function save(form, action) {
-    await saveDraft({ storeId, subdomain: form.subdomain, template: 'classic', draft: form.content });
+    await saveDraft({ storeId, template: 'classic', draft: form.content });
     if (action === 'publish') await publish({ storeId });
   }
   return <UploadContext.Provider value={upload}><LandingConfigurator key={storeId} landing={landing} store={store} products={products} hash={hash} uploading={upload.pending} onSave={save} /></UploadContext.Provider>;
@@ -384,8 +384,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           <Field label="Color principal" hint="Los botones ajustan su contraste automáticamente.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
           {field('footer', 'brandName', 'Marca en el pie de página', { maxLength: 120, hint: 'Si queda vacío, usamos el nombre de la tienda.' })}
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
-          <Field label="Subdominio" hint="Minúsculas, números y guiones. Guardar un cambio de dirección lo aplica de inmediato.">{ids => <Input {...ids} value={form.subdomain} onChange={event => setForm(current => ({ ...current, subdomain: event.target.value }))} required maxLength={63} autoCapitalize="none" spellCheck={false} disabled={Boolean(busy)} />}</Field>
-          {urls && <p className="text-xs leading-6 text-muted-foreground">Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a><br />El subdominio propio requiere configurar dominio y DNS.</p>}
+          <p className="text-xs leading-6 text-muted-foreground">{urls ? <>Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a>. </> : 'Todavía no definiste el subdominio. '}El subdominio se edita en <Link to={`/panel/tiendas/${storeId}/configuracion`} className="underline">Configuración</Link>; el dominio propio requiere configurar dominio y DNS.</p>
           {labels('identity')}
         </Section>
     </>,

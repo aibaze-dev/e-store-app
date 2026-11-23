@@ -15,38 +15,36 @@ import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
 export { QField } from './QuizFields.jsx';
 
-export function QuizEditorForm({initial,subdomain:address,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
- const [quiz,setQuiz]=useState(()=>clone(initial)),[subdomain,setSubdomain]=useState(address),[tab,setTab]=useState('Contenido');
+export function QuizEditorForm({initial,subdomain:address,settingsPath,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
+ const [quiz,setQuiz]=useState(()=>clone(initial)),[tab,setTab]=useState('Contenido');
  const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(true),[dirty,setDirty]=useState(false);
  const busy=working||uploading;
  const set=patch=>{setQuiz(q=>({...q,...patch}));setDirty(true);setStatus('');};
  const errors=validateQuiz(quiz,true);
  const task=async(fn,message)=>{setBusy(true);setError('');setStatus('');try{await fn();setStatus(message);}catch(e){setError(errorText(e,'No se pudo completar la operación.'));}finally{setBusy(false);}};
- const publish=()=>{if(errors.length){setError(errors.join('\n'));return;}task(async()=>{await onSave({quiz:clone(quiz),subdomain});await onPublish();setDirty(false);},'Quiz publicado.');};
+ const publish=()=>{if(errors.length){setError(errors.join('\n'));return;}task(async()=>{await onSave({quiz:clone(quiz)});await onPublish();setDirty(false);},'Quiz publicado.');};
  const setStep=(index,patch)=>set({steps:quiz.steps.map((s,i)=>i===index?{...s,...patch}:s)});
  const mainResult=quiz.results.find(r=>r.default);
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
  return <div className="quiz-editor qe-simple-editor">
   <header className="qe-heading"><div><p className="qe-eyebrow">Landings / Quiz</p><h1>Tu quiz</h1><p>Ordená las pantallas, editá cada una y mirá cómo se ve al lado.</p></div><span className="qe-status">{published?'Publicado':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></header>
   {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} exists={exists} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onBusy={setBusy} onApply={async proposal=>{
-    await onSave({quiz:clone(proposal),subdomain});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
+    await onSave({quiz:clone(proposal)});setQuiz(proposal);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
    }}/>}
   {(!aiOpen||preview)&&<div className="qe-toolbar">
-   <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz),subdomain});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
+   <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz)});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
    <Button variant="outline" disabled={busy} onClick={()=>{if(errors.length){setError(errors.join('\n'));}else setPreview(!preview);}}>{preview?'Volver a editar':'Probar quiz'}</Button>
    <Button disabled={busy} onClick={publish}>{busy?'Guardando…':'Publicar quiz'}</Button>
   </div>}
   <ErrorAlert>{error}</ErrorAlert>{status&&<p role="status">{status}</p>}
-  {!address&&<div className="qe-card"><QField label="Dirección de tu tienda" value={subdomain} onChange={value=>{setSubdomain(value);setDirty(true);}}/><p className="qe-hint">Elegí un subdominio para guardar y publicar. Se comparte con la landing clásica.</p></div>}
+  {!address&&<div className="qe-card" role="note"><p>Antes de guardar o publicar, definí el subdominio de tu tienda en <Link to={settingsPath||'../configuracion'}>Configuración</Link>.</p></div>}
   {preview?<QuizPreview key={JSON.stringify(quiz)} quiz={quiz} view={view}/>:!aiOpen&&<>
    <nav className="qe-tabs" aria-label="Apartados del editor">{['Contenido','Diseño','Avanzado'].map(name=><button disabled={busy} key={name} onClick={()=>setTab(name)} aria-current={tab===name?'page':undefined}>{name}</button>)}</nav>
    <UploadContext.Provider value={onUploadImage}><fieldset disabled={busy} className="qe-main qe-stack">
     {tab==='Contenido'&&<QuizBuilder quiz={quiz} view={view} set={set}/>}
     {tab==='Diseño'&&<div className="qe-card qe-stack"><h2>Marca y colores</h2><ImageField label="Logo" value={quiz.identity.logoUrl} onChange={logoUrl=>set({identity:{...quiz.identity,logoUrl}})}/>
      {Object.entries({name:'Nombre de marca',color:'Color de botones',background:'Color de fondo',textColor:'Color de texto'}).map(([key,label])=><QField key={key} label={label} type={['color','background','textColor'].includes(key)?'color':'text'} value={quiz.identity[key]} onChange={value=>set({identity:{...quiz.identity,[key]:value}})}/>)}
-     <details><summary>Enlaces, dirección y textos de navegación</summary>
-      <QField label="Subdominio compartido de la tienda" value={subdomain} onChange={v=>{setSubdomain(v);setDirty(true);}}/>
-      <p className="qe-hint">Cambiarlo actualiza la dirección de ambas landings.</p>
+     <details><summary>Enlaces y textos de navegación</summary>
       {Object.entries({backText:'Botón Atrás',skipText:'Botón Omitir',termsUrl:'Términos (URL)',privacyUrl:'Privacidad (URL)'}).map(([key,label])=><QField key={key} label={label} value={quiz.identity[key]} onChange={value=>set({identity:{...quiz.identity,[key]:value}})}/>)}</details>
     </div>}
     {tab==='Avanzado'&&<>
@@ -83,5 +81,5 @@ export default function QuizEditor(){
  const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
  const upload=useMediaUpload();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
- return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
+ return <><Link to={`/panel/tiendas/${storeId}/landings`}>← Landings</Link><QuizEditorForm key={storeId} initial={data.quiz} subdomain={data.subdomain} settingsPath={`/panel/tiendas/${storeId}/configuracion`} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/></>;
 }

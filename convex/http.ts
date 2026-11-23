@@ -3,7 +3,7 @@ import { registerStaticRoutes } from '@convex-dev/static-hosting';
 import { components, internal } from './_generated/api';
 import { authComponent, createAuth } from './auth';
 import { httpAction } from './lib/functions';
-import { verifyWebhookSignature } from './lib/stripe';
+import { timingSafeEqual, verifyWebhookSignature } from './lib/stripe';
 
 const http = httpRouter();
 authComponent.registerRoutes(http, createAuth, { cors: true });
@@ -43,6 +43,31 @@ http.route({
     return new Response(null, { status: 200 });
   }),
 });
+
+// Server-to-server check: does this store have a paid order for this buyer email? Answers only
+// { exists: boolean }. It reveals whether an address is a customer, so it needs the shared key
+// (ORDER_LOOKUP_API_KEY) as a bearer token; the email travels in the body, never in the URL.
+http.route({
+  path: '/api/orders/paid-exists',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => {
+    const key = process.env.ORDER_LOOKUP_API_KEY;
+    if (!key) return json({ error: 'not_configured' }, 503);
+    const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1] ?? '';
+    if (!timingSafeEqual(token, key)) return json({ error: 'unauthorized' }, 401);
+    let body: { storeId?: unknown; email?: unknown } | null;
+    try { body = await request.json(); } catch { body = null; }
+    const { storeId, email } = body ?? {};
+    if (typeof storeId !== 'string' || typeof email !== 'string' || !storeId || !email || email.length > 320) {
+      return json({ error: 'invalid_request' }, 400);
+    }
+    return json({ exists: await ctx.runQuery(internal.orders.hasPaidOrder, { storeId, email }) });
+  }),
+});
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+}
 
 // Register additional HTTP actions explicitly under /api before this catch-all.
 registerStaticRoutes(http, components.staticHosting);

@@ -8,6 +8,7 @@ import { createEmbeddedCheckoutSession, type LineItem } from './lib/stripe';
 import { queueEmail } from './emails';
 import { queueSaleAlert } from './discord';
 import { fail } from './lib/validation';
+import { buyerFields } from './lib/buyer_email';
 import { clientIp } from './lib/request_ip';
 import { normalizeIp } from './lib/analytics_ip';
 import { attributionMetadata, cleanAttribution } from '../shared/attribution.js';
@@ -272,7 +273,7 @@ export const saveBuyerDraft = mutation({
     const order = await ctx.db.get(transaction.orderId);
     if (!order || order.status !== 'pending') return null;
     if (order.buyer?.email === email && order.buyer?.name === name) return null;
-    await ctx.db.patch(order._id, { buyer: { email, name } });
+    await ctx.db.patch(order._id, buyerFields({ email, name }));
     return null;
   },
 });
@@ -346,7 +347,7 @@ async function applyPayment(ctx: MutationCtx, transaction: Doc<'transactions'>, 
   });
   // Post-purchase sessions do not ask for a name again: it is taken from the parent order.
   const parent = !event.name && order?.parentOrderId ? await ctx.db.get(order.parentOrderId) : null;
-  await ctx.db.patch(transaction.orderId, { buyer: { email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' } });
+  await ctx.db.patch(transaction.orderId, buyerFields({ email: event.email ?? parent?.buyer?.email ?? '', name: event.name || parent?.buyer?.name || '' }));
   // Links go to the buyer only when paid; a held charge alerts the admins instead.
   if (status !== 'refunded') await queueEmail(ctx, transaction._id);
   if (status === 'paid') await queueSaleAlert(ctx, transaction._id);

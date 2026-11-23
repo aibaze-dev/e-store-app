@@ -1,4 +1,4 @@
-import { forStore } from './lib/landing_records';
+import { forStore, setAddress } from './lib/landing_records';
 import { v } from 'convex/values';
 import { mutation, query, type MutationCtx } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
@@ -122,15 +122,29 @@ export const get = query({
   args: { id: v.id('stores') },
   handler: async (ctx, { id }) => {
     await requireAdmin(ctx);
-    return await ctx.db.get(id);
+    const store = await ctx.db.get(id);
+    // Older stores keep the address only on their landing.
+    return store && { ...store, subdomain: store.subdomain ?? (await forStore(ctx, id))?.subdomain ?? (await forStore(ctx, id, 'quiz'))?.subdomain };
   },
 });
 
 export const create = mutation({
-  args: fields,
-  handler: async (ctx, args) => {
+  args: { ...fields, subdomain: v.optional(v.string()) },
+  handler: async (ctx, { subdomain, ...args }) => {
     await requireAdmin(ctx);
-    return await ctx.db.insert('stores', await clean(ctx, args));
+    const id = await ctx.db.insert('stores', await clean(ctx, args));
+    if (subdomain?.trim()) await setAddress(ctx, id, subdomain);
+    return id;
+  },
+});
+
+// The only place the public address changes: landing and quiz editors reuse it.
+export const setSubdomain = mutation({
+  args: { id: v.id('stores'), subdomain: v.string() },
+  handler: async (ctx, { id, subdomain }) => {
+    await requireAdmin(ctx);
+    if (!(await ctx.db.get(id))) fail('La tienda ya no existe.');
+    return await setAddress(ctx, id, subdomain);
   },
 });
 

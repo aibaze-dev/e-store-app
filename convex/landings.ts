@@ -1,7 +1,7 @@
 import { POST_LABEL_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, POST_OPTIONAL_FIELDS, BACK_POPUP_OPTIONAL_FIELDS, LANDING_EXIT_OPTIONAL_FIELDS } from '../shared/purchase-copy.js';
 import { CHECKOUT_FIELDS, CHECKOUT_OPTIONAL_FIELDS } from '../shared/checkout-copy.js';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
-import { forStore, setAddress } from './lib/landing_records';
+import { forStore, resolveAddress } from './lib/landing_records';
 import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../shared/landing-copy.js';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 import { v } from 'convex/values';
@@ -224,7 +224,7 @@ export const preview = query({
 });
 
 export const saveDraft = mutation({
-  args: { storeId: v.id('stores'), subdomain: v.string(), type: landingKind, template: v.optional(v.string()), draft: v.optional(landingContent), quiz: v.optional(v.any()) },
+  args: { storeId: v.id('stores'), subdomain: v.optional(v.string()), type: landingKind, template: v.optional(v.string()), draft: v.optional(landingContent), quiz: v.optional(v.any()) },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     if (args.type === 'quiz') return saveQuizDraft(ctx, args.storeId, args.subdomain, args.quiz);
@@ -232,7 +232,7 @@ export const saveDraft = mutation({
     const template = args.template ?? 'classic';
     if (!(await ctx.db.get(args.storeId))) fail('La tienda ya no existe.');
     if (!TEMPLATES.includes(template)) fail('Plantilla: elegí una plantilla disponible.');
-    const subdomain = await setAddress(ctx, args.storeId, args.subdomain);
+    const subdomain = await resolveAddress(ctx, args.storeId, args.subdomain);
     const draft = cleanContent(args.draft);
     const existing = await forStore(ctx, args.storeId);
     await ctx.db.patch(args.storeId, { purchaseDraft: draft });
