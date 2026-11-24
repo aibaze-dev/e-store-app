@@ -7,7 +7,7 @@ El catálogo global vive en `/panel/artefactos`, bajo los permisos del panel. La
 También está disponible [Test Your AI Knowledge](ai-knowledge/README.md), en `/a/ai-knowledge`: tests por día y globales basados en el ebook Master Claude in 5 Days, con selección variable, puntaje y referencias de repaso por página.
 
 1. Crear `<slug>/index.jsx` dentro de esta carpeta, con un componente React exportado por defecto. Sus imágenes, componentes y estilos pueden vivir en la misma carpeta.
-2. Agregar en `shared/artifact-registry.js` (en la raíz del proyecto; `src/artifacts/registry.js` lo reexporta) un objeto `{ slug, name, description, coverUrl? }`. Es metadato público versionado; no importar componentes ni CSS desde ese archivo.
+2. Agregar en `shared/artifact-registry.js` (en la raíz del proyecto; `src/artifacts/registry.js` lo reexporta) un objeto `{ slug, name, names: { es, pt }, description, coverUrl? }`. Es metadato público versionado; no importar componentes ni CSS desde ese archivo.
 3. Importar `lazy` desde React en `components.js` y agregar la entrada correspondiente:
 
 ```jsx
@@ -30,12 +30,12 @@ Las herramientas están disponibles en inglés, español y portugués (Brasil). 
 - **Primera visita:** `ArtifactPage` muestra un pop-up para elegir idioma antes de renderizar la herramienta. Hasta entonces no se ejecuta ni se reporta nada. Si se cierra el pop-up sin elegir, se usa el idioma sugerido por el navegador.
 - **Preferencia guardada:** la elección se guarda en el navegador (`ateneo:artifact-language:v1`) y aplica a todas las herramientas. Cada encabezado incluye `<LanguageSwitcher />` para cambiarla.
 - **Enlace con idioma:** `?lang=es`, `?lang=pt` o `?lang=en` (también `es-AR`, `pt-BR`, etc.) fija y guarda el idioma sin mostrar el pop-up. Sirve para enlazar desde una tienda en ese idioma.
-- **Marca y nombres:** el nombre de marca sale de `artifactBrandNames` en `src/config/brandData.json`, con `artifactBrandName` como respaldo. Los nombres traducidos de cada herramienta están en `artifactNameFor` (`i18n.js`). El registro compartido conserva el nombre en inglés.
+- **Marca y nombres:** el nombre de marca sale de `artifactBrandNames` en `src/config/brandData.json`, con `artifactBrandName` como respaldo. El registro compartido contiene el nombre inglés y las traducciones al español y portugués. En Configuración de cada tienda, el idioma determina qué título se muestra en la oferta y en la compra, y en qué idioma abre el enlace entregado. El «Nombre» de la ficha comercial es el título base: lo usan las tiendas en inglés y las que no tienen idioma asignado. «Títulos por idioma» permite reemplazar la traducción del registro en español y portugués, y la herramienta muestra ese mismo título en su encabezado. Los idiomas que puede elegir una tienda salen de `STORE_LANGUAGE_CODES` en `shared/languages.js`.
 - **Textos:** cada herramienta tiene un `strings.js` con `{ en, es, pt }` y lo lee con `useStrings(STRINGS)`. El contenido largo vive aparte: `questions.es.js`/`questions.pt.js` en el quiz, `content.es.js`/`content.pt.js` en prompt-builder y `content.js` en meeting-prep.
 - **Valores que se mantienen en inglés:** los IDs, los valores guardados (tono, formato, tipo de producto) y las claves del brief que se envía al equipo. Solo se traduce lo que lee la persona y el texto que copia.
 - **Ebook:** sigue enlazando al PDF en inglés y a sus números de página.
 
-Para agregar una herramienta nueva: usar `useLanguage()` y `useStrings()`, agregar sus tres tablas y su nombre en `artifactNameFor`. `test/artifact-i18n.test.js` comprueba que las tablas `es` y `pt` tengan las mismas claves que `en`.
+Para agregar una herramienta nueva: usar `useLanguage()` y `useStrings()`, agregar sus tres tablas y sus nombres en `shared/artifact-registry.js`. `test/artifact-i18n.test.js` comprueba que las tablas `es` y `pt` tengan las mismas claves que `en`.
 
 ## Apariencia y aislamiento
 

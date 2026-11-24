@@ -47,16 +47,7 @@ export function brandNameFor(code) {
   return brand.artifactBrandNames?.[code] || brand.artifactBrandName;
 }
 
-const ARTIFACT_NAMES = {
-  'project-brief': { es: '¡Tu propia app a medida!', pt: 'Seu próprio app sob medida!' },
-  'ai-knowledge': { es: 'Pon a prueba lo que sabes de IA', pt: 'Teste seus conhecimentos de IA' },
-  'prompt-builder': { es: 'Constructor de prompts', pt: 'Construtor de prompts' },
-  'meeting-prep': { es: 'Prepara tu reunión', pt: 'Prepare sua reunião' },
-};
-
-export function artifactNameFor(artifact, code) {
-  return ARTIFACT_NAMES[artifact?.slug]?.[code] || artifact?.name;
-}
+export { artifactNameFor } from '../../shared/artifact-registry.js';
 
 export const LanguageContext = createContext({ lang: DEFAULT_LANGUAGE, setLang: () => {} });
 

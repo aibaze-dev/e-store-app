@@ -1,3 +1,4 @@
+import { storeProductName } from '../shared/artifact-registry.js';
 import { splitHeroTitle } from '../shared/classic-design.js';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
@@ -202,9 +203,9 @@ async function loadOffer(ctx: any, storeId: any): Promise<Offer> {
   const postProduct = store.postPurchase.enabled && store.postPurchase.productId ? await ctx.db.get(store.postPurchase.productId) : null;
   return {
     storeName: store.name,
-    product: { name: main.name, description: main.description.slice(0, 2000) },
-    bonuses: bonuses.flatMap((bonus: any) => (bonus ? [bonus.name] : [])),
-    ...(postProduct ? { postPurchase: { name: postProduct.name, description: postProduct.description.slice(0, 2000), hasDownsell: Boolean(store.postPurchase.downsellPercent) } } : {}),
+    product: { name: storeProductName(main, store.language), description: main.description.slice(0, 2000) },
+    bonuses: bonuses.flatMap((bonus: any) => (bonus ? [storeProductName(bonus, store.language)] : [])),
+    ...(postProduct ? { postPurchase: { name: storeProductName(postProduct, store.language), description: postProduct.description.slice(0, 2000), hasDownsell: Boolean(store.postPurchase.downsellPercent) } } : {}),
   };
 }
 

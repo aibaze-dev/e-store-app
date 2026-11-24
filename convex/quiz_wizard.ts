@@ -5,6 +5,7 @@ import { requireAdmin } from './lib/permissions';
 import { generateJson, DEFAULT_MODEL } from './lib/claude';
 import { fail } from './lib/validation';
 import { assertQuiz, newStep, TONES } from '../shared/quiz.js';
+import { storeProductName } from '../shared/artifact-registry.js';
 import { withImagePlan } from './lib/quiz_images';
 const string={type:'string'};
 const object=(properties:any)=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -18,7 +19,7 @@ const finalPage=object({planName:string,now:side,after:side,metrics:{type:'array
  summary:{type:'array',items:object({questionIndex:integer,label:string,icon:string})},goalsQuestion:integer,goals:{type:'array',items:string},
  features:{type:'array',items:object({icon:string,title:string})},mockups:{type:'array',items:object(imageFields)}});
 const schema=object({title:string,description:string,visualStyle:string,finalPage,...imageFields,steps:{type:'array',items:object({type:{type:'string',enum:['single','multiple','text','number','date','info']},title:string,description:string,...imageFields,options:{type:'array',items:object({label:string,description:string})}})},results:{type:'array',items:object({id:string,title:string,description:string,...imageFields})}});
-export const context = internalQuery({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{await requireAdmin(ctx);const store=await ctx.db.get(storeId);if(!store)fail('Tienda no disponible.');const product=await ctx.db.get(store.offer.mainProductId);return {name:product?.name,description:product?.description};}});
+export const context = internalQuery({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{await requireAdmin(ctx);const store=await ctx.db.get(storeId);if(!store)fail('Tienda no disponible.');const product=await ctx.db.get(store.offer.mainProductId);return {name:storeProductName(product,store.language),description:product?.description};}});
 export const generate = action({args:{storeId:v.id('stores'),quiz:v.any(),audience:v.string(),goal:v.string(),tone:v.string(),length:v.number(),mode:v.optional(v.union(v.literal('append'),v.literal('replace')))},handler:async(ctx,args)=>{
  const product=await ctx.runQuery(makeFunctionReference<'query'>('quiz_wizard:context'),{storeId:args.storeId});
  const quiz=assertQuiz(args.quiz);

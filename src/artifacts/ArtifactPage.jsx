@@ -1,6 +1,9 @@
 import './theme.css';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from 'convex/react';
+import { api } from '@/lib/api.js';
+import { storeProductName } from '../../shared/artifact-registry.js';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import { artifacts } from './registry.js';
 import { artifactComponents } from './components.js';
@@ -20,7 +23,9 @@ export default function ArtifactPage() {
   const [lang, setLangState] = useState(initialLanguage);
   const artifact = artifacts.find(item => item.slug === slug);
   const Component = artifact && Object.hasOwn(artifactComponents, slug) ? artifactComponents[slug] : null;
-  const name = artifactNameFor(artifact, lang);
+  // The catalog name shows first; the title saved for the product replaces it once it loads.
+  const saved = useQuery(api.products.artifactTitle, artifact ? { slug } : 'skip');
+  const name = saved ? storeProductName({ ...saved, type: 'artifact', artifactSlug: slug }, lang) : artifactNameFor(artifact, lang);
   const title = `${name || 'Artefacto no encontrado'} · ${brandNameFor(lang || 'en')}`;
   const context = useMemo(() => ({ lang: lang || 'en', setLang: code => { storeLanguage(code); setLangState(code); } }), [lang]);
 

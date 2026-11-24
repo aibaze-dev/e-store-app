@@ -9,6 +9,7 @@ import { buildLandingView } from './lib/landing_view';
 import { fail } from './lib/validation';
 import { assertQuiz, createQuizTemplate, initialSession, advanceSession, moveSession } from '../shared/quiz.js';
 import { cleanAttribution } from '../shared/attribution.js';
+import { storeProductName } from '../shared/artifact-registry.js';
 import { attribution as attributionArg } from './schema';
 
 export async function tokenHash(token: string) {
@@ -31,7 +32,7 @@ async function response(ctx: QueryCtx, session: any) {
 export const get = query({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
  await requireAdmin(ctx); const store=await ctx.db.get(storeId); if(!store)return null;
  const landing=await forStore(ctx,storeId,'quiz'); const product=await ctx.db.get(store.offer.mainProductId);
- return {landing,quiz:landing?.quizDraft ?? createQuizTemplate(product?.name),subdomain:store.subdomain ?? (await forStore(ctx,storeId))?.subdomain ?? '',view:await buildLandingView(ctx,store,landing ?? {_id:'',storeId,subdomain:'',template:'quiz'} as any,await purchaseContent(ctx,store,true))};
+ return {landing,quiz:landing?.quizDraft ?? createQuizTemplate(storeProductName(product,store.language)),subdomain:store.subdomain ?? (await forStore(ctx,storeId))?.subdomain ?? '',view:await buildLandingView(ctx,store,landing ?? {_id:'',storeId,subdomain:'',template:'quiz'} as any,await purchaseContent(ctx,store,true))};
 }});
 // Starting a quiz from another store: lists the other stores with a published quiz, and hands
 // back a copy of one adapted to this store. The copy is only a proposal; the editor saves it
@@ -56,7 +57,7 @@ export const cloneProposal = query({args:{storeId:v.id('stores'),sourceStoreId:v
  if(!publication)fail('Esa tienda no tiene un quiz publicado.');
  // Name and logo belong to this store's brand; colors, texts and navigation come from the copy.
  const current=await forStore(ctx,storeId,'quiz'),product=await ctx.db.get(store.offer.mainProductId);
- const own=(current?.quizDraft ?? createQuizTemplate(product?.name)).identity ?? {};
+ const own=(current?.quizDraft ?? createQuizTemplate(storeProductName(product,store.language))).identity ?? {};
  const quiz=structuredClone(publication.content);
  quiz.identity={...quiz.identity,name:own.name ?? quiz.identity?.name,logoUrl:own.logoUrl ?? ''};
  return assertQuiz(quiz);

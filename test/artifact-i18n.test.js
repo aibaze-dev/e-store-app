@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { artifactNameFor, brandNameFor, LANGUAGE_KEY, languageFromSearch, readStoredLanguage, storeLanguage, suggestedLanguage } from '../src/artifacts/i18n.js';
+import { artifactNameFor, brandNameFor, LANGUAGE_KEY, LANGUAGES, languageFromSearch, readStoredLanguage, storeLanguage, suggestedLanguage } from '../src/artifacts/i18n.js';
 import { artifacts } from '../src/artifacts/registry.js';
+import { STORE_LANGUAGE_CODES } from '../shared/languages.js';
+import { LANGUAGES as TRANSLATION_LANGUAGES } from '../shared/translate.js';
 import { QUESTIONS } from '../src/artifacts/ai-knowledge/questions.js';
 import { createExam, gradeExam, localizeQuestion } from '../src/artifacts/ai-knowledge/quiz.js';
 import { STRINGS as QUIZ_STRINGS } from '../src/artifacts/ai-knowledge/strings.js';
@@ -48,6 +50,12 @@ describe('artifact language selection', () => {
       for (const artifact of artifacts) expect(artifactNameFor(artifact, lang)).toBeTruthy();
     }
     expect(artifactNameFor(artifacts[0], 'en')).toBe(artifacts[0].name);
+  });
+
+  it('offers stores the languages the artifacts and the landing translator support', () => {
+    const codes = [...STORE_LANGUAGE_CODES].sort();
+    expect(LANGUAGES.map(language => language.code).sort()).toEqual(codes);
+    expect(Object.keys(TRANSLATION_LANGUAGES).sort()).toEqual(codes);
   });
 });
 

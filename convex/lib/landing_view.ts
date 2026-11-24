@@ -1,3 +1,4 @@
+import { storeProductName } from '../../shared/artifact-registry.js';
 import { mainDiscountPrices } from '../../shared/post-purchase.js';
 import type { Doc, QueryCtx } from './functions';
 import { discounted, finalPostPurchasePercent } from './pricing';
@@ -14,7 +15,7 @@ export async function buildPostPurchaseView(ctx: QueryCtx, store: Doc<'stores'>,
   const product = await ctx.db.get(config.productId);
   if (!product) return null;
   return {
-    name: product.name, description: product.description, coverUrl: product.coverUrl, price: config.price,
+    name: storeProductName(product, store.language), description: product.description, coverUrl: product.coverUrl, price: config.price,
     content: { ...postPurchaseContent(content), postLabels: content?.postLabels ?? {}, postOptions: content?.postOptions ?? {}, popupOptions: content?.popupOptions ?? {}, checkout: content?.checkout ?? {} },
     ...(config.downsellPercent ? { downsellPercent: config.downsellPercent, downsellPrice: discounted(config.price, config.downsellPercent) } : {}),
     finalPercent: finalPostPurchasePercent(config), finalPrice: discounted(config.price, finalPostPurchasePercent(config)),
@@ -46,7 +47,7 @@ export async function buildLandingView(ctx: QueryCtx, store: Doc<'stores'>, land
     // Absent means a legacy product; null explicitly removes its reference price.
     const reference = product.referencePrice === undefined ? legacyReference
       : product.referencePrice?.currency.toUpperCase() === store.currency.toUpperCase() ? product.referencePrice.value : undefined;
-    return { productId: product._id, name: product.name, description: product.description, coverUrl: product.coverUrl,
+    return { productId: product._id, name: storeProductName(product, store.language), description: product.description, coverUrl: product.coverUrl,
       shortDescription: product.shortDescription ?? '', featured: product.featured ?? false,
       ...(price !== undefined && reference !== undefined && reference > price ? { compareAtPrice: reference } : {}) };
   };

@@ -1,3 +1,4 @@
+import { storeProductName } from '../../shared/artifact-registry.js';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
@@ -5,6 +6,7 @@ import { ArrowLeft, BookOpen, Check, Gift, LoaderCircle, Plus, Tag, Trash2 } fro
 import business from '@/config/businessData.json';
 import { api } from '@/lib/api.js';
 import { amountHint, errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
+import { STORE_LANGUAGES } from '../../shared/languages.js';
 import { currencyDigits } from '../../shared/currencies.js';
 import { DOWNSELL_DEFAULTS, discountedPrice } from '@/storefront/downsell.js';
 import { MAX_PIXELS, pixelIds } from '../../shared/pixels.js';
@@ -21,7 +23,7 @@ import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import OfferSection from './OfferSection.jsx';
 
 const EMPTY = {
-  name: '', subdomain: '', status: 'draft', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
+  name: '', subdomain: '', status: 'draft', language: 'en', currency: business.currency, mainProductId: '', price: '', compareAtPrice: '', bonusValues: {},
   bonuses: [], upsells: [], postEnabled: false, postProductId: '', postPrice: '', postDownPercent: '', metaPixelIds: [],
   downEnabled: false, downPercent: '', downTexts: DOWNSELL_DEFAULTS, downVideoUrl: '',
 };
@@ -40,7 +42,7 @@ const percentOf = text => (/^\d{1,2}$/.test(String(text).trim()) && Number(text)
 
 function fromStore(store) {
   return {
-    name: store.name, subdomain: store.subdomain ?? '', status: store.status, currency: store.currency,
+    name: store.name, subdomain: store.subdomain ?? '', status: store.status, currency: store.currency, language: store.language ?? '',
     mainProductId: store.offer.mainProductId, price: fromMinor(store.offer.price, store.currency),
     compareAtPrice: fromMinor(store.offer.compareAtPrice, store.currency),
     bonusValues: Object.fromEntries(store.offer.bonuses.map(bonus => [bonus.productId, fromMinor(bonus.referenceValue, store.currency)])),
@@ -130,7 +132,7 @@ export default function StoreFormPage({ section }) {
   const options = products.filter(product => product.status === 'active' || used.includes(product._id));
   const productSelect = (props, value, onChange) => <NativeSelect {...props} value={value} onChange={event => onChange(event.target.value)} disabled={busy}>
     <option value="">Elegí un producto</option>
-    {options.map(product => <option key={product._id} value={product._id}>{product.name}{product.type === 'artifact' ? ' · Artefacto' : product.type === 'app' ? ' · App' : ''}{product.status === 'archived' ? ' (archivado)' : ''}</option>)}
+    {options.map(product => <option key={product._id} value={product._id}>{storeProductName(product, form.language)}{product.type === 'artifact' ? ' · Artefacto' : product.type === 'app' ? ' · App' : ''}{product.status === 'archived' ? ' (archivado)' : ''}</option>)}
   </NativeSelect>;
   const priceInput = (props, value, onChange) => <Input {...props} inputMode="decimal" placeholder={currencyDigits(form.currency) ? '0.00' : '0'} title={amountHint(form.currency)} value={value} onChange={event => onChange(event.target.value)} disabled={busy} />;
 
@@ -157,6 +159,7 @@ export default function StoreFormPage({ section }) {
     }
     setBusy(true);
     try {
+      if (show('settings') && form.language) args.language = form.language;
       const subdomain = form.subdomain.trim().toLowerCase();
       if (storeId) {
         // The address is validated first, so a taken or invalid one stops the whole save.
@@ -192,10 +195,16 @@ export default function StoreFormPage({ section }) {
         <Field label="Moneda" hint={existing && form.currency !== existing.currency
           ? `Los importes no se convierten: cada precio cargado pasa a cobrarse en ${form.currency} con el mismo número. Revisá todos los precios antes de guardar.`
           : 'Los precios de esta tienda se muestran y se cobran en Stripe en esta moneda.'}>{props => <CurrencySelect {...props} value={form.currency} onChange={currency => set({ currency })} required disabled={busy} />}</Field>
+        <Field label="Idioma de la tienda" hint="Los títulos de los artefactos se muestran en este idioma y sus enlaces abren la herramienta en el mismo idioma.">{props =>
+          <NativeSelect {...props} value={form.language} onChange={event => set({ language: event.target.value })} disabled={busy}>
+            {!existing?.language && storeId && <option value="">Usar el nombre del catálogo</option>}
+            {STORE_LANGUAGES.map(({ code, name }) => <option key={code} value={code}>{name}</option>)}
+          </NativeSelect>}
+        </Field>
       </CardContent>
     </Card>}
 
-    {show('main') && <OfferSection id="principal" title="Producto principal" icon={BookOpen} defaultOpen summary={products.find(product => product._id === form.mainProductId)?.name || 'Elegí el ebook que vende esta campaña'}>
+    {show('main') && <OfferSection id="principal" title="Producto principal" icon={BookOpen} defaultOpen summary={storeProductName(products.find(product => product._id === form.mainProductId), form.language) || 'Elegí el ebook que vende esta campaña'}>
       <CardContent className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">
         <Field label="Producto principal">{props => productSelect(props, form.mainProductId, mainProductId => set({ mainProductId }))}</Field>
         <Field label="Precio">{props => priceInput(props, form.price, price => set({ price }))}</Field>
@@ -243,7 +252,7 @@ export default function StoreFormPage({ section }) {
           Ofrecer un producto después de la compra
         </label>
         {!form.postEnabled && form.postProductId && <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm">Producto asociado: {products.find(product => product._id === form.postProductId)?.name}</span>
+          <span className="text-sm">Producto asociado: {storeProductName(products.find(product => product._id === form.postProductId), form.language)}</span>
           <Button type="button" variant="outline" disabled={busy} onClick={() => set({ postProductId: '' })}>Quitar asociación</Button>
         </div>}
         {form.postEnabled && <div className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">

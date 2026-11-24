@@ -41,7 +41,7 @@ describe('artifact commercial records', () => {
     const t = backend();
     const admin = await signedIn(t, ADMIN);
     for (const slug of ['unknown', '../meeting-prep', 'Meeting-Prep']) await expect(save(admin, slug)).rejects.toThrow();
-    for (const overrides of [{ name: ' ' }, { coverUrl: 'javascript:alert(1)' }, { shortDescription: 'x'.repeat(181) }, { referencePrice: { currency: 'USD', value: -1 } }, { deliverables: [{ title: 'Bad', url: 'https://other.com' }] }]) await expect(save(admin, 'meeting-prep', overrides)).rejects.toThrow();
+    for (const overrides of [{ name: ' ' }, { artifactTitles: { pt: 'x'.repeat(121) } }, { artifactTitles: { fr: 'Titre' } }, { artifactTitles: { en: 'Title' } }, { coverUrl: 'javascript:alert(1)' }, { shortDescription: 'x'.repeat(181) }, { referencePrice: { currency: 'USD', value: -1 } }, { deliverables: [{ title: 'Bad', url: 'https://other.com' }] }]) await expect(save(admin, 'meeting-prep', overrides)).rejects.toThrow();
     for (const value of ['', 'not-a-url', 'file:///tmp']) {
       vi.stubEnv('SITE_URL', value);
       await expect(save(admin)).rejects.toThrow('SITE_URL');
@@ -79,5 +79,63 @@ describe('artifact commercial records', () => {
       // Links come from the product as it is now; the product name stays the one sold.
       { productName: presentation.name, title: 'Changed after checkout', url: 'https://auth-test.convex.site/a/meeting-prep', kind: 'link', role: 'upsell', coverUrl: 'https://example.com/cover.jpg' },
     ]));
+  });
+
+  it('uses the store language for checkout and post-purchase artifacts and keeps the titles sold', async () => {
+    const t = backend();
+    const admin = await signedIn(t, ADMIN);
+    const main = await admin.mutation(api.products.create, product('Livro digital', 'livro'));
+    const bonus = await save(admin, 'meeting-prep');
+    const upsell = await save(admin, 'prompt-builder', { artifactTitles: { pt: '  Oficina de prompts  ' } });
+    const post = await save(admin, 'project-brief');
+    const store = {
+      name: 'Loja', status: 'active', currency: 'USD',
+      offer: { mainProductId: main, price: 2000, bonuses: [{ productId: bonus }], upsells: [{ productId: upsell, price: 500, displayOrder: 0 }] },
+      postPurchase: { enabled: true, productId: post, price: 300 }, tracking: { metaPixelIds: [] },
+    };
+    await expect(admin.mutation(api.stores.create, { ...store, language: 'fr' })).rejects.toThrow();
+    const storeId = await admin.mutation(api.stores.create, { ...store, language: 'pt' });
+    await admin.mutation(api.stores.update, { id: storeId, ...store });
+    const subdomain = 'loja';
+    await admin.mutation(api.landings.saveDraft, { storeId, subdomain, template: 'classic', draft: content });
+    await admin.mutation(api.landings.publish, { storeId });
+    const checkout = await t.query(api.storefront.getCheckout, { subdomain });
+    expect(checkout.offer.main.name).toBe('Livro digital');
+    expect(checkout.offer.bonuses[0].name).toBe('Prepare sua reunião');
+    expect(checkout.offer.upsells[0].name).toBe('Oficina de prompts');
+    expect(await t.query(api.products.artifactTitle, { slug: 'prompt-builder' })).toEqual({ name: presentation.name, artifactTitles: { pt: 'Oficina de prompts' } });
+    expect(await t.query(api.products.artifactTitle, { slug: 'ai-knowledge' })).toBeNull();
+
+    const stripe = mockStripe();
+    const pay = (id, amount) => sendWebhook(t, stripeEvent('checkout.session.completed', {
+      id, payment_status: 'paid', payment_intent: `pi_${id}`, amount_total: amount, currency: 'usd',
+      customer_details: { email: 'buyer@example.com', name: 'Buyer' },
+    }));
+    const initial = await t.action(api.checkout.start, { subdomain, upsellProductIds: [upsell], attemptId: crypto.randomUUID(), via: 'path' });
+    expect(stripe.requests[0].body['line_items[1][price_data][product_data][name]']).toBe('Oficina de prompts');
+    await pay(initial.sessionId, 2500);
+    const paid = await t.query(api.storefront.getDelivery, { sessionId: initial.sessionId });
+    expect(paid.postPurchaseOffer.name).toBe('Seu próprio app sob medida!');
+    const extra = await t.action(api.checkout.startPostPurchase, { parentSessionId: initial.sessionId, attemptId: crypto.randomUUID(), via: 'path' });
+    expect(stripe.requests[1].body['line_items[0][price_data][product_data][name]']).toBe(paid.postPurchaseOffer.name);
+    await pay(extra.sessionId, 300);
+
+    await save(admin, 'prompt-builder', { artifactTitles: { pt: ' ' } });
+    expect((await t.query(api.storefront.getLanding, { subdomain })).offer.upsells[0].name).toBe('Construtor de prompts');
+    for (const [language, name] of [['es', 'Constructor de prompts'], ['en', presentation.name]]) {
+      await admin.mutation(api.stores.update, { id: storeId, ...store, language });
+      expect((await t.query(api.storefront.getCheckout, { subdomain })).offer.upsells[0].name).toBe(name);
+    }
+    const receipt = await t.query(api.storefront.getDelivery, { sessionId: extra.sessionId });
+    for (const [role, name, slug] of [
+      ['bonus', 'Prepare sua reunião', 'meeting-prep'],
+      ['upsell', 'Oficina de prompts', 'prompt-builder'],
+      ['post_purchase', 'Seu próprio app sob medida!', 'project-brief'],
+    ]) {
+      expect(receipt.deliveries.find(link => link.role === role)).toMatchObject({
+        productName: name, title: name, url: `https://auth-test.convex.site/a/${slug}?lang=pt`,
+      });
+    }
+    expect(receipt.deliveries.find(link => link.role === 'main')).toMatchObject({ productName: 'Livro digital', title: 'PDF', url: 'https://files.example.com/livro.pdf' });
   });
 });

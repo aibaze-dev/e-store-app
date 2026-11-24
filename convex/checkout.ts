@@ -89,6 +89,7 @@ async function openOrder(ctx: MutationCtx, input: {
   const snapshot = await input.build();
   const orderId = await ctx.db.insert('orders', {
     storeId: input.store._id,
+    storeLanguage: input.store.language,
     landingId: input.landing._id,
     parentOrderId: input.parentOrderId,
     attemptId: input.attemptId,

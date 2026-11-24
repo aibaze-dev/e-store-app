@@ -2,6 +2,7 @@ import { POST_LABEL_FIELDS, POST_OPTION_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_
 import { CHECKOUT_FIELDS, CHECKOUT_FLAGS } from '../shared/checkout-copy.js';
 import { LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
 import { ATTRIBUTION_FIELDS } from '../shared/attribution.js';
+import { STORE_LANGUAGE_CODES } from '../shared/languages.js';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -20,6 +21,9 @@ const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.st
 
 const optionalTexts = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.string())]))));
 const optionalFlags = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.boolean())]))));
+export const storeLanguage = v.union(...STORE_LANGUAGE_CODES.map(code => v.literal(code)));
+// Titles for the languages the catalog translates; the product name is the base title.
+export const artifactTitles = v.object({ es: v.optional(v.string()), pt: v.optional(v.string()) });
 const paymentLocale = v.union(v.literal('es'), v.literal('en'), v.literal('pt'), v.literal('auto'));
 export const landingContent = v.object({
   postLabels: optionalTexts(POST_LABEL_FIELDS), postOptions: optionalFlags(POST_OPTION_FIELDS),
@@ -143,6 +147,7 @@ export default defineSchema({
     // checks access itself through POST /api/orders/paid-exists.
     type: v.optional(v.union(v.literal('e-book'), v.literal('artifact'), v.literal('app'))),
     artifactSlug: v.optional(v.string()),
+    artifactTitles: v.optional(artifactTitles),
     shortDescription: v.optional(v.string()),
     featured: v.optional(v.boolean()),
     // Language code from shared/languages.js; absent when not specified.
@@ -157,6 +162,7 @@ export default defineSchema({
 
   // A store is one campaign selling one main resource; the commercial offer lives here.
   stores: defineTable({
+    language: v.optional(storeLanguage),
     name: v.string(),
     status: v.union(v.literal('draft'), v.literal('active')),
     currency: v.string(),
@@ -184,6 +190,7 @@ export default defineSchema({
 
   // Items are a copy of what was sold; never rebuild a purchase from the current store.
   orders: defineTable({
+    storeLanguage: v.optional(storeLanguage),
     storeId: v.id('stores'),
     landingId: v.id('landings'),
     parentOrderId: v.optional(v.id('orders')),

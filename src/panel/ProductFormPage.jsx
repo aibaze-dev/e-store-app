@@ -16,7 +16,7 @@ import CurrencySelect from '@/components/CurrencySelect.jsx';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect } from '@/components/ui/native-select';
-import { LANGUAGES } from '../../shared/languages.js';
+import { LANGUAGES, STORE_LANGUAGES } from '../../shared/languages.js';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import { CoverArt, SectionHeading, StatusPill, deliverableSummary } from './CatalogParts.jsx';
 import { ViewContentButton } from './DeliverableViewer.jsx';
@@ -67,7 +67,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
     if (existing && !form) {
       const { name, description, coverUrl, status, deliverables } = existing;
       const app = existing.type === 'app';
-      setForm({ name, description, coverUrl, status, type: app ? 'app' : 'e-book', appUrl: app ? deliverables[0]?.url ?? '' : '', deliverables: app ? [] : deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, language: existing.language ?? '', referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
+      setForm({ ...(artifactMode ? { artifactTitles: existing.artifactTitles } : {}), name, description, coverUrl, status, type: app ? 'app' : 'e-book', appUrl: app ? deliverables[0]?.url ?? '' : '', deliverables: app ? [] : deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, language: existing.language ?? '', referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
     }
   }, [existing, form, artifactMode, artifact]);
 
@@ -158,6 +158,14 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
 
         <section className="catalog-panel" aria-labelledby="section-sale">
           <SectionHeading id="section-sale" step={2} title="Presentación en la compra" description="Se reutiliza en todas las tiendas. El precio de venta y los extras incluidos se eligen en Productos y oferta de cada tienda." />
+          {artifactMode && <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Títulos por idioma</legend>
+            <p className="text-xs text-muted-foreground">El nombre de arriba es el título base. Las tiendas en estos idiomas muestran su propio título; dejá el campo vacío para usar la traducción que aparece como sugerencia.</p>
+            {STORE_LANGUAGES.filter(({ code }) => artifact.names?.[code]).map(({ code, name }) => <Field key={code} label={name}>{props =>
+              <Input {...props} value={form.artifactTitles?.[code] ?? ''} placeholder={artifact.names[code]}
+                onChange={event => set({ artifactTitles: { ...form.artifactTitles, [code]: event.target.value } })} maxLength={120} disabled={busy} />}
+            </Field>)}
+          </fieldset>}
           <Field label="Descripción corta" hint="Opcional. Se usa en las tarjetas de compra; si queda vacía, se muestra la descripción completa.">{props => <Textarea {...props} value={form.shortDescription} onChange={event => set({ shortDescription: event.target.value })} maxLength={180} disabled={busy} />}</Field>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
             <Field label="Precio normal (tachado)" hint="La landing y el checkout lo muestran tachado con una etiqueta −X% OFF calculada contra el precio de venta de cada tienda. Ejemplo: normal US$18 y oferta US$9 → −50% OFF.">{props => <Input {...props} inputMode="decimal" value={form.referenceAmount} placeholder="Opcional" onChange={event => set({ referenceAmount: event.target.value, referenceConfigured: true })} disabled={busy} />}</Field>

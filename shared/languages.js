@@ -9,6 +9,10 @@ export const LANGUAGES = [
   { code: 'de', name: 'Alemán', flag: '🇩🇪' },
 ];
 
+// Languages a store can sell in: the ones every artifact and the landing translator support.
+export const STORE_LANGUAGE_CODES = /** @type {const} */ (['es', 'en', 'pt']);
+export const STORE_LANGUAGES = LANGUAGES.filter(({ code }) => STORE_LANGUAGE_CODES.includes(code));
+
 export function findLanguage(code) {
   return LANGUAGES.find(language => language.code === code) ?? null;
 }

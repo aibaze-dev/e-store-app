@@ -1,3 +1,4 @@
+import { storeProductName } from '../../shared/artifact-registry.js';
 import { mainDiscountPrices } from '../../shared/post-purchase.js';
 import { POST_LABEL_FIELDS, POST_LABEL_GROUPS, POST_LABEL_DEFAULTS, POST_OPTIONAL_FIELDS, POST_OPTION_FIELDS, POPUP_OPTION_FIELDS, LANDING_EXIT_FIELDS, LANDING_EXIT_OPTIONAL_FIELDS, BACK_POPUP_FIELDS, BACK_POPUP_OPTIONAL_FIELDS, postOptions, popupOptions, landingExitConfig, backPopupConfig, PURCHASE_PREVIEW_STATES, POPUP_PREVIEW_TARGETS } from '../../shared/purchase-copy.js';
 import { CHECKOUT_FIELDS, CHECKOUT_DEFAULTS, CHECKOUT_OPTIONAL_FIELDS } from '../../shared/checkout-copy.js';
@@ -177,8 +178,12 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   const itemImage = (key, index, property, label) => <ImageField uploadOnly compact label={label} value={content[key].items[index][property]} onChange={value => changeItem(key, index, { [property]: value })} disabled={Boolean(busy)} />;
   const off = key => !content[key].enabled;
 
-  const mainProduct = products.find(product => product._id === store.offer.mainProductId);
-  const postProduct = products.find(product => product._id === store.postPurchase.productId);
+  const productForPreview = id => {
+    const product = products.find(item => item._id === id);
+    return product && { ...product, name: storeProductName(product, store.language) };
+  };
+  const mainProduct = productForPreview(store.offer.mainProductId);
+  const postProduct = productForPreview(store.postPurchase.productId);
   const referencePrice = (product, fallback) => product.referencePrice === undefined ? fallback : product.referencePrice?.currency.toUpperCase() === store.currency.toUpperCase() ? product.referencePrice.value : undefined;
   const preview = mainProduct ? {
     postPurchaseOffer: store.postPurchase.enabled && postProduct ? {
@@ -192,11 +197,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
     offer: {
       main: { ...mainProduct, price: store.offer.price, compareAtPrice: referencePrice(mainProduct, store.offer.compareAtPrice) },
       bonuses: store.offer.bonuses.flatMap(bonus => {
-        const product = products.find(item => item._id === bonus.productId);
+        const product = productForPreview(bonus.productId);
         return product ? [{ ...product, productId: bonus.productId, referenceValue: bonus.referenceValue }] : [];
       }),
       upsells: [...store.offer.upsells].sort((a, b) => a.displayOrder - b.displayOrder).flatMap(upsell => {
-        const product = products.find(item => item._id === upsell.productId);
+        const product = productForPreview(upsell.productId);
         const reference = product ? referencePrice(product, store.checkout?.upsellReferences?.find(item => item.productId === upsell.productId)?.value ?? 0) : 0;
         return product ? [{ ...product, productId: upsell.productId, price: upsell.price, ...(reference > upsell.price ? { compareAtPrice: reference } : {}) }] : [];
       }),

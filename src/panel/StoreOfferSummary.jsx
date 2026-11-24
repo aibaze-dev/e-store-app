@@ -1,3 +1,4 @@
+import { storeProductName } from '../../shared/artifact-registry.js';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, BookOpen, Gift, Sparkles, Tag } from 'lucide-react';
 import { formatMoney } from '@/lib/format.js';
@@ -8,7 +9,7 @@ import { plainText } from '../../shared/classic-design.js';
 export default function StoreOfferSummary({ store, products, openInNewTab = false }) {
   const base = storePath(store._id);
   const linkProps = openInNewTab ? { target: '_blank', rel: 'noreferrer' } : {};
-  const name = id => products.find(product => product._id === id)?.name || 'Producto no disponible';
+  const name = id => storeProductName(products.find(product => product._id === id), store.language) || 'Producto no disponible';
   const sections = [
     { title: 'Producto principal', path: 'productos', icon: BookOpen, items: [{ productId: store.offer.mainProductId, price: store.offer.price }] },
     { title: 'Bonos gratis', path: 'productos#bonos', icon: Gift, items: store.offer.bonuses, free: true, empty: 'Sin bonos incluidos.' },

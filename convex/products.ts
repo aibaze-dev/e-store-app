@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query, type Doc } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { cleanText, cleanUrl, cleanAmount, cleanCurrency, fail } from './lib/validation';
-import { deliverable } from './schema';
+import { artifactTitles, deliverable } from './schema';
 import { artifacts } from '../shared/artifact-registry.js';
 import { findLanguage } from '../shared/languages.js';
 
@@ -139,11 +139,20 @@ export const getByArtifactSlug = query({
   },
 });
 
+// Public: the titles a buyer already saw in the store, so the tool can show the same one.
+export const artifactTitle = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const product = await ctx.db.query('products').withIndex('by_artifact_slug', q => q.eq('artifactSlug', slug)).unique();
+    return product && { name: product.name, artifactTitles: product.artifactTitles };
+  },
+});
+
 // The code registry owns identity and execution; the product owns its commercial presentation.
 const { deliverables: _deliverables, ...presentationFields } = fields;
 export const saveArtifact = mutation({
-  args: { slug: v.string(), ...presentationFields },
-  handler: async (ctx, { slug, ...args }) => {
+  args: { slug: v.string(), artifactTitles: v.optional(artifactTitles), ...presentationFields },
+  handler: async (ctx, { slug, artifactTitles, ...args }) => {
     await requireAdmin(ctx);
     if (!artifacts.some(artifact => artifact.slug === slug)) fail('El artefacto no está registrado.');
     let origin: string;
@@ -156,6 +165,9 @@ export const saveArtifact = mutation({
       ...clean({ ...args, deliverables: [{ title: args.name, url: `${origin}/a/${encodeURIComponent(slug)}`, kind: 'link' }] }),
       type: 'artifact' as const,
       artifactSlug: slug,
+      ...(artifactTitles ? { artifactTitles: Object.fromEntries(Object.entries(artifactTitles)
+        .map(([code, title]) => [code, cleanText(title, 'Título del artefacto', 120)])
+        .filter(([, title]) => title)) } : {}),
     };
     const existing = await ctx.db.query('products').withIndex('by_artifact_slug', q => q.eq('artifactSlug', slug)).unique();
     if (existing) { await ctx.db.patch(existing._id, data); return existing._id; }

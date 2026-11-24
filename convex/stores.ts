@@ -3,7 +3,8 @@ import { v } from 'convex/values';
 import { mutation, query, type MutationCtx } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { cleanAmount, cleanCurrency, cleanPercent, cleanText, fail } from './lib/validation';
-import { storeCheckout, storeDownsell, storeOffer, storePostPurchase } from './schema';
+import { storeCheckout, storeDownsell, storeLanguage, storeOffer, storePostPurchase } from './schema';
+import { storeProductName } from '../shared/artifact-registry.js';
 import { videoSource } from '../shared/post-purchase.js';
 import { MAX_PIXELS } from '../shared/pixels.js';
 
@@ -19,6 +20,7 @@ const fields = {
   name: v.string(),
   status: v.union(v.literal('draft'), v.literal('active')),
   currency: v.string(),
+  language: v.optional(storeLanguage),
   offer: storeOffer,
   postPurchase: storePostPurchase,
   downsell: v.optional(storeDownsell),
@@ -26,7 +28,7 @@ const fields = {
 };
 
 async function clean(ctx: MutationCtx, args: {
-  name: string; status: 'draft' | 'active'; currency: string;
+  name: string; status: 'draft' | 'active'; currency: string; language?: typeof storeLanguage.type;
   offer: typeof storeOffer.type; postPurchase: typeof storePostPurchase.type; downsell?: typeof storeDownsell.type; tracking: { metaPixelIds: string[] };
 }) {
   const { offer, postPurchase, downsell } = args;
@@ -59,6 +61,7 @@ async function clean(ctx: MutationCtx, args: {
     name: cleanText(args.name, 'Nombre', 120, true),
     status: args.status,
     currency: cleanCurrency(args.currency),
+    ...(args.language ? { language: args.language } : {}),
     offer: {
       mainProductId: offer.mainProductId,
       price: cleanAmount(offer.price, 'Precio principal'),
@@ -107,7 +110,7 @@ export const list = query({
         status: store.status,
         currency: store.currency,
         price: store.offer.price,
-        mainProductName: main?.name ?? '',
+        mainProductName: storeProductName(main, store.language) ?? '',
         subdomain: landing?.subdomain ?? '',
         published: Boolean(landing?.published || landing?.publicationId),
       };
