@@ -4,7 +4,7 @@ export { ImageField, UploadContext };
 import { ArrowDown, ArrowUp, CircleDot, Copy, Eye, EyeOff, Flag, GripVertical, Hash, LayoutList, LoaderCircle, Mail, Plus, RotateCcw, SquareCheck, Trash2, Type, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { fromMinor, toMinor } from '@/lib/format.js';
+import { amountHint, fromMinor, toMinor } from '@/lib/format.js';
 import { storefrontMoney } from '@/lib/storefront-money.js';
 import { QuizPlayer } from '@/storefront/Quiz.jsx';
 import { advanceSession, choiceRanges, clone, hasOptionFeedback, isRequired, newStep, orderErrors, QUESTION_TYPES, removeOption, removeStep } from '../../shared/quiz.js';
@@ -261,10 +261,11 @@ function ItemsEditor({ items = [], onChange, fields, empty, max = 10, addLabel }
 // Typed in major units and kept in the currency's minor unit, like the store's prices.
 function PriceField({ label, currency, value, onChange }) {
   const [text, setText] = useState(() => value ? fromMinor(value, currency) : '');
-  return <QField label={label}><input type="text" inputMode="decimal" placeholder="49.90" value={text} onChange={e => {
+  const invalid = text.trim() !== '' && !(toMinor(text, currency) > 0);
+  return <QField label={label}><input type="text" inputMode="decimal" placeholder={fromMinor(4990, currency) || '49.90'} aria-invalid={invalid || undefined} value={text} onChange={e => {
     setText(e.target.value); const minor = toMinor(e.target.value, currency);
     onChange(Number.isFinite(minor) && minor > 0 ? minor : undefined);
-  }} /></QField>;
+  }} />{invalid && <p className="qe-hint" role="alert">Importe no válido, no se va a mostrar. {amountHint(currency)}.</p>}</QField>;
 }
 
 function BlockEditor({ block, quiz, view, onChange }) {

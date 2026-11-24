@@ -4,7 +4,8 @@ import { useMutation, useQuery } from 'convex/react';
 import { ArrowLeft, BookOpen, Check, Gift, LoaderCircle, Plus, Tag, Trash2 } from 'lucide-react';
 import business from '@/config/businessData.json';
 import { api } from '@/lib/api.js';
-import { errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
+import { amountHint, errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
+import { currencyDigits } from '../../shared/currencies.js';
 import { DOWNSELL_DEFAULTS, discountedPrice } from '@/storefront/downsell.js';
 import { MAX_PIXELS, pixelIds } from '../../shared/pixels.js';
 import { Button } from '@/components/ui/button';
@@ -60,7 +61,7 @@ function toArgs(form) {
   const currency = form.currency.trim().toUpperCase();
   const amount = (text, label) => {
     const value = toMinor(text, currency);
-    if (!Number.isInteger(value) || value <= 0) throw new Error(`${label}: ingresá un importe mayor a cero.`);
+    if (!Number.isInteger(value) || value <= 0) throw new Error(`${label}: ingresá un importe mayor a cero. ${amountHint(currency)}.`);
     return value;
   };
   const percent = (text, label) => {
@@ -131,7 +132,7 @@ export default function StoreFormPage({ section }) {
     <option value="">Elegí un producto</option>
     {options.map(product => <option key={product._id} value={product._id}>{product.name}{product.type === 'artifact' ? ' · Artefacto' : product.type === 'app' ? ' · App' : ''}{product.status === 'archived' ? ' (archivado)' : ''}</option>)}
   </NativeSelect>;
-  const priceInput = (props, value, onChange) => <Input {...props} inputMode="decimal" placeholder="0.00" value={value} onChange={event => onChange(event.target.value)} disabled={busy} />;
+  const priceInput = (props, value, onChange) => <Input {...props} inputMode="decimal" placeholder={currencyDigits(form.currency) ? '0.00' : '0'} title={amountHint(form.currency)} value={value} onChange={event => onChange(event.target.value)} disabled={busy} />;
 
   // Preview of a discounted price; the server calculates the charged one with the same rule.
   const discountHint = (priceText, percentText) => {

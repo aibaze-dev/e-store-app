@@ -12,6 +12,8 @@ export default defineConfig({
       }
     },
   }],
+  // Same @ alias as vite.config.js, so panel helpers such as src/lib/format.js can be tested.
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   test: {
     include: ['test/**/*.test.js'],
     server: { deps: { inline: ['@convex-dev/better-auth', '@convex-dev/static-hosting'] } },

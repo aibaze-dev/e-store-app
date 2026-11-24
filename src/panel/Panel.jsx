@@ -93,8 +93,8 @@ function StoreSwitcher({ stores, selected, onNavigate, onCloseAutoFocus }) {
           <ShoppingBag className="size-4 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block truncate">{store.name}</span><span className="block truncate text-xs text-muted-foreground">{store.subdomain || 'Sin landing'}</span></span>{selected?._id === store._id && <Check className="size-4" aria-label="Tienda actual" />}
         </DropdownMenu.Item>);
         if (items.length === 1) return items[0];
-        return <DropdownMenu.Group key={group.stores[0]._id} aria-label={group.label} className="my-2 border-l border-border pl-2">
-          <DropdownMenu.Label className="break-words px-2 pt-1 text-xs font-semibold text-muted-foreground">{group.label}</DropdownMenu.Label>
+        return <DropdownMenu.Group key={group.stores[0]._id} aria-label={group.label} className="workspace-store-group my-2 rounded-md border-l-4 py-1 pl-1" style={{ '--group-hue': group.hue }}>
+          <DropdownMenu.Label className="break-words px-2 pt-1 text-xs font-semibold">{group.label}</DropdownMenu.Label>
           {items}
         </DropdownMenu.Group>;
       })}

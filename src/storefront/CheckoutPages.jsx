@@ -11,7 +11,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { useAction, useQuery } from 'convex/react';
 import { Check, Gift, LoaderCircle, LockKeyhole, Plus, ShieldCheck, Zap } from 'lucide-react';
 import { api } from '@/lib/api.js';
-import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
+import { majorAmount, storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { trackPixel, trackPixelOnce } from '@/lib/pixel.js';
 import { checkoutTotals, normalizeContent, productDiscount } from '@/templates/content.js';
 import DemoPurchaseToasts from './DemoPurchaseToasts.jsx';
@@ -209,7 +209,7 @@ export function DownsellOffer({ view, via }) {
     const attempt = attemptFor(final ? 'final' : 'downsell', fresh);
     try {
       const result = await start({ subdomain: view.subdomain, upsellProductIds: [], ...attemptArgs(attempt), via, downsell: true, finalDownsell: final, elements: true, origin, ...attributionArgs(view.subdomain), ...(origin==='quiz'?{quizToken:readQuizToken(view.subdomain)}:{}) });
-      trackPixel(store.metaPixelIds, 'InitiateCheckout', { value: (final ? downsell.finalPrice : downsell.price) / 100, currency: store.currency });
+      trackPixel(store.metaPixelIds, 'InitiateCheckout', { value: majorAmount(final ? downsell.finalPrice : downsell.price, store.currency), currency: store.currency });
       setPayment(result);
     } catch (failure) { attempt.failed = true; setError(postLabels(view.content).startError); }
     finally { setBusy(false); }
@@ -331,7 +331,7 @@ function PurchaseThankYou({ sessionId, via, subdomain }) {
   // Once the book has flown to the page, the page keeps its hand-off classes.
   const [handoff, setHandoff] = useState(false);
   useEffect(() => {
-    if (delivery?.status === 'paid') trackPixelOnce(`purchase-${sessionId}`, delivery.metaPixelIds, 'Purchase', { value: delivery.total / 100, currency: delivery.currency });
+    if (delivery?.status === 'paid') trackPixelOnce(`purchase-${sessionId}`, delivery.metaPixelIds, 'Purchase', { value: majorAmount(delivery.total, delivery.currency), currency: delivery.currency });
   }, [delivery, sessionId]);
   function finishCelebration() {
     try { window.sessionStorage.setItem(celebratedKey(sessionId), '1'); } catch { /* private mode: it may play again */ }

@@ -8,7 +8,7 @@ import { artifacts } from '@/artifacts/registry.js';
 import { artifactUrl } from '@/lib/site.js';
 import { api } from '@/lib/api.js';
 import business from '@/config/businessData.json';
-import { errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
+import { amountHint, errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,7 +98,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
       if (data.type === 'app') data.deliverables = [{ title: data.name, url: appUrl, kind: 'link' }];
       if (referenceConfigured) {
         const value = referenceAmount.trim() ? toMinor(referenceAmount, referenceCurrency) : null;
-        if (value !== null && (!Number.isInteger(value) || value <= 0)) { setError('Ingresá un precio de referencia válido o dejalo vacío.'); setBusy(false); return; }
+        if (value !== null && (!Number.isInteger(value) || value <= 0)) { setError(`Ingresá un precio de referencia válido o dejalo vacío. ${amountHint(referenceCurrency)}.`); setBusy(false); return; }
         data.referencePrice = value === null ? null : { currency: referenceCurrency, value };
       }
       if (artifactMode) {

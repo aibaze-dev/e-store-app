@@ -47,11 +47,11 @@ describe('Checkout confirmation', () => {
     expect(stripe.updateIndividualName).not.toHaveBeenCalled();
     expect(stripe.confirm).not.toHaveBeenCalled();
   });
-  it('formats public prices in US English without discarding cents or zero-decimal currencies', () => {
-    expect(storefrontMoney(1699000, 'ARS')).toBe('ARS\u00a016,990.00');
-    expect(storefrontMoney(1699050, 'ARS')).toBe('ARS\u00a016,990.50');
+  it('formats public prices without discarding cents or zero-decimal currencies', () => {
+    expect(storefrontMoney(1699000, 'ARS')).toBe('$\u00a016.990,00');
+    expect(storefrontMoney(1699050, 'ARS')).toBe('$\u00a016.990,50');
     expect(storefrontMoney(2700, 'USD')).toBe('$27.00');
-    expect(storefrontMoney(2700, 'JPY')).toBe('¥2,700');
+    expect(storefrontMoney(19990, 'CLP')).toBe('$19.990');
   });
 });
 

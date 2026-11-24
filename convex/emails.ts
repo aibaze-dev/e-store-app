@@ -12,6 +12,7 @@ import { postLabels, purchaseText } from '../shared/purchase-copy.js';
 import { groupDeliveries } from '../src/storefront/delivery-groups.js';
 import { isDownloadable } from '../src/storefront/download.js';
 import { storefrontMoney } from '../src/lib/storefront-money.js';
+import { formatCurrency } from '../shared/currencies.js';
 
 // Transactional emails sent after a verified Stripe event:
 // - paid: the buyer receives their delivery links.
@@ -114,14 +115,9 @@ export const send = internalAction({
   },
 });
 
-// Amounts are integers in the currency's minor unit.
+// Amounts are integers in the currency's minor unit. Admin alerts show the ISO code.
 export function money(amount: number, currency: string) {
-  try {
-    const format = new Intl.NumberFormat('es', { style: 'currency', currency });
-    return format.format(amount / 10 ** (format.resolvedOptions().maximumFractionDigits ?? 2));
-  } catch {
-    return `${amount / 100} ${currency}`;
-  }
+  return formatCurrency(amount, currency, { code: true });
 }
 
 // Use the existing brand color and the landing's contrast-aware action palette.
