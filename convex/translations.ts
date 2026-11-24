@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { action } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
-import { generateJson, DEFAULT_MODEL } from './lib/openai';
+import { generateJson, DEFAULT_MODEL } from './lib/claude';
 import { fail } from './lib/validation';
 import { landingContent } from './schema';
 import { assertQuiz } from '../shared/quiz.js';
@@ -25,18 +25,19 @@ Reglas:
 - Usá un tono comercial natural del idioma de destino, con una extensión parecida a la original. Si un texto ya está en ese idioma, devolvelo igual.`;
 
 async function translateTexts(texts: string[], target: Language) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) fail('La traducción todavía no está habilitada: falta configurar OPENAI_API_KEY en Convex.');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) fail('La traducción todavía no está habilitada: falta configurar ANTHROPIC_API_KEY en Convex.');
   // Identical texts (repeated buttons, labels) are translated once.
   const unique = [...new Set(texts)];
   const batches = Array.from({ length: Math.ceil(unique.length / BATCH) }, (_, i) => unique.slice(i * BATCH, (i + 1) * BATCH));
   const results = await Promise.all(batches.map(async batch => {
     const raw: any = await generateJson(apiKey, {
-      model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
       system: system(target),
       user: JSON.stringify(batch.map((text, index) => ({ index, text }))),
-      schemaName: 'translation',
+
       schema: SCHEMA,
+      effort: 'low',
     });
     if (!Array.isArray(raw?.items)) fail('No se pudo traducir. Volvé a intentar en unos minutos; tu borrador sigue intacto.');
     const byIndex = new Map<number, string>(raw.items.map((item: { index: number; text: string }) => [item.index, item.text]));

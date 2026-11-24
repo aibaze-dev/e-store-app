@@ -2,7 +2,7 @@ import { CHECKOUT_DEFAULTS, checkoutConfig } from '../shared/checkout-copy.js';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { api } from './api';
 import { normalizeContent, mergeGeneratedContent } from '../src/templates/content.js';
-import { backend, signedIn, mockStripe, mockResend, mockDiscord, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET } from './helpers';
+import { backend, signedIn, mockStripe, mockResend, mockDiscord, stripeEvent, sendWebhook, content, product, WEBHOOK_SECRET, claudeReply } from './helpers';
 
 const ADMIN = 'owner@example.com';
 beforeEach(() => {
@@ -1088,27 +1088,28 @@ describe('landing copy assistant', () => {
     postPurchaseBenefits: { enabled: false, title: 'Qué incluye el curso', subtitle: '', items: [{ title: 'Contenido avanzado', description: 'Para seguir aprendiendo', icon: 'book' }] },
     postPurchaseVideo: { title: 'Conocé el curso', enabled: true, url: 'https://evil.example/video.mp4' },
   };
-  function mockOpenAI(reply = { status: 200, body: { choices: [{ message: { content: JSON.stringify(copy) } }] } }) {
+  function mockClaude(reply = () => claudeReply(JSON.stringify(copy))) {
     const realFetch = globalThis.fetch;
     const requests = [];
     vi.stubGlobal('fetch', async (url, init) => {
-      if (!String(url).startsWith('https://api.openai.com/')) return realFetch(url, init);
-      requests.push({ headers: init.headers, body: JSON.parse(init.body) });
-      return new Response(JSON.stringify(reply.body), { status: reply.status });
+      if (!String(url).startsWith('https://api.anthropic.com/')) return realFetch(url, init);
+      requests.push({ headers: new Headers(init.headers), body: JSON.parse(init.body) });
+      return reply();
     });
     return requests;
   }
-  beforeEach(() => { vi.stubEnv('OPENAI_API_KEY', 'sk-test-only'); });
+  beforeEach(() => { vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-test-only'); });
 
   it('writes saveable copy from the answers and the store offer without saving or inventing sections', async () => {
     const { t, admin, storeId } = await campaign();
-    const requests = mockOpenAI();
+    const requests = mockClaude();
     const before = await rows(t, 'landings');
     const draft = await admin.action(api.landing_wizard.generate, { storeId, answers: { ...answers, guaranteeDays: 7 } });
     expect(requests).toHaveLength(1);
-    expect(requests[0].headers.Authorization).toBe('Bearer sk-test-only');
-    expect(requests[0].body.response_format.json_schema.strict).toBe(true);
-    const sent = requests[0].body.messages[1].content;
+    expect(requests[0].headers.get('authorization')).toBe('Bearer sk-ant-test-only');
+    expect(requests[0].body.model).toBe('claude-sonnet-5-5');
+    expect(requests[0].body.output_config.format.type).toBe('json_schema');
+    const sent = requests[0].body.messages[0].content;
     expect(sent).toContain('Ebook principal');
     expect(sent).toContain('Plantillas');
     expect(sent).toContain('Producto post-compra (se paga aparte): Curso avanzado');
@@ -1130,7 +1131,7 @@ describe('landing copy assistant', () => {
     expect(draft.socialProof.items).toHaveLength(4);
     expect(draft.socialProof.items.every(item => item.isExample && item.format === 'chat')).toBe(true);
     expect(draft.socialProof.rating).toBeUndefined();
-    expect(requests[0].body.response_format.json_schema.schema.properties.socialProof.required).toContain('items');
+    expect(requests[0].body.output_config.format.schema.properties.socialProof.required).toContain('items');
     expect(draft.promotion).toEqual({ message: 'Conseguí tu guía', timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}' });
     expect(draft.activity).toEqual({ viewersText: '{cantidad} lectores mirando la guía', salesText: '{cantidad} compras confirmadas', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'En {ciudad}' });
     expect(await rows(t, 'landings')).toEqual(before);
@@ -1172,11 +1173,11 @@ describe('landing copy assistant', () => {
       closing: { title: 'Empezá hoy', ctaText: 'Comprar', text: 'La diferencia la marcás vos.', note: 'Garantía 7 días' },
       socialProof: { ...copy.socialProof, ctaText: 'Quiero mi resultado' },
     };
-    const requests = mockOpenAI({ status: 200, body: { choices: [{ message: { content: JSON.stringify(full) } }] } });
+    const requests = mockClaude(() => claudeReply(JSON.stringify(full)));
     const draft = await admin.action(api.landing_wizard.generate, { storeId, answers: { ...answers, about: 'Somos dos docentes', guaranteeDays: 7 } });
-    const sent = requests[0].body.messages[1].content;
+    const sent = requests[0].body.messages[0].content;
     expect(sent).toContain('Quién está detrás del producto: Somos dos docentes');
-    expect(requests[0].body.response_format.json_schema.schema.required).toEqual(expect.arrayContaining(['introduction', 'transformation', 'about', 'showcase', 'bonuses', 'comparison', 'summary']));
+    expect(requests[0].body.output_config.format.schema.required).toEqual(expect.arrayContaining(['introduction', 'transformation', 'about', 'showcase', 'bonuses', 'comparison', 'summary']));
     expect(draft.hero).toMatchObject({ title: 'Tu', titleAccent: 'primera inversión', eyebrow: 'En 7 días', headerCtaText: 'Quiero mi guía', noteTitle: '¿Necesito experiencia?' });
     expect(draft.introduction).toEqual(full.introduction);
     expect(draft.about).toEqual(full.about);
@@ -1226,29 +1227,29 @@ describe('landing copy assistant', () => {
 
   it('generates post-purchase downsell copy only for an active configured offer', async () => {
     const { admin, storeId, store } = await campaign();
-    const requests = mockOpenAI();
+    const requests = mockClaude();
     await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { ...store.postPurchase, downsellPercent: 20 } });
     const withPost = await admin.action(api.landing_wizard.generate, { storeId, answers });
     expect(withPost.postPurchase.downsellTitle).toBe('Tu curso con descuento');
-    expect(requests[0].body.messages[1].content).toContain('Downsell post-compra: configurado');
+    expect(requests[0].body.messages[0].content).toContain('Downsell post-compra: configurado');
     await admin.mutation(api.stores.update, { id: storeId, ...store, postPurchase: { enabled: false, price: 0 } });
     const withoutPost = await admin.action(api.landing_wizard.generate, { storeId, answers });
     expect(withoutPost.postPurchase).toBeUndefined();
     expect(withoutPost.postPurchaseBenefits).toBeUndefined();
-    expect(requests[1].body.messages[1].content).not.toContain('Curso avanzado');
+    expect(requests[1].body.messages[0].content).not.toContain('Curso avanzado');
   });
 
   it('leaves the guarantee out when the seller did not state one', async () => {
     const { admin, storeId } = await campaign();
-    const requests = mockOpenAI();
+    const requests = mockClaude();
     const draft = await admin.action(api.landing_wizard.generate, { storeId, answers });
-    expect(requests[0].body.messages[1].content).toContain('Garantía: no informa');
+    expect(requests[0].body.messages[0].content).toContain('Garantía: no informa');
     expect(draft.guarantee).toBeUndefined();
   });
 
-  it('is limited to panel admins and never calls OpenAI for anyone else or for invalid answers', async () => {
+  it('is limited to panel admins and never calls Claude for anyone else or for invalid answers', async () => {
     const { t, admin, storeId } = await campaign();
-    const requests = mockOpenAI();
+    const requests = mockClaude();
     const stranger = await signedIn(t, 'stranger@example.com');
     await expect(t.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow();
     await expect(stranger.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow('no tiene acceso');
@@ -1272,9 +1273,9 @@ describe('landing copy assistant', () => {
     await expect(t.query(api.landing_wizard.importPrompt, { storeId })).rejects.toThrow();
   });
 
-  it('imports pasted JSON through the same cleaning as the assistant, without calling OpenAI or saving', async () => {
+  it('imports pasted JSON through the same cleaning as the assistant, without calling Claude or saving', async () => {
     const { t, admin, storeId } = await campaign();
-    const requests = mockOpenAI();
+    const requests = mockClaude();
     const before = await rows(t, 'landings');
     const pasted = `Acá tenés tu JSON:\n\`\`\`json\n${JSON.stringify({ ...copy, guaranteeDays: 14 })}\n\`\`\``;
     const draft = await admin.action(api.landing_wizard.importJson, { storeId, json: pasted });
@@ -1301,15 +1302,15 @@ describe('landing copy assistant', () => {
     await expect(admin.action(api.landing_wizard.importJson, { storeId, json: '{"faq": {}}' })).rejects.toThrow('hero.title');
   });
 
-  it('reports a missing key and an OpenAI failure or refusal with a readable message', async () => {
+  it('reports a missing key and a Claude failure or refusal with a readable message', async () => {
     const { admin, storeId } = await campaign();
-    mockOpenAI({ status: 500, body: { error: { type: 'server_error' } } });
+    mockClaude(() => new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'bad' } }), { status: 400, headers: { 'content-type': 'application/json' } }));
     await expect(admin.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow('No se pudieron generar');
     vi.unstubAllGlobals();
-    mockOpenAI({ status: 200, body: { choices: [{ message: { content: null, refusal: 'No puedo.' } }] } });
+    mockClaude(() => claudeReply(null, { stopReason: 'refusal' }));
     await expect(admin.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow('No se pudieron generar');
-    vi.stubEnv('OPENAI_API_KEY', '');
-    await expect(admin.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow('OPENAI_API_KEY');
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+    await expect(admin.action(api.landing_wizard.generate, { storeId, answers })).rejects.toThrow('ANTHROPIC_API_KEY');
   });
 });
 

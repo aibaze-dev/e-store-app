@@ -62,7 +62,7 @@ El servidor agrega nombre y descripción del producto principal. Devuelve una pr
 
 La propuesta reemplaza el recorrido del borrador: elimina reglas, cálculos y perfiles anteriores que dependían de sus preguntas. Conserva identidad, configuración de contacto y bloques comerciales compatibles. El aviso se muestra antes de generar y aplicar. La versión publicada se conserva hasta publicar nuevamente.
 
-La acción de IA no guarda ni publica por sí sola. Su salida pasa por la validación del motor. Una respuesta inválida o un fallo del proveedor mantiene el borrador anterior. Requiere `OPENAI_API_KEY`; `OPENAI_MODEL` es opcional y comparte el valor predeterminado del servidor. Sin credenciales, el formulario manual sigue funcionando.
+La acción de IA no guarda ni publica por sí sola. Su salida pasa por la validación del motor. Una respuesta inválida o un fallo del proveedor mantiene el borrador anterior. Usa la API de Claude: requiere `ANTHROPIC_API_KEY`; `ANTHROPIC_MODEL` es opcional (predeterminado `claude-sonnet-5-5`, en `convex/lib/claude.ts`). Sin credenciales, el formulario manual sigue funcionando.
 
 El asistente también genera imágenes de portada, preguntas/intermedios y resultado. No genera testimonios, estadísticas, fórmulas de salud ni modificaciones de precios. La IA redacta una presentación de los productos existentes; no crea un producto personalizado.
 

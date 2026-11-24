@@ -102,3 +102,19 @@ export const product = (name, slug) => ({
   name, description: `Descripción de ${name}`, coverUrl: '', status: 'active',
   deliverables: [{ title: 'PDF', url: `https://files.example.com/${slug}.pdf` }],
 });
+
+// A streamed Messages API response (server-sent events), as the Anthropic SDK reads it.
+export function claudeReply(text, { stopReason = 'end_turn' } = {}) {
+  const events = [
+    ['message_start', { type: 'message_start', message: { id: 'msg_test', type: 'message', role: 'assistant', model: 'claude-sonnet-5-5', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } }],
+    ...(text === null ? [] : [
+      ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+      ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+      ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: stopReason, stop_sequence: null, ...(stopReason === 'refusal' ? { stop_details: { type: 'refusal', category: null, explanation: null } } : {}) }, usage: { output_tokens: 1 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ];
+  const body = events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('');
+  return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+}

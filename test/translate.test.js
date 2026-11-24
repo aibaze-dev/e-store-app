@@ -4,20 +4,20 @@ import { normalizeContent, EMPTY_CONTENT } from '../src/templates/content.js';
 import { checkoutConfig } from '../shared/checkout-copy.js';
 import { createAdvancedQuizTemplate, validateQuiz } from '../shared/quiz.js';
 import { applyTexts, collectTexts } from '../shared/translate.js';
-import { backend, signedIn, product, content } from './helpers';
+import { backend, signedIn, product, content, claudeReply } from './helpers';
 
 const ADMIN = 'owner@example.com';
-beforeEach(() => { vi.stubEnv('ADMIN_EMAILS', ADMIN); vi.stubEnv('OPENAI_API_KEY', 'test-only'); });
+beforeEach(() => { vi.stubEnv('ADMIN_EMAILS', ADMIN); vi.stubEnv('ANTHROPIC_API_KEY', 'test-only'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 // A fake translator: prefixes every text and keeps its placeholders, like the model is told to.
-function mockOpenAI({ translate = text => `EN ${text}`, broken = false } = {}) {
+function mockClaude({ translate = text => `EN ${text}`, broken = false } = {}) {
   const calls = [];
   vi.stubGlobal('fetch', async (url, init) => {
     const body = JSON.parse(init.body);
     calls.push(body);
-    const items = JSON.parse(body.messages[1].content).map(({ index, text }) => ({ index, text: translate(text) }));
-    return new Response(JSON.stringify({ choices: [{ message: { content: broken ? 'not json' : JSON.stringify({ items }) } }] }));
+    const items = JSON.parse(body.messages[0].content).map(({ index, text }) => ({ index, text: translate(text) }));
+    return claudeReply(broken ? 'not json' : JSON.stringify({ items }));
   });
   return calls;
 }
@@ -49,7 +49,7 @@ describe('which texts are translated', () => {
 describe('translating a landing', () => {
   it('returns every visible text translated, with the structure intact, and saves nothing', async () => {
     const { admin, storeId } = await fixture();
-    const calls = mockOpenAI();
+    const calls = mockClaude();
     const form = normalizeContent({ ...EMPTY_CONTENT, ...content, hero: { ...content.hero, imageUrl: 'https://cdn.example.com/hero.png' }, checkout: checkoutConfig({ content: {}, checkout: undefined }) });
     const { content: translated, kept } = await admin.action(api.translations.landing, { storeId, language: 'en', content: form });
     expect(kept).toBe(0);
@@ -57,7 +57,7 @@ describe('translating a landing', () => {
     expect(translated.faq.items[0]).toEqual({ question: 'EN ¿Es digital?', answer: 'EN Sí.' });
     expect(translated.hero.imageUrl).toBe('https://cdn.example.com/hero.png');
     expect(translated.style.accentColor).toBe('#c15f3c');
-    expect(calls[0].messages[0].content).toContain('English');
+    expect(calls[0].system).toContain('English');
     expect(await admin.query(api.landings.getForStore, { storeId })).toBeNull();
     // The translated landing saves through the usual draft path.
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'tienda', template: 'classic', draft: translated });
@@ -66,10 +66,10 @@ describe('translating a landing', () => {
   it('fails without changing anything when the provider fails, and refuses non-admins', async () => {
     const { t, admin, storeId } = await fixture();
     const form = normalizeContent({ ...EMPTY_CONTENT, ...content, checkout: checkoutConfig({ content: {}, checkout: undefined }) });
-    mockOpenAI({ broken: true });
+    mockClaude({ broken: true });
     await expect(admin.action(api.translations.landing, { storeId, language: 'pt', content: form })).rejects.toThrow(/No se pudo traducir/);
-    vi.stubEnv('OPENAI_API_KEY', '');
-    await expect(admin.action(api.translations.landing, { storeId, language: 'pt', content: form })).rejects.toThrow(/OPENAI_API_KEY/);
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+    await expect(admin.action(api.translations.landing, { storeId, language: 'pt', content: form })).rejects.toThrow(/ANTHROPIC_API_KEY/);
     const stranger = await signedIn(t, 'stranger@example.com');
     await expect(stranger.action(api.translations.landing, { storeId, language: 'en', content: form })).rejects.toThrow();
   });
@@ -78,7 +78,7 @@ describe('translating a landing', () => {
 describe('translating a quiz', () => {
   it('returns a valid quiz with the same steps, options and rules', async () => {
     const { admin, storeId } = await fixture();
-    mockOpenAI({ translate: text => `PT ${text}` });
+    mockClaude({ translate: text => `PT ${text}` });
     const quiz = createAdvancedQuizTemplate('Guía');
     const { quiz: translated, kept } = await admin.action(api.translations.quiz, { storeId, language: 'pt', quiz });
     expect(kept).toBe(0);

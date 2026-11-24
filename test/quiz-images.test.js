@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
-import { backend, signedIn, product } from './helpers';
+import { backend, signedIn, product, claudeReply } from './helpers';
 import { createQuizTemplate, newStep, validateQuiz } from '../shared/quiz.js';
 import { withImagePlan } from '../convex/lib/quiz_images';
 import { generateQuizImages, quizImages } from '../src/panel/quiz-images.js';
 
-beforeEach(() => { vi.stubEnv('ADMIN_EMAILS', 'owner@example.com'); vi.stubEnv('OPENAI_API_KEY', 'test-only'); });
+beforeEach(() => { vi.stubEnv('ADMIN_EMAILS', 'owner@example.com'); vi.stubEnv('OPENAI_API_KEY', 'test-only'); vi.stubEnv('ANTHROPIC_API_KEY', 'test-only'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 async function fixture() {
   const t = backend(), admin = await signedIn(t, 'owner@example.com');
@@ -27,14 +27,14 @@ describe('AI quiz images', () => {
   it('the text-generation action returns image briefs for the entire new proposal', async () => {
     const f = await fixture();
     const output = { ...copy, steps: Array.from({ length: 3 }, (_, i) => ({ ...copy.steps[0], type: 'single', title: `Pregunta ${i + 1}`, description: 'Elegí una opción', imagePrompt: `Escena ${i + 1}`, options: [{ label: 'A', description: '' }, { label: 'B', description: '' }] })) };
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(output) } }] })));
+    const fetch = vi.fn(async () => claudeReply(JSON.stringify(output)));
     vi.stubGlobal('fetch', fetch);
     const quiz = await f.admin.action(api.quiz_wizard.generate, { storeId: f.storeId, quiz: proposal(), audience: 'Principiantes', goal: 'Conocer sus objetivos', tone: 'Cercano', length: 3, mode: 'replace' });
     expect(quizImages(quiz)).toHaveLength(5);
     expect(validateQuiz(quiz, true)).toEqual([]);
     expect(quiz.steps.filter(s => s.type === 'single').map(s => JSON.parse(s.imagePrompt).scene)).toEqual(['Escena 1', 'Escena 2', 'Escena 3']);
     const request = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(request.response_format.json_schema.schema.properties.steps.items.required).toContain('imagePrompt');
+    expect(request.output_config.format.schema.properties.steps.items.required).toContain('imagePrompt');
     expect(await f.admin.query(api.landings.list, { storeId: f.storeId })).toEqual([]);
   });
 
@@ -152,7 +152,7 @@ describe('AI quiz images', () => {
       summary: [{ questionIndex: 0, label: 'Experiencia', icon: '🌱' }, { questionIndex: 7, label: 'Fuera', icon: 'x' }], goalsQuestion: 1, goals: ['Cosechar en 6 semanas'],
       features: [{ icon: '📗', title: 'Guía paso a paso' }], mockups: [{ imagePrompt: 'Ebook en una tablet sobre la mesa', imageAlt: 'Ebook en tablet' }],
     };
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ ...copy, finalPage, steps }) } }] }))));
+    vi.stubGlobal('fetch', vi.fn(async () => claudeReply(JSON.stringify({ ...copy, finalPage, steps }))));
     const quiz = await f.admin.action(api.quiz_wizard.generate, { storeId: f.storeId, quiz: proposal(), audience: 'Principiantes', goal: 'Conocer su experiencia', tone: 'Cercano', length: 3, mode: 'replace' });
     expect(validateQuiz(quiz, true)).toEqual([]);
     const blocks = quiz.results[0].blocks, of = type => blocks.find(b => b.type === type);

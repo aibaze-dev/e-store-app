@@ -2,7 +2,7 @@ import { splitHeroTitle } from '../shared/classic-design.js';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { action, internalQuery, query } from './lib/functions';
-import { DEFAULT_MODEL, generateJson } from './lib/openai';
+import { DEFAULT_MODEL, generateJson } from './lib/claude';
 import { requireAdmin } from './lib/permissions';
 import { cleanText, fail } from './lib/validation';
 import { PROMOTION_COPY, ACTIVITY_COPY } from '../shared/landing-copy.js';
@@ -229,13 +229,13 @@ export const generate = action({
       differentiator: cleanText(args.answers.differentiator, 'Diferencial', 600),
       about: cleanText(args.answers.about ?? '', 'Quiénes somos', 600),
     };
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) fail('El asistente todavía no está habilitado: falta configurar OPENAI_API_KEY en Convex.');
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) fail('El asistente todavía no está habilitado: falta configurar ANTHROPIC_API_KEY en Convex.');
     const raw = await generateJson(apiKey, {
-      model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
       system: SYSTEM,
       user: prompt(offer, input),
-      schemaName: 'landing_copy',
+
       schema: SCHEMA,
     });
     const draft = raw ? draftFromModel(raw, days, offer.postPurchase, offer.bonuses.length > 0) : null;
