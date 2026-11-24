@@ -2,7 +2,7 @@ import { useStoreWorkspace } from './StoreWorkspace.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from 'convex/react';
-import { ArrowRight, FileText, Library, Link2, Plus, Search, Star } from 'lucide-react';
+import { AppWindow, ArrowRight, ArrowUpRight, FileText, Library, Link2, Plus, Search, Star } from 'lucide-react';
 import { api } from '@/lib/api.js';
 import { formatMoney } from '@/lib/format.js';
 import { cn } from '@/lib/utils';
@@ -16,11 +16,14 @@ const FILTERS = [{ id: 'all', label: 'Todos' }, { id: 'active', label: 'Activos'
 
 function EbookCard({ product, to }) {
   const { files, links, total } = deliverableCounts(product.deliverables);
+  const app = product.type === 'app';
+  const appUrl = app ? product.deliverables[0]?.url : '';
   return <article className="catalog-card group">
-    <CoverArt src={product.coverUrl} title={product.name} variant="book" />
+    <CoverArt src={product.coverUrl} title={product.name} variant={app ? 'tool' : 'book'} />
     <div className="flex min-w-0 flex-1 flex-col gap-3 p-5">
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill status={product.status} />
+        {app && <span className="catalog-chip"><AppWindow className="size-3.5" aria-hidden="true" />App</span>}
         {product.featured && <span className="catalog-chip"><Star className="size-3.5" aria-hidden="true" />Destacado</span>}
       </div>
       <h2 className="text-base leading-snug font-semibold break-words">
@@ -29,13 +32,16 @@ function EbookCard({ product, to }) {
       {(product.shortDescription || product.description) && <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{product.shortDescription || product.description}</p>}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-label={deliverableSummary(product.deliverables)}>
-          {total === 0 && <span>Sin entregables</span>}
-          {files > 0 && <span className="inline-flex items-center gap-1.5"><FileText className="size-3.5" aria-hidden="true" />{files === 1 ? '1 documento' : `${files} documentos`}</span>}
-          {links > 0 && <span className="inline-flex items-center gap-1.5"><Link2 className="size-3.5" aria-hidden="true" />{links === 1 ? '1 enlace' : `${links} enlaces`}</span>}
+          {app && <span className="inline-flex items-center gap-1.5"><Link2 className="size-3.5" aria-hidden="true" />Link a la app</span>}
+          {!app && total === 0 && <span>Sin entregables</span>}
+          {!app && files > 0 && <span className="inline-flex items-center gap-1.5"><FileText className="size-3.5" aria-hidden="true" />{files === 1 ? '1 documento' : `${files} documentos`}</span>}
+          {!app && links > 0 && <span className="inline-flex items-center gap-1.5"><Link2 className="size-3.5" aria-hidden="true" />{links === 1 ? '1 enlace' : `${links} enlaces`}</span>}
         </p>
         {product.referencePrice?.value > 0 && <p className="text-xs text-muted-foreground">Precio normal <span className="font-semibold text-foreground">{formatMoney(product.referencePrice.value, product.referencePrice.currency)}</span></p>}
       </div>
-      {total > 0 && <ViewContentButton product={product} className="relative z-10 w-full" />}
+      {app
+        ? appUrl && <Button asChild variant="outline" className="relative z-10 w-full"><a href={appUrl} target="_blank" rel="noopener noreferrer">Abrir app<ArrowUpRight aria-hidden="true" /><span className="sr-only"> {product.name} en otra pestaña</span></a></Button>
+        : total > 0 && <ViewContentButton product={product} className="relative z-10 w-full" />}
     </div>
     <ArrowRight className="catalog-card-arrow" aria-hidden="true" />
   </article>;
@@ -51,14 +57,14 @@ export default function ProductsPage() {
   const documents = products?.reduce((sum, product) => sum + deliverableCounts(product.deliverables).total, 0) ?? 0;
   const term = query.trim().toLowerCase();
   const visible = products?.filter(product => (filter === 'all' || product.status === filter) && (!term || product.name.toLowerCase().includes(term)));
-  const newButton = <Button asChild size="lg"><Link to={`${productsPath}/nuevo`}><Plus aria-hidden="true" />Nuevo ebook</Link></Button>;
+  const newButton = <Button asChild size="lg"><Link to={`${productsPath}/nuevo`}><Plus aria-hidden="true" />Nuevo producto</Link></Button>;
 
   return <div className="space-y-6">
     <CatalogHeader
       eyebrow="Recursos compartidos"
       icon={Library}
       title="Catálogo de ebooks"
-      description="Cada ebook se carga una sola vez con sus documentos y puede usarse como principal, bono o extra en cualquiera de tus tiendas."
+      description="Cada ebook o app se carga una sola vez y puede usarse como principal, bono o extra en cualquiera de tus tiendas."
       stats={products?.length ? [
         { label: 'Ebooks', value: products.length },
         { label: 'Activos', value: active },

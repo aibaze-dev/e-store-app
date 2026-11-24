@@ -16,10 +16,19 @@ const fields = {
   deliverables: v.array(deliverable),
 };
 
-function clean(args: { name: string; shortDescription?: string; featured?: boolean; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string; kind?: 'file' | 'link' }[] }) {
+// Types the catalogue form can save. Artifacts have their own mutation below.
+const editableType = v.optional(v.union(v.literal('e-book'), v.literal('app')));
+type EditableType = 'e-book' | 'app';
+
+function clean(args: { name: string; shortDescription?: string; featured?: boolean; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string; kind?: 'file' | 'link' }[] }, type: EditableType = 'e-book') {
   if (args.deliverables.length > 30) fail('Entregables: usá hasta 30 documentos o enlaces por producto.');
+  // An app delivers exactly one thing: the link to it, named after the product.
+  if (type === 'app') {
+    if (args.deliverables.length !== 1 || args.deliverables[0].kind !== 'link') fail('App: ingresá el link de la app.');
+    args = { ...args, deliverables: [{ title: args.name, url: cleanUrl(args.deliverables[0].url, 'Link de la app', true), kind: 'link' }] };
+  }
   return {
-    type: 'e-book' as const,
+    type,
     ...(args.shortDescription !== undefined ? { shortDescription: cleanText(args.shortDescription, 'Descripción corta', 180) } : {}),
     ...(args.featured !== undefined ? { featured: args.featured } : {}),
     ...(args.referencePrice !== undefined ? { referencePrice: args.referencePrice === null ? null : { currency: cleanCurrency(args.referencePrice.currency), value: cleanAmount(args.referencePrice.value, 'Precio de referencia') } } : {}),
@@ -52,22 +61,23 @@ export const get = query({
 });
 
 export const create = mutation({
-  args: fields,
-  handler: async (ctx, args) => {
+  args: { ...fields, type: editableType },
+  handler: async (ctx, { type, ...args }) => {
     await requireAdmin(ctx);
-    return await ctx.db.insert('products', clean(args));
+    return await ctx.db.insert('products', clean(args, type));
   },
 });
 
 export const update = mutation({
-  args: { id: v.id('products'), ...fields },
-  handler: async (ctx, { id, ...args }) => {
+  args: { id: v.id('products'), ...fields, type: editableType },
+  handler: async (ctx, { id, type, ...args }) => {
     await requireAdmin(ctx);
     const existing = await ctx.db.get(id);
     if (!existing) fail('El producto ya no existe.');
     if (existing.type === 'artifact') fail('Editá este recurso desde el catálogo de Artefactos.');
     // Older clients omit the new presentation fields; keep the saved product settings.
-    await ctx.db.patch(id, clean(args));
+    // A client that does not send the type keeps the saved one.
+    await ctx.db.patch(id, clean(args, type ?? (existing.type === 'app' ? 'app' : 'e-book')));
     return id;
   },
 });

@@ -139,7 +139,9 @@ export default defineSchema({
   // Shared catalogue: the same resource can be a main product, a bonus or an upsell.
   products: defineTable({
     // Optional for existing records; product mutations always persist this value.
-    type: v.optional(v.union(v.literal('e-book'), v.literal('artifact'))),
+    // 'app': a web app hosted elsewhere; its only deliverable is the link to it, and the app
+    // checks access itself through POST /api/orders/paid-exists.
+    type: v.optional(v.union(v.literal('e-book'), v.literal('artifact'), v.literal('app'))),
     artifactSlug: v.optional(v.string()),
     shortDescription: v.optional(v.string()),
     featured: v.optional(v.boolean()),
