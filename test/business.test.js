@@ -182,6 +182,12 @@ describe('public landing', () => {
       { activity: { ...draft.activity, viewersText: 'x'.repeat(241) } },
     ]) await expect(admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: { ...draft, ...patch } })).rejects.toThrow();
   });
+  it('accepts only currencies from the shared list', async () => {
+    const { admin, store } = await campaign();
+    for (const currency of ['XYZ', 'JPY', 'US']) await expect(admin.mutation(api.stores.create, { ...store, currency })).rejects.toThrow('Moneda');
+    const id = await admin.mutation(api.stores.create, { ...store, currency: ' ars ' });
+    expect((await admin.query(api.stores.get, { id })).currency).toBe('ARS');
+  });
   it('does not serve a landing that was never published and keeps subdomains unique', async () => {
     const { t, admin, store } = await campaign();
     const second = await admin.mutation(api.stores.create, store);

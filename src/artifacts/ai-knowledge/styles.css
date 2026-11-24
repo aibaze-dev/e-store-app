@@ -165,3 +165,10 @@
   .artifact-ai-knowledge .ak-cover-art svg { width: 24px; height: 24px; }
   .artifact-ai-knowledge .ak-global-card > div:last-child { width: 100%; }
 }
+.artifact-ai-knowledge .ak-header-actions { display: flex; align-items: center; gap: 16px; }
+.artifact-ai-knowledge .ak-header-actions .ak-book-link { white-space: nowrap; }
+@media (max-width: 430px) {
+  .artifact-ai-knowledge .ak-header { gap: 10px; }
+  .artifact-ai-knowledge .ak-header-actions { gap: 10px; }
+  .artifact-ai-knowledge .ak-header-actions .ak-book-link svg { display: none; }
+}

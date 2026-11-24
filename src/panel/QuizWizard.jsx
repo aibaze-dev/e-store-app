@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, LoaderCircle, PenLine, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, LoaderCircle, PenLine, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -13,7 +13,11 @@ const QUESTIONS = [
   { key: 'goal', label: '¿Qué querés descubrir de esa persona?', placeholder: 'Su experiencia, qué le cuesta y para qué quiere usar IA, para presentarle mi guía.' },
 ];
 
-export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerateImage, onApply, onBusy, open, onOpenChange: setOpen, exists = false }) {
+export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerateImage, onListSources, onCloneFrom, onApply, onBusy, open, onOpenChange: setOpen, exists = false }) {
+  // 'ai' asks questions and generates; 'clone' starts from the published quiz of another store.
+  const [mode, setMode] = useState('ai');
+  const [sources, setSources] = useState(null);
+  const [sourceId, setSourceId] = useState('');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ audience: '', goal: '', tone: 'Cercano', length: 7 });
   const [busy, setBusy] = useState(false);
@@ -48,38 +52,74 @@ export default function QuizWizard({ quiz, view, disabled, onGenerate, onGenerat
       await createImages(next);
     });
   };
+  const startClone = () => {
+    setMode('clone'); setOpen(true); setProposal(null); setPreview(false); setError('');
+    run(async () => {
+      setProgress('Buscando tiendas con quiz publicado…');
+      const list = await onListSources();
+      setSources(list); setSourceId(current => current || list[0]?.storeId || '');
+    });
+  };
+  const startAi = () => { setMode('ai'); setProposal(null); setPreview(false); setError(''); setOpen(true); };
+  const close = () => { setOpen(false); setMode('ai'); setProposal(null); setPreview(false); setError(''); };
+  const loadClone = event => {
+    event.preventDefault();
+    if (busy || !sourceId) return;
+    run(async () => { setProgress('Copiando el quiz…'); setProposal(await onCloneFrom(sourceId)); });
+  };
+  const cloning = mode === 'clone';
+  const source = sources?.find(item => item.storeId === sourceId);
   const images = quizImages(proposal);
   const missing = images.filter(image => !image.node.imageUrl).length;
 
   if (!open) return <div className="landing-wizard is-closed qe-ai-card">
     <Sparkles aria-hidden="true" />
     <div><strong>Generá tu quiz con IA</strong><p>Contanos para quién es. Creamos las preguntas, los textos y las imágenes usando tu producto.</p></div>
-    <Button type="button" disabled={disabled || !onGenerate} onClick={() => setOpen(true)}><Sparkles aria-hidden="true" />Generar con IA</Button>
+    <div className="qe-actions">
+      <Button type="button" disabled={disabled || !onGenerate} onClick={startAi}><Sparkles aria-hidden="true" />Generar con IA</Button>
+      {onListSources && <Button type="button" variant="outline" disabled={disabled} onClick={startClone}><Copy aria-hidden="true" />Iniciar desde quiz de otra tienda</Button>}
+    </div>
   </div>;
 
   return <section className="landing-wizard qe-ai-card" aria-busy={busy}>
     <div className="landing-wizard-header">
-      <div><h2>Generá tu quiz con IA</h2><span>{proposal ? 'Revisá tu nuevo quiz' : `Paso ${step + 1} de 3`}</span></div>
-      {/* With a saved quiz, editing it is the main path; the assistant would replace it. */}
-      <Button type="button" variant={exists ? 'default' : 'ghost'} disabled={busy} onClick={() => setOpen(false)}>{exists && <PenLine aria-hidden="true" />}Editar a mano</Button>
+      <div><h2>{cloning ? 'Iniciá desde el quiz de otra tienda' : 'Generá tu quiz con IA'}</h2><span>{proposal ? 'Revisá tu nuevo quiz' : cloning ? 'Elegí una tienda' : `Paso ${step + 1} de 3`}</span></div>
+      <div className="qe-actions">
+        {cloning
+          ? <Button type="button" variant="ghost" disabled={busy || !onGenerate} onClick={startAi}><Sparkles aria-hidden="true" />Generar con IA</Button>
+          : onListSources && <Button type="button" variant="ghost" disabled={busy} onClick={startClone}><Copy aria-hidden="true" />Iniciar desde quiz de otra tienda</Button>}
+        {/* With a saved quiz, editing it is the main path; the assistant would replace it. */}
+        <Button type="button" variant={exists ? 'default' : 'ghost'} disabled={busy} onClick={close}>{exists && <PenLine aria-hidden="true" />}Editar a mano</Button>
+      </div>
     </div>
     {progress && <p role="status" className="qe-hint">{progress}</p>}
     {proposal ? <div className="qe-stack">
+      {cloning && <p>Copia del quiz publicado de <strong>{source?.name}</strong>. Usamos el nombre y el logo de esta tienda; el precio y la oferta salen de esta tienda.</p>}
       <p>La propuesta reemplaza el recorrido del borrador. La versión publicada sigue igual hasta que publiques los cambios.</p>
       <ol className="qe-proposal-list">{proposal.steps.map(s => <li key={s.id}>{s.title}</li>)}</ol>
       {images.length > 0 && <div className="qe-generated-images" aria-label="Imágenes del quiz">{images.map(image => <figure key={image.key}>
         {image.node.imageUrl ? <img src={image.node.imageUrl} alt={image.node.imageAlt || image.title} /> : <div className="qe-image-pending">{busy ? 'Creando imagen…' : 'Imagen pendiente'}</div>}
         <figcaption>{image.title}</figcaption>
       </figure>)}</div>}
-      {!busy && missing > 0 && <Button type="button" variant="outline" onClick={() => run(() => createImages(proposal))}>Reintentar imágenes pendientes ({missing})</Button>}
+      {!busy && !cloning && missing > 0 && <Button type="button" variant="outline" onClick={() => run(() => createImages(proposal))}>Reintentar imágenes pendientes ({missing})</Button>}
       <Button type="button" variant="outline" onClick={() => setPreview(!preview)}>{preview ? 'Cerrar vista previa' : 'Probar propuesta'}</Button>
       {preview && <QuizPreview quiz={proposal} view={view} />}
       <div className="qe-actions">
-        <Button disabled={busy} onClick={() => run(async () => { await onApply(proposal); setProposal(null); setPreview(false); setOpen(false); setStep(0); })}>{busy ? progress ? 'Generando imágenes…' : 'Guardando…' : 'Usar y guardar borrador'}</Button>
-        <Button variant="outline" disabled={busy} onClick={() => { setProposal(null); setPreview(false); }}>Volver a generar</Button>
-        <Button variant="ghost" disabled={busy} onClick={() => { setProposal(null); setPreview(false); setOpen(false); }}>Descartar</Button>
+        <Button disabled={busy} onClick={() => run(async () => { await onApply(proposal, cloning ? 'clone' : 'ai'); setProposal(null); setPreview(false); setOpen(false); setStep(0); setMode('ai'); })}>{busy ? progress ? 'Generando imágenes…' : 'Guardando…' : 'Usar y guardar borrador'}</Button>
+        <Button variant="outline" disabled={busy} onClick={() => { setProposal(null); setPreview(false); }}>{cloning ? 'Elegir otra tienda' : 'Volver a generar'}</Button>
+        <Button variant="ghost" disabled={busy} onClick={close}>Descartar</Button>
       </div>
-    </div> : <form onSubmit={submit}>
+    </div> : cloning ? <form onSubmit={loadClone} className="qe-stack">
+      {sources === null ? <p className="qe-hint">{busy ? 'Cargando tiendas…' : 'No se pudieron cargar las tiendas.'}</p>
+        : sources.length === 0 ? <p className="qe-hint">Todavía no hay otras tiendas con un quiz publicado. Podés generarlo con IA o armarlo a mano.</p>
+        : <>
+          <Field label="Tienda de origen">{ids => <NativeSelect {...ids} value={sourceId} disabled={busy} onChange={e => setSourceId(e.target.value)}>
+            {sources.map(item => <option key={item.storeId} value={item.storeId}>{item.name}{item.subdomain ? ` · ${item.subdomain}` : ''} · {item.steps} pantallas</option>)}
+          </NativeSelect>}</Field>
+          <p className="qe-hint">Copiamos la versión publicada: pantallas, textos, imágenes, reglas, cálculos, resultados y colores. El quiz de la otra tienda no cambia. Revisás la copia antes de guardarla como borrador.</p>
+          <div className="qe-actions qe-wizard-actions"><Button type="submit" disabled={busy || !sourceId}>{busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Copy aria-hidden="true" />}{busy ? 'Copiando…' : 'Copiar este quiz'}</Button></div>
+        </>}
+    </form> : <form onSubmit={submit}>
       <div className="landing-wizard-progress" role="progressbar" aria-label="Avance del asistente" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step + 1}><span style={{ width: `${(step + 1) / 3 * 100}%` }} /></div>
       {question ? <Field key={question.key} label={question.label}>{ids => <Textarea {...ids} autoFocus={step > 0} required maxLength={1500} placeholder={question.placeholder} value={answers[question.key]} disabled={busy} onChange={e => set(question.key, e.target.value)} />}</Field> : <>
         <Field label="¿Cuántas preguntas?">{ids => <NativeSelect {...ids} value={answers.length} onChange={e => set('length', Number(e.target.value))} disabled={busy}><option value={5}>Corto · 5 preguntas</option><option value={7}>Recomendado · 7 preguntas</option><option value={12}>Completo · 12 preguntas</option></NativeSelect>}</Field>

@@ -1,7 +1,12 @@
 {
   "name": "Ateneo",
   "shortName": "Ateneo",
-  "artifactBrandName": "Domina Cloud",
+  "artifactBrandName": "Domina Claude",
+  "artifactBrandNames": {
+    "en": "Master Claude",
+    "es": "Domina Claude",
+    "pt": "Domine o Claude"
+  },
   "logoUrl": "/company-logo.svg",
   "primaryColor": "#c15f3c",
   "contactEmail": "",

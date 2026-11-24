@@ -347,6 +347,7 @@
 .landing-wizard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .landing-wizard-alt { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 10px 12px; border-radius: 10px; background: var(--muted); color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
 .landing-wizard-alt span { flex: 1 1 260px; }
+.translate-control > [role=alert], .translate-control > div:last-child:not(.landing-wizard-actions) { grid-column: 1 / -1; }
 .landing-wizard-progress { height: 4px; border-radius: 999px; background: var(--muted); overflow: hidden; }
 .landing-wizard-progress span { display: block; height: 100%; background: var(--primary); transition: width .2s; }
 @media (max-width: 639px) { .landing-wizard { padding: 20px; } .landing-wizard.is-closed { grid-template-columns: auto minmax(0, 1fr); } .landing-wizard.is-closed .landing-wizard-actions { grid-column: 1 / -1; justify-content: stretch; } .landing-wizard.is-closed .landing-wizard-actions button { flex: 1 1 auto; } }

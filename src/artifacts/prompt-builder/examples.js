@@ -1,4 +1,6 @@
 import { TASKS } from './builder.js';
+import { CONTENT_ES } from './content.es.js';
+import { CONTENT_PT } from './content.pt.js';
 
 const sample = (id, title, task, context, audience, outcome, resources, constraints) => ({
   id, title, answers: { task, context, audience, outcome, resources, constraints },
@@ -149,3 +151,6 @@ export const EXAMPLES = Object.fromEntries(TASKS.map(task => [task.id, [
   { id: `${task.id}-starter`, title: defaultTitles[task.id], answers: task.example },
   ...additional[task.id],
 ]]));
+
+const LOCALIZED = { es: CONTENT_ES.examples, pt: CONTENT_PT.examples };
+export const examplesFor = lang => LOCALIZED[lang] || EXAMPLES;

@@ -10,6 +10,7 @@ import brand from '@/config/brandData.json';
 import { api } from '@/lib/api.js';
 import { authClient } from '@/lib/auth-client.js';
 import { storePath, storeSwitchPath } from '@/lib/panel-routes.js';
+import { groupStoresByName } from '@/lib/store-groups.js';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
@@ -87,9 +88,16 @@ function StoreSwitcher({ stores, selected, onNavigate, onCloseAutoFocus }) {
       <DropdownMenu.Separator className="my-2 h-px bg-border" />
       <DropdownMenu.Label className="px-3 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Mis tiendas</DropdownMenu.Label>
       {stores.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">Todavía no hay tiendas.</p>}
-      {stores.map(store => <DropdownMenu.Item key={store._id} className="workspace-store-item" onSelect={() => go(storeSwitchPath(pathname, store._id))}>
-        <ShoppingBag className="size-4 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block truncate">{store.name}</span><span className="block truncate text-xs text-muted-foreground">{store.subdomain || 'Sin landing'}</span></span>{selected?._id === store._id && <Check className="size-4" aria-label="Tienda actual" />}
-      </DropdownMenu.Item>)}
+      {groupStoresByName(stores).map(group => {
+        const items = group.stores.map(store => <DropdownMenu.Item key={store._id} className="workspace-store-item" onSelect={() => go(storeSwitchPath(pathname, store._id))}>
+          <ShoppingBag className="size-4 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block truncate">{store.name}</span><span className="block truncate text-xs text-muted-foreground">{store.subdomain || 'Sin landing'}</span></span>{selected?._id === store._id && <Check className="size-4" aria-label="Tienda actual" />}
+        </DropdownMenu.Item>);
+        if (items.length === 1) return items[0];
+        return <DropdownMenu.Group key={group.stores[0]._id} aria-label={group.label} className="my-2 border-l border-border pl-2">
+          <DropdownMenu.Label className="break-words px-2 pt-1 text-xs font-semibold text-muted-foreground">{group.label}</DropdownMenu.Label>
+          {items}
+        </DropdownMenu.Group>;
+      })}
       <DropdownMenu.Separator className="my-2 h-px bg-border" />
       <DropdownMenu.Item className="workspace-store-item text-primary" onSelect={() => go('/panel/tiendas/nueva')}><Plus className="size-4" aria-hidden="true" />Crear tienda</DropdownMenu.Item>
     </DropdownMenu.Content>

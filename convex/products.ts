@@ -52,6 +52,27 @@ export const list = query({
   },
 });
 
+// Which stores sell each product: as main, bonus, extra or post-purchase offer.
+// Products missing from the result are not used by any store.
+export const storeUsage = query({
+  args: {},
+  handler: async ctx => {
+    await requireAdmin(ctx);
+    const stores = await ctx.db.query('stores').order('desc').collect();
+    const usage: Record<string, { _id: string; name: string }[]> = {};
+    for (const store of stores) {
+      const ids = new Set<string>([
+        store.offer.mainProductId,
+        ...store.offer.bonuses.map(bonus => bonus.productId),
+        ...store.offer.upsells.map(upsell => upsell.productId),
+        ...(store.postPurchase.enabled && store.postPurchase.productId ? [store.postPurchase.productId] : []),
+      ]);
+      for (const id of ids) (usage[id] ??= []).push({ _id: store._id, name: store.name });
+    }
+    return usage;
+  },
+});
+
 export const get = query({
   args: { id: v.id('products') },
   handler: async (ctx, { id }) => {

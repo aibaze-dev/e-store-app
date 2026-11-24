@@ -13,7 +13,7 @@ import { discountedPrice } from '@/storefront/downsell.js';
 import { finalPostPurchasePercent } from '../../shared/post-purchase.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { ArrowLeft, ChevronDown, Eye, LoaderCircle, Map as MapIcon, Monitor, Plus, RotateCcw, Smartphone, Trash2, TriangleAlert } from 'lucide-react';
 import { api } from '@/lib/api.js';
 import { errorText, formatDate } from '@/lib/format.js';
@@ -29,6 +29,7 @@ import { ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import StoreOfferSummary from './StoreOfferSummary.jsx';
 import LandingFrame from './LandingFrame.jsx';
 import LandingWizard from './LandingWizard.jsx';
+import TranslateControl from './TranslateControl.jsx';
 import { landingAttention } from './landing-attention.js';
 
 const MARKS = 'Usá *asteriscos* para resaltar una parte y **dobles** para negrita.';
@@ -66,6 +67,7 @@ export default function LandingEditPage() {
   const store = useQuery(api.stores.get, { id: storeId });
   const products = useQuery(api.products.list, {});
   const saveDraft = useMutation(api.landings.saveDraft);
+  const translate = useAction(api.translations.landing);
   const publish = useMutation(api.landings.publish);
   const upload = useMediaUpload();
   if (landing === undefined || !store || !products) return <PageSkeleton label="Cargando landing" />;
@@ -73,10 +75,10 @@ export default function LandingEditPage() {
     await saveDraft({ storeId, template: 'classic', draft: form.content });
     if (action === 'publish') await publish({ storeId });
   }
-  return <UploadContext.Provider value={upload}><LandingConfigurator key={storeId} landing={landing} store={store} products={products} hash={hash} uploading={upload.pending} onSave={save} /></UploadContext.Provider>;
+  return <UploadContext.Provider value={upload}><LandingConfigurator key={storeId} landing={landing} store={store} products={products} hash={hash} uploading={upload.pending} onSave={save} onTranslate={args => translate({ storeId, ...args })} /></UploadContext.Provider>;
 }
 
-export function LandingConfigurator({ landing, store, products, hash = '', uploading = false, onSave }) {
+export function LandingConfigurator({ landing, store, products, hash = '', uploading = false, onSave, onTranslate }) {
   const [form, setForm] = useState(() => ({ subdomain: landing?.subdomain ?? '', content: normalizeContent({ ...landing?.draft, checkout: checkoutConfig({ content: landing?.draft, checkout: store.checkout }) }) }));
   const [saving, setBusy] = useState('');
   const busy = saving || (uploading ? 'upload' : '');
@@ -138,6 +140,27 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
       setSaved(JSON.stringify(next));
       setNotice('Landing generada y guardada como borrador. Revisala y publicala.');
     } catch (failure) { setError(`La landing se generó, pero no se pudo guardar. ${errorText(failure, 'Revisá el formulario y guardá el borrador.')}`); }
+  };
+  // The server already saved the copied landing as the draft (and copied the store's offer);
+  // the form only loads it, with the checkout texts on top of this store's settings.
+  const applyCloned = copied => {
+    const next = {
+      subdomain: form.subdomain || slug(store.name),
+      content: normalizeContent({ ...copied, checkout: checkoutConfig({ content: copied, checkout: store.checkout }) }),
+    };
+    setError(''); setForm(next); setSaved(JSON.stringify(next)); setShowPreview(true);
+    setNotice('Landing y oferta copiadas. La landing quedó como borrador: revisá los textos y publicala.');
+  };
+  // Translates what the form shows now, unsaved changes included, and saves it as the draft.
+  const applyTranslation = async language => {
+    const { content: translated, kept } = await onTranslate({ language, content: form.content });
+    const next = { ...form, subdomain: form.subdomain || slug(store.name), content: normalizeContent(translated) };
+    setError(''); setNotice(''); setForm(next); setShowPreview(true);
+    try {
+      await onSave(next, 'save');
+      setSaved(JSON.stringify(next));
+      setNotice(`Landing traducida y guardada como borrador.${kept ? ` ${kept} textos quedaron como estaban porque la traducción cambiaba sus variables entre llaves.` : ''} Revisala y publicala.`);
+    } catch (failure) { setError(`La landing se tradujo, pero no se pudo guardar. ${errorText(failure, 'Revisá el formulario y guardá el borrador.')}`); }
   };
   const changeItem = (key, index, patch) => change(key, { items: content[key].items.map((item, i) => i === index ? { ...item, ...patch } : item) });
   const itemField = (key, index, property, label, { multiline = false, ...props } = {}) => <Field label={label}>{ids => {
@@ -474,7 +497,8 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
     <Tabs.List className="landing-settings-tabs" aria-label="Configuración de la tienda">
       {LANDING_TABS.map(tab => <Tabs.Trigger key={tab.id} value={tab.id} disabled={Boolean(busy)}>{tab.label}</Tabs.Trigger>)}
     </Tabs.List>
-    <div hidden={activeTab !== 'landing'}><LandingWizard storeId={storeId} hasContent={Boolean(content.hero.title)} disabled={Boolean(busy)} onApply={applyGenerated} /></div>
+    <div hidden={activeTab !== 'landing'}><LandingWizard storeId={storeId} hasContent={Boolean(content.hero.title)} disabled={Boolean(busy)} onApply={applyGenerated} onClone={applyCloned} />
+      {onTranslate && content.hero.title && <TranslateControl what="la landing" disabled={Boolean(busy)} onBusy={value => setBusy(value ? 'translate' : '')} onTranslate={applyTranslation} />}</div>
     {(todo.length > 0 || optional > 0) && <section className={`landing-attention-summary ${todo.length > 0 ? 'is-need' : ''}`} aria-labelledby="landing-attention-title">
       <h2 id="landing-attention-title">{todo.length > 0 && <TriangleAlert aria-hidden="true" />}{todo.length > 0 ? `Qué revisar antes de publicar (${todo.length})` : 'Nada pendiente para publicar'}</h2>
       {todo.length > 0 && <ul>{todo.map((item, index) => <li key={index}><button type="button" onClick={() => openSection(item.id)}><span>{SECTIONS[item.id][0]}</span><span><strong>{SECTIONS[item.id][1]}</strong>{item.text}</span></button></li>)}</ul>}

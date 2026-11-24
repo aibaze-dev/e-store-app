@@ -78,3 +78,22 @@
   .artifact-theme [data-slot='button'][data-variant='default'] { transition: none; }
   .artifact-theme [data-slot='button'][data-variant='default']:is(:hover, :active):enabled { transform: none; }
 }
+
+/* Language picker (first visit) and switcher (artifact headers). */
+.artifact-theme .artifact-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.artifact-language-dialog { max-width: 420px; }
+.artifact-language-dialog .artifact-language-heading { display: flex; align-items: center; gap: 12px; padding-right: 36px; }
+.artifact-language-dialog .artifact-language-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--artifact-orange); }
+.artifact-language-dialog .artifact-language-icon svg { width: 22px; height: 22px; }
+.artifact-language-dialog .artifact-language-options { display: grid; gap: 10px; }
+.artifact-language-dialog .artifact-language-option { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 12px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--background); color: var(--foreground); font-size: 18px; text-align: left; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.artifact-language-dialog .artifact-language-option span { color: var(--muted-foreground); font-size: 13px; letter-spacing: .08em; }
+.artifact-language-dialog .artifact-language-option.is-suggested { border-color: color-mix(in srgb, var(--artifact-orange) 60%, var(--border)); }
+@media (hover: hover) { .artifact-language-dialog .artifact-language-option:hover { border-color: var(--artifact-orange); background: var(--accent); } }
+.artifact-theme .artifact-language-switcher { position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted-foreground); font-size: 14px; }
+.artifact-theme .artifact-language-switcher svg { width: 16px; height: 16px; flex: none; }
+.artifact-theme .artifact-language-switcher select { appearance: none; min-height: 38px; padding-right: 2px; border: 0; background: transparent; color: var(--foreground); font: inherit; cursor: pointer; }
+.artifact-theme .artifact-language-switcher select option { background: var(--card); color: var(--foreground); }
+.artifact-theme .artifact-language-switcher:focus-within { outline: 2px solid var(--ring); outline-offset: 3px; }
+.artifact-theme .artifact-language-switcher select:focus-visible { outline: none; }
+@media print { .artifact-theme .artifact-language-switcher { display: none; } }

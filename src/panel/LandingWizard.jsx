@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
 import { ErrorAlert, Field } from '@/components/Field.jsx';
 import LandingJsonImport from './LandingJsonImport.jsx';
+import LandingClone from './LandingClone.jsx';
 
 const QUESTIONS = [
   { key: 'audience', label: '¿Para quién es tu ebook?', hint: 'Contá quién lo compra: edad, situación, nivel de experiencia.', placeholder: 'Personas de 25 a 40 años que cobran un sueldo y nunca invirtieron', required: true },
@@ -22,7 +23,7 @@ const EMPTY = { audience: '', problem: '', result: '', differentiator: '', about
 const LAST = QUESTIONS.length;
 
 // A few questions that write the landing copy; the page then saves it as a draft.
-export default function LandingWizard({ storeId, hasContent, disabled, onApply }) {
+export default function LandingWizard({ storeId, hasContent, disabled, onApply, onClone }) {
   const generate = useAction(api.landingWizard.generate);
   const [open, setOpen] = useState(!hasContent);
   const [step, setStep] = useState(0);
@@ -53,6 +54,7 @@ export default function LandingWizard({ storeId, hasContent, disabled, onApply }
     <div><strong>Generá tu landing con IA</strong><p>Respondé {LAST + 1} preguntas y armamos la landing completa, lista para revisar y publicar. También podés pegar un JSON escrito con otro chat de IA.</p></div>
     <div className="landing-wizard-actions">
       <LandingJsonImport storeId={storeId} hasContent={hasContent} disabled={disabled} onApply={onApply} />
+      {onClone && <LandingClone storeId={storeId} hasContent={hasContent} disabled={disabled} onApply={onClone} />}
       <Button type="button" variant="outline" disabled={disabled} onClick={() => { setMoved(true); setOpen(true); }}>{hasContent ? 'Volver a generar' : 'Empezar'}</Button>
     </div>
   </div>;
@@ -74,6 +76,7 @@ export default function LandingWizard({ storeId, hasContent, disabled, onApply }
       </>}
     <ErrorAlert>{error}</ErrorAlert>
     <div className="landing-wizard-alt"><span>¿Preferís usar otro chat de IA? Copiá nuestro prompt y pegá el JSON que te devuelva.</span><LandingJsonImport storeId={storeId} hasContent={hasContent} disabled={busy || disabled} onApply={onApply} variant="ghost" /></div>
+    {onClone && <div className="landing-wizard-alt"><span>¿Ya tenés una landing armada en otra tienda? Copiala completa y editala.</span><LandingClone storeId={storeId} hasContent={hasContent} disabled={busy || disabled} onApply={async content => { await onClone(content); setOpen(false); setStep(0); }} variant="ghost" /></div>}
     <div className="flex flex-wrap justify-between gap-3">
       <Button type="button" variant="ghost" disabled={busy || step === 0} onClick={() => go(step - 1)}><ArrowLeft aria-hidden="true" />Anterior</Button>
       <Button type="submit" disabled={busy}>{step < LAST ? <>Siguiente<ArrowRight aria-hidden="true" /></> : <>{busy ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}{busy ? 'Generando la landing…' : 'Generar landing'}</>}</Button>

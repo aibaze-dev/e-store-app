@@ -1,4 +1,6 @@
 import { QUESTIONS } from './questions.js';
+import { QUESTIONS_ES } from './questions.es.js';
+import { QUESTIONS_PT } from './questions.pt.js';
 
 export const BOOK_URL = 'https://capable-gnu-944.convex.cloud/api/storage/9ca0b6b6-b885-4843-b0fd-40308765ea53';
 export const DAYS = [
@@ -49,4 +51,15 @@ export function gradeExam(questions, answers) {
     return { id, label: id === 'intro' ? 'Before Day 1' : modeLabel(id), total: items.length, correct: items.filter(q => q.correct).length };
   });
   return { correct, total: questions.length, percent: Math.round(correct / questions.length * 100), review, groups };
+}
+
+const TRANSLATIONS = { es: QUESTIONS_ES, pt: QUESTIONS_PT };
+
+// Swap in translated text by stable question and option IDs; order and answers are unchanged.
+export function localizeQuestion(question, lang) {
+  const text = TRANSLATIONS[lang]?.[question.id];
+  if (!text) return question;
+  const optionText = id => text.options[id === 'correct' ? 0 : Number(id.slice('other-'.length)) + 1];
+  return { ...question, topic: text.topic, prompt: text.prompt, explanation: text.explanation,
+    options: question.options.map(option => ({ ...option, text: optionText(option.id) })) };
 }

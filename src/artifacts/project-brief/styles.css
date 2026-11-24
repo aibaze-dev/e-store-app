@@ -58,3 +58,4 @@
 @media (max-width: 380px) {
   .artifact-project-brief .brief-actions { flex-direction: column; }
 }
+.artifact-project-brief .brief-language { display: flex; margin-bottom: 24px; }

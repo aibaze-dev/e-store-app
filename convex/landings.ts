@@ -5,7 +5,7 @@ import { forStore, resolveAddress } from './lib/landing_records';
 import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../shared/landing-copy.js';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 import { v } from 'convex/values';
-import { mutation, query } from './lib/functions';
+import { mutation, query, type Id } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { buildLandingView, buildPostPurchaseView } from './lib/landing_view';
 import { cleanSubdomain, cleanText, cleanUrl, fail } from './lib/validation';
@@ -241,6 +241,52 @@ export const saveDraft = mutation({
       return existing._id;
     }
     return await ctx.db.insert('landings', { storeId: args.storeId, subdomain, template, draft });
+  },
+});
+
+// Starting a landing from another store: the other stores with a published classic landing,
+// and a copy of everything that store sells with it. `cloneFrom` saves that landing as this
+// store's draft and copies the sale: currency, product, price, bonuses, extras, post-purchase,
+// downsell and checkout settings. The store's name, address, status and Meta pixels stay.
+export const cloneSources = query({
+  args: { storeId: v.id('stores') },
+  handler: async (ctx, { storeId }) => {
+    await requireAdmin(ctx);
+    const sources: { storeId: Id<'stores'>; name: string; subdomain: string; publishedAt: number; title: string }[] = [];
+    for (const landing of await ctx.db.query('landings').collect()) {
+      if (landing.storeId === storeId || landing.template === 'quiz' || !landing.published) continue;
+      const store = await ctx.db.get(landing.storeId);
+      if (!store) continue;
+      sources.push({ storeId: store._id, name: store.name, subdomain: store.subdomain ?? landing.subdomain, publishedAt: landing.publishedAt ?? landing._creationTime, title: landing.published.hero.title });
+    }
+    return sources.sort((a, b) => b.publishedAt - a.publishedAt);
+  },
+});
+
+export const cloneFrom = mutation({
+  args: { storeId: v.id('stores'), sourceStoreId: v.id('stores') },
+  handler: async (ctx, { storeId, sourceStoreId }) => {
+    await requireAdmin(ctx);
+    if (storeId === sourceStoreId) fail('Elegí otra tienda.');
+    const target = await ctx.db.get(storeId);
+    if (!target) fail('Tienda no disponible.');
+    const source = await ctx.db.get(sourceStoreId);
+    const landing = await forStore(ctx, sourceStoreId);
+    if (!source || !landing?.published) fail('Esa tienda no tiene una landing publicada.');
+    const { offer, postPurchase, downsell, checkout, currency } = source;
+    const productIds = [offer.mainProductId, ...offer.bonuses.map(item => item.productId), ...offer.upsells.map(item => item.productId), ...(postPurchase.productId ? [postPurchase.productId] : [])];
+    for (const id of productIds) if (!(await ctx.db.get(id))) fail('Uno de los productos de esa tienda ya no existe. Corregí su oferta antes de copiarla.');
+    // Same rule as saving the store: an active store sells a product that has something to deliver.
+    const main = await ctx.db.get(offer.mainProductId);
+    if (target.status === 'active' && !main?.deliverables.length) fail('El producto principal de esa tienda no tiene entregables y esta tienda está activa. Agregale un entregable o pasá esta tienda a borrador.');
+    // Like saveDraft: the address is the one set in Configuración.
+    const subdomain = await resolveAddress(ctx, storeId);
+    const draft = cleanContent(landing.published);
+    await ctx.db.patch(storeId, { currency, offer, postPurchase, downsell, checkout, purchaseDraft: draft });
+    const existing = await forStore(ctx, storeId);
+    if (existing) await ctx.db.patch(existing._id, { subdomain, template: landing.template, draft });
+    else await ctx.db.insert('landings', { storeId, subdomain, template: landing.template, draft });
+    return draft;
   },
 });
 

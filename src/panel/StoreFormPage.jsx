@@ -10,6 +10,7 @@ import { MAX_PIXELS, pixelIds } from '../../shared/pixels.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
+import CurrencySelect from '@/components/CurrencySelect.jsx';
 import { Textarea } from '@/components/ui/textarea';
 import { UploadContext, VideoField, useMediaUpload } from './ImageField.jsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -187,7 +188,9 @@ export default function StoreFormPage({ section }) {
         <Field label="Estado">{props => <NativeSelect {...props} value={form.status} onChange={event => set({ status: event.target.value })} disabled={busy}>
           <option value="draft">Borrador</option><option value="active">Activa</option>
         </NativeSelect>}</Field>
-        <Field label="Moneda" hint="Código de tres letras. Los precios de esta tienda se cobran en esta moneda.">{props => <Input {...props} value={form.currency} onChange={event => set({ currency: event.target.value })} maxLength={3} required autoCapitalize="characters" disabled={busy} />}</Field>
+        <Field label="Moneda" hint={existing && form.currency !== existing.currency
+          ? `Los importes no se convierten: cada precio cargado pasa a cobrarse en ${form.currency} con el mismo número. Revisá todos los precios antes de guardar.`
+          : 'Los precios de esta tienda se muestran y se cobran en Stripe en esta moneda.'}>{props => <CurrencySelect {...props} value={form.currency} onChange={currency => set({ currency })} required disabled={busy} />}</Field>
       </CardContent>
     </Card>}
 

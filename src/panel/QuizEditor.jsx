@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation, useAction, useConvex } from 'convex/react';
 import { api } from '@/lib/api.js';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton, ErrorAlert } from '@/components/Field.jsx';
@@ -10,6 +10,7 @@ import { ExternalLink } from 'lucide-react';
 import { QuizPreview } from '@/storefront/Quiz.jsx';
 import { clone, migrateGaugeRanges, removeCalculation, removeOption, validateQuiz } from '../../shared/quiz.js';
 import QuizWizard from './QuizWizard.jsx';
+import TranslateControl from './TranslateControl.jsx';
 import QuizBuilder from './QuizBuilder.jsx';
 import { ImageField, UploadContext, useMediaUpload } from './ImageField.jsx';
 import { Blocks, CopyField, Conditions, Expression, Reorder, StepForm, Toggle, uid } from './QuizAdvanced.jsx';
@@ -17,7 +18,7 @@ import { QField } from './QuizFields.jsx';
 import './quiz-editor.css';
 export { QField } from './QuizFields.jsx';
 
-export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,view,onSave,onPublish,onGenerate,onGenerateImage,onUploadImage,published,exists=false,uploading=false}) {
+export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,view,onSave,onPublish,onGenerate,onGenerateImage,onListSources,onCloneFrom,onTranslate,onUploadImage,published,exists=false,uploading=false}) {
  const [quiz,setQuiz]=useState(()=>migrateGaugeRanges(clone(initial))),[tab,setTab]=useState('Contenido');
  // With a saved quiz, editing is the main path; the assistant starts open only for a new one.
  const [error,setError]=useState(''),[status,setStatus]=useState(''),[working,setBusy]=useState(false),[preview,setPreview]=useState(false),[aiOpen,setAiOpen]=useState(!exists),[dirty,setDirty]=useState(false);
@@ -33,8 +34,8 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
  const setResult=patch=>set({results:quiz.results.map(r=>r.id===mainResult.id?{...r,...patch}:r)});
  return <>{backTo&&<Link to={backTo} onClick={event=>{if(dirty&&!window.confirm('Tenés cambios sin guardar en el quiz. ¿Salir igual?'))event.preventDefault();}}>← Landings</Link>}<div className="quiz-editor qe-simple-editor">
   <header className="qe-heading"><div><p className="qe-eyebrow">Landings / Quiz</p><h1>Tu quiz</h1><p>Ordená las pantallas, editá cada una y mirá cómo se ve al lado.</p></div><span className="qe-status">{published?'Publicado':'Borrador'}{dirty?' · Cambios sin guardar':''}</span></header>
-  {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} exists={exists} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onBusy={setBusy} onApply={async proposal=>{
-    const next=migrateGaugeRanges(clone(proposal));await onSave({quiz:next});setQuiz(next);setDirty(false);setStatus('Quiz generado y guardado como borrador. Ya podés probarlo.');
+  {!preview&&<QuizWizard open={aiOpen} onOpenChange={setAiOpen} exists={exists} quiz={quiz} view={view} disabled={busy} onGenerate={onGenerate} onGenerateImage={onGenerateImage} onListSources={onListSources} onCloneFrom={onCloneFrom} onBusy={setBusy} onApply={async (proposal,source)=>{
+    const next=migrateGaugeRanges(clone(proposal));await onSave({quiz:next});setQuiz(next);setDirty(false);setStatus(source==='clone'?'Quiz copiado y guardado como borrador. Ya podés editarlo y probarlo.':'Quiz generado y guardado como borrador. Ya podés probarlo.');
    }}/>}
   {(!aiOpen||preview)&&<div className="qe-toolbar">
    <Button variant="outline" disabled={busy} onClick={()=>task(async()=>{await onSave({quiz:clone(quiz)});setDirty(false);},'Borrador guardado.')}>Guardar borrador</Button>
@@ -42,6 +43,13 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
    <Button disabled={busy} onClick={publish}>{busy?'Guardando…':'Publicar quiz'}</Button>
    {published&&address&&<Button variant="outline" asChild><a href={`${landingUrls(address).path}/quiz`} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden="true" />Ver publicado</a></Button>}
   </div>}
+  {onTranslate&&!aiOpen&&!preview&&<TranslateControl what="el quiz" disabled={busy} onBusy={setBusy} onTranslate={async language=>{
+    // Translates what the editor shows now, unsaved changes included, and saves it as the draft.
+    const {quiz:translated,kept}=await onTranslate({language,quiz:clone(quiz)});
+    // The translation stays in the editor even if saving fails, as unsaved changes.
+    const next=migrateGaugeRanges(clone(translated));setQuiz(next);setDirty(true);await onSave({quiz:next});setDirty(false);
+    setStatus(`Quiz traducido y guardado como borrador.${kept?` ${kept} textos quedaron como estaban porque la traducción cambiaba sus variables entre llaves.`:''} Probalo y publicalo.`);
+   }}/>}
   <ErrorAlert>{error&&<span className="whitespace-pre-line">{error}</span>}</ErrorAlert>{status&&<p role="status">{status}</p>}
   {!address&&<div className="qe-card" role="note"><p>Antes de guardar o publicar, definí el subdominio de tu tienda en <Link to={settingsPath||'../configuracion'}>Configuración</Link>.</p></div>}
   {preview?<QuizPreview key={JSON.stringify(quiz)} quiz={quiz} view={view}/>:!aiOpen&&<>
@@ -84,8 +92,8 @@ export function QuizEditorForm({initial,subdomain:address,settingsPath,backTo,vi
 }
 export default function QuizEditor(){
  const {storeId}=useParams();const data=useQuery(api.quizzes.get,{storeId});
- const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate);
- const upload=useMediaUpload();
+ const save=useMutation(api.quizzes.save),publish=useMutation(api.quizzes.publish),generate=useAction(api.quizWizard.generate),generateImage=useAction(api.quizImages.generate),translate=useAction(api.translations.quiz);
+ const upload=useMediaUpload(),convex=useConvex();
  if(data===undefined)return <PageSkeleton label="Cargando quiz"/>;if(!data)return <p>Tienda no disponible.</p>;
- return <QuizEditorForm key={storeId} backTo={`/panel/tiendas/${storeId}/landings`} initial={data.quiz} subdomain={data.subdomain} settingsPath={`/panel/tiendas/${storeId}/configuracion`} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/>;
+ return <QuizEditorForm key={storeId} backTo={`/panel/tiendas/${storeId}/landings`} initial={data.quiz} subdomain={data.subdomain} settingsPath={`/panel/tiendas/${storeId}/configuracion`} view={data.view} published={Boolean(data.landing?.publicationId)} exists={Boolean(data.landing)} onSave={args=>save({storeId,...args})} onPublish={()=>publish({storeId})} onGenerate={args=>generate({storeId,...args})} onGenerateImage={args=>generateImage({storeId,...args})} onListSources={()=>convex.query(api.quizzes.cloneSources,{storeId})} onCloneFrom={sourceStoreId=>convex.query(api.quizzes.cloneProposal,{storeId,sourceStoreId})} onTranslate={args=>translate({storeId,...args})} onUploadImage={upload} uploading={upload.pending}/>;
 }

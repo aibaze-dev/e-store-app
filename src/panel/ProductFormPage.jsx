@@ -12,6 +12,7 @@ import { errorText, formatMoney, fromMinor, toMinor } from '@/lib/format.js';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import CurrencySelect from '@/components/CurrencySelect.jsx';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
@@ -153,7 +154,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
           <Field label="Descripción corta" hint="Opcional. Se usa en las tarjetas de compra; si queda vacía, se muestra la descripción completa.">{props => <Textarea {...props} value={form.shortDescription} onChange={event => set({ shortDescription: event.target.value })} maxLength={180} disabled={busy} />}</Field>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
             <Field label="Precio normal (tachado)" hint="La landing y el checkout lo muestran tachado con una etiqueta −X% OFF calculada contra el precio de venta de cada tienda. Ejemplo: normal US$18 y oferta US$9 → −50% OFF.">{props => <Input {...props} inputMode="decimal" value={form.referenceAmount} placeholder="Opcional" onChange={event => set({ referenceAmount: event.target.value, referenceConfigured: true })} disabled={busy} />}</Field>
-            <Field label="Moneda" hint="Solo para tiendas con esta moneda.">{props => <Input {...props} value={form.referenceCurrency} maxLength={3} autoCapitalize="characters" onChange={event => set({ referenceCurrency: event.target.value.toUpperCase(), referenceConfigured: true })} disabled={busy} />}</Field>
+            <Field label="Moneda" hint="Solo para tiendas con esta moneda.">{props => <CurrencySelect {...props} compact value={form.referenceCurrency} onChange={referenceCurrency => set({ referenceCurrency, referenceConfigured: true })} disabled={busy} />}</Field>
           </div>
           {!form.referenceConfigured && <p className="text-xs text-muted-foreground">{app ? 'Esta' : 'Este'} {noun} conserva los precios de referencia anteriores de cada tienda hasta que configures este campo.</p>}
           <div className="catalog-toggle">

@@ -1,4 +1,4 @@
-import { EMPTY_FORM, FORMATS, LENGTHS, TASKS, TONES } from './builder.js';
+import { EMPTY_FORM, FORMATS, LENGTHS, PROMPT_LANGUAGES, TASKS, TONES } from './builder.js';
 
 export const HISTORY_KEY = 'ateneo-prompt-builder-history-v1';
 
@@ -9,7 +9,8 @@ function validEntry(entry) {
     entry.form && Object.keys(EMPTY_FORM).every(key => typeof entry.form[key] === 'string') &&
     entry.form.task.trim().length > 0 &&
     TASKS.some(task => task.id === entry.form.category) && TONES.includes(entry.form.tone) &&
-    FORMATS.includes(entry.form.format) && LENGTHS.includes(entry.form.length);
+    FORMATS.includes(entry.form.format) && LENGTHS.includes(entry.form.length) &&
+    (entry.form.language === undefined || PROMPT_LANGUAGES.includes(entry.form.language));
 }
 
 // Read before each mutation so another tab's saved prompts are not overwritten

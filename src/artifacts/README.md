@@ -23,6 +23,20 @@ export const artifactComponents = {
 
 Los slugs son únicos y cumplen `^[a-z0-9]+(?:-[a-z0-9]+)*$`. Conservarlos después de compartirlos: renombrarlos o eliminarlos rompe los enlaces ya entregados. Los tests verifican formato, unicidad y correspondencia con los componentes lazy.
 
+## Idiomas
+
+Las herramientas están disponibles en inglés, español y portugués (Brasil). La lógica compartida está en `i18n.js` y la interfaz en `LanguageControls.jsx`.
+
+- **Primera visita:** `ArtifactPage` muestra un pop-up para elegir idioma antes de renderizar la herramienta. Hasta entonces no se ejecuta ni se reporta nada. Si se cierra el pop-up sin elegir, se usa el idioma sugerido por el navegador.
+- **Preferencia guardada:** la elección se guarda en el navegador (`ateneo:artifact-language:v1`) y aplica a todas las herramientas. Cada encabezado incluye `<LanguageSwitcher />` para cambiarla.
+- **Enlace con idioma:** `?lang=es`, `?lang=pt` o `?lang=en` (también `es-AR`, `pt-BR`, etc.) fija y guarda el idioma sin mostrar el pop-up. Sirve para enlazar desde una tienda en ese idioma.
+- **Marca y nombres:** el nombre de marca sale de `artifactBrandNames` en `src/config/brandData.json`, con `artifactBrandName` como respaldo. Los nombres traducidos de cada herramienta están en `artifactNameFor` (`i18n.js`). El registro compartido conserva el nombre en inglés.
+- **Textos:** cada herramienta tiene un `strings.js` con `{ en, es, pt }` y lo lee con `useStrings(STRINGS)`. El contenido largo vive aparte: `questions.es.js`/`questions.pt.js` en el quiz, `content.es.js`/`content.pt.js` en prompt-builder y `content.js` en meeting-prep.
+- **Valores que se mantienen en inglés:** los IDs, los valores guardados (tono, formato, tipo de producto) y las claves del brief que se envía al equipo. Solo se traduce lo que lee la persona y el texto que copia.
+- **Ebook:** sigue enlazando al PDF en inglés y a sus números de página.
+
+Para agregar una herramienta nueva: usar `useLanguage()` y `useStrings()`, agregar sus tres tablas y su nombre en `artifactNameFor`. `test/artifact-i18n.test.js` comprueba que las tablas `es` y `pt` tengan las mismas claves que `en`.
+
 ## Apariencia y aislamiento
 
 `ArtifactPage` proporciona la raíz `.artifact-<slug>`, por ejemplo `.artifact-planificador-semanal`. Todo CSS particular debe quedar limitado a ella, incluidas las variables. No usar reglas particulares sobre `html`, `body`, `:root`, `.dark` ni elementos sin prefijo. Dar nombres únicos a `@keyframes` y a cualquier identificador CSS global.

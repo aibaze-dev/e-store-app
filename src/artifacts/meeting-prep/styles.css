@@ -149,3 +149,4 @@
   .artifact-meeting-prep .mp-card-block p { font-size: 12pt; line-height: 1.5; }
   .artifact-meeting-prep .mp-eyebrow, .artifact-meeting-prep .mp-card-block h3, .artifact-meeting-prep .mp-card-context strong { color: #222; }
 }
+.artifact-meeting-prep .mp-topbar-actions { display: flex; align-items: center; gap: 16px; }

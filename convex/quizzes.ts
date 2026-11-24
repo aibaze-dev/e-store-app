@@ -2,7 +2,7 @@ import { makeFunctionReference } from 'convex/server';
 import { hashIp, normalizeIp, requestIp } from './lib/analytics_ip';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { v } from 'convex/values';
-import { action, internalQuery, mutation, query, type QueryCtx } from './lib/functions';
+import { action, internalQuery, mutation, query, type QueryCtx, type Id } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { forStore, publicStore, purchaseContent } from './lib/landing_records';
 import { buildLandingView } from './lib/landing_view';
@@ -32,6 +32,34 @@ export const get = query({args:{storeId:v.id('stores')},handler:async(ctx,{store
  await requireAdmin(ctx); const store=await ctx.db.get(storeId); if(!store)return null;
  const landing=await forStore(ctx,storeId,'quiz'); const product=await ctx.db.get(store.offer.mainProductId);
  return {landing,quiz:landing?.quizDraft ?? createQuizTemplate(product?.name),subdomain:store.subdomain ?? (await forStore(ctx,storeId))?.subdomain ?? '',view:await buildLandingView(ctx,store,landing ?? {_id:'',storeId,subdomain:'',template:'quiz'} as any,await purchaseContent(ctx,store,true))};
+}});
+// Starting a quiz from another store: lists the other stores with a published quiz, and hands
+// back a copy of one adapted to this store. The copy is only a proposal; the editor saves it
+// as a draft through `save`, so nothing changes until the admin accepts it.
+export const cloneSources = query({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
+ await requireAdmin(ctx);
+ const sources:{storeId:Id<'stores'>,name:string,subdomain:string,publishedAt:number,steps:number}[]=[];
+ for(const landing of await ctx.db.query('landings').collect()){
+  if(landing.storeId===storeId||!landing.publicationId||landing.template!=='quiz')continue;
+  const store=await ctx.db.get(landing.storeId),publication=await ctx.db.get(landing.publicationId);
+  if(!store||!publication)continue;
+  sources.push({storeId:store._id,name:store.name,subdomain:store.subdomain ?? landing.subdomain,publishedAt:landing.publishedAt ?? publication._creationTime,steps:Array.isArray(publication.content?.steps)?publication.content.steps.length:0});
+ }
+ return sources.sort((a,b)=>b.publishedAt-a.publishedAt);
+}});
+export const cloneProposal = query({args:{storeId:v.id('stores'),sourceStoreId:v.id('stores')},handler:async(ctx,{storeId,sourceStoreId})=>{
+ await requireAdmin(ctx);
+ if(storeId===sourceStoreId)fail('Elegí otra tienda.');
+ const store=await ctx.db.get(storeId);if(!store)fail('Tienda no disponible.');
+ const source=await forStore(ctx,sourceStoreId,'quiz');
+ const publication=source?.publicationId?await ctx.db.get(source.publicationId):null;
+ if(!publication)fail('Esa tienda no tiene un quiz publicado.');
+ // Name and logo belong to this store's brand; colors, texts and navigation come from the copy.
+ const current=await forStore(ctx,storeId,'quiz'),product=await ctx.db.get(store.offer.mainProductId);
+ const own=(current?.quizDraft ?? createQuizTemplate(product?.name)).identity ?? {};
+ const quiz=structuredClone(publication.content);
+ quiz.identity={...quiz.identity,name:own.name ?? quiz.identity?.name,logoUrl:own.logoUrl ?? ''};
+ return assertQuiz(quiz);
 }});
 export const save = mutation({args:{storeId:v.id('stores'),subdomain:v.optional(v.string()),quiz:v.any()},handler:async(ctx,args)=>{
  await requireAdmin(ctx);return saveQuizDraft(ctx,args.storeId,args.subdomain,args.quiz);

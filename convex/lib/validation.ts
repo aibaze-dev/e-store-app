@@ -1,4 +1,5 @@
 import { ConvexError } from 'convex/values';
+import { isSupportedCurrency } from '../../shared/currencies.js';
 
 export function fail(message: string): never {
   throw new ConvexError(message);
@@ -44,7 +45,7 @@ export function cleanPercent(value: number, label: string, min = 1) {
 
 export function cleanCurrency(value: string) {
   const code = value.trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(code)) fail('Moneda: usá un código de tres letras, por ejemplo USD.');
+  if (!isSupportedCurrency(code)) fail('Moneda: elegí una de las monedas de la lista.');
   return code;
 }
 
