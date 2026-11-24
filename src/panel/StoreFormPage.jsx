@@ -242,6 +242,10 @@ export default function StoreFormPage({ section }) {
           <input type="checkbox" className="size-5 accent-primary" checked={form.postEnabled} onChange={event => set({ postEnabled: event.target.checked })} disabled={busy} />
           Ofrecer un producto después de la compra
         </label>
+        {!form.postEnabled && form.postProductId && <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm">Producto asociado: {products.find(product => product._id === form.postProductId)?.name}</span>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => set({ postProductId: '' })}>Quitar asociación</Button>
+        </div>}
         {form.postEnabled && <div className="grid gap-5 sm:grid-cols-[1.6fr_1fr]">
           <Field label="Producto">{props => productSelect(props, form.postProductId, postProductId => set({ postProductId }))}</Field>
           <Field label="Precio">{props => priceInput(props, form.postPrice, postPrice => set({ postPrice }))}</Field>

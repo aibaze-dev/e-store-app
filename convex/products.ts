@@ -1,14 +1,17 @@
 import { v } from 'convex/values';
-import { mutation, query } from './lib/functions';
+import { mutation, query, type Doc } from './lib/functions';
 import { requireAdmin } from './lib/permissions';
 import { cleanText, cleanUrl, cleanAmount, cleanCurrency, fail } from './lib/validation';
 import { deliverable } from './schema';
 import { artifacts } from '../shared/artifact-registry.js';
+import { findLanguage } from '../shared/languages.js';
 
 const fields = {
   name: v.string(),
   shortDescription: v.optional(v.string()),
   featured: v.optional(v.boolean()),
+  // null clears the language; omitted keeps the saved one.
+  language: v.optional(v.union(v.null(), v.string())),
   referencePrice: v.optional(v.union(v.null(), v.object({ currency: v.string(), value: v.number() }))),
   description: v.string(),
   coverUrl: v.string(),
@@ -20,7 +23,13 @@ const fields = {
 const editableType = v.optional(v.union(v.literal('e-book'), v.literal('app')));
 type EditableType = 'e-book' | 'app';
 
-function clean(args: { name: string; shortDescription?: string; featured?: boolean; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string; kind?: 'file' | 'link' }[] }, type: EditableType = 'e-book') {
+function cleanLanguage(code: string | null) {
+  if (code === null || code === '') return undefined;
+  if (!findLanguage(code)) fail('Idioma: elegí uno de la lista.');
+  return code;
+}
+
+function clean(args: { name: string; shortDescription?: string; featured?: boolean; language?: string | null; referencePrice?: { currency: string; value: number } | null; description: string; coverUrl: string; status: 'active' | 'archived'; deliverables: { title: string; url: string; kind?: 'file' | 'link' }[] }, type: EditableType = 'e-book') {
   if (args.deliverables.length > 30) fail('Entregables: usá hasta 30 documentos o enlaces por producto.');
   // An app delivers exactly one thing: the link to it, named after the product.
   if (type === 'app') {
@@ -31,6 +40,7 @@ function clean(args: { name: string; shortDescription?: string; featured?: boole
     type,
     ...(args.shortDescription !== undefined ? { shortDescription: cleanText(args.shortDescription, 'Descripción corta', 180) } : {}),
     ...(args.featured !== undefined ? { featured: args.featured } : {}),
+    ...(args.language !== undefined ? { language: cleanLanguage(args.language) } : {}),
     ...(args.referencePrice !== undefined ? { referencePrice: args.referencePrice === null ? null : { currency: cleanCurrency(args.referencePrice.currency), value: cleanAmount(args.referencePrice.value, 'Precio de referencia') } } : {}),
     name: cleanText(args.name, 'Nombre', 120, true),
     description: cleanText(args.description, 'Descripción', 2000),
@@ -52,8 +62,17 @@ export const list = query({
   },
 });
 
-// Which stores sell each product: as main, bonus, extra or post-purchase offer.
-// Products missing from the result are not used by any store.
+// A saved selection still links the product to the store when the offer is disabled.
+function linkedProductIds(store: Doc<'stores'>) {
+  return new Set([
+    store.offer.mainProductId,
+    ...store.offer.bonuses.map(bonus => bonus.productId),
+    ...store.offer.upsells.map(upsell => upsell.productId),
+    ...(store.postPurchase.productId ? [store.postPurchase.productId] : []),
+    ...(store.checkout?.upsellReferences ?? []).map(reference => reference.productId),
+  ]);
+}
+
 export const storeUsage = query({
   args: {},
   handler: async ctx => {
@@ -61,15 +80,23 @@ export const storeUsage = query({
     const stores = await ctx.db.query('stores').order('desc').collect();
     const usage: Record<string, { _id: string; name: string }[]> = {};
     for (const store of stores) {
-      const ids = new Set<string>([
-        store.offer.mainProductId,
-        ...store.offer.bonuses.map(bonus => bonus.productId),
-        ...store.offer.upsells.map(upsell => upsell.productId),
-        ...(store.postPurchase.enabled && store.postPurchase.productId ? [store.postPurchase.productId] : []),
-      ]);
-      for (const id of ids) (usage[id] ??= []).push({ _id: store._id, name: store.name });
+      for (const id of linkedProductIds(store)) (usage[id] ??= []).push({ _id: store._id, name: store.name });
     }
     return usage;
+  },
+});
+
+export const removeEbook = mutation({
+  args: { id: v.id('products') },
+  handler: async (ctx, { id }) => {
+    await requireAdmin(ctx);
+    const product = await ctx.db.get(id);
+    if (!product) return;
+    if (product.type && product.type !== 'e-book') fail('Solo se pueden eliminar ebooks desde esta opción.');
+    for await (const store of ctx.db.query('stores')) {
+      if (linkedProductIds(store).has(id)) fail(`Quitá el ebook de «${store.name}» antes de eliminarlo.`);
+    }
+    await ctx.db.delete(id);
   },
 });
 

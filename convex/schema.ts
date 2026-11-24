@@ -145,6 +145,8 @@ export default defineSchema({
     artifactSlug: v.optional(v.string()),
     shortDescription: v.optional(v.string()),
     featured: v.optional(v.boolean()),
+    // Language code from shared/languages.js; absent when not specified.
+    language: v.optional(v.string()),
     referencePrice: v.optional(v.union(v.null(), v.object({ currency: v.string(), value: v.number() }))),
     name: v.string(),
     description: v.string(),

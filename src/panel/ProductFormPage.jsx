@@ -15,11 +15,13 @@ import { Input } from '@/components/ui/input';
 import CurrencySelect from '@/components/CurrencySelect.jsx';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { NativeSelect } from '@/components/ui/native-select';
+import { LANGUAGES } from '../../shared/languages.js';
 import { EmptyState, ErrorAlert, Field, PageSkeleton } from '@/components/Field.jsx';
 import { CoverArt, SectionHeading, StatusPill, deliverableSummary } from './CatalogParts.jsx';
 import { ViewContentButton } from './DeliverableViewer.jsx';
 
-const EMPTY = { type: 'e-book', appUrl: '', shortDescription: '', featured: false, referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [] };
+const EMPTY = { type: 'e-book', appUrl: '', shortDescription: '', featured: false, language: '', referenceConfigured: true, referenceAmount: '', referenceCurrency: business.currency, name: '', description: '', coverUrl: '', status: 'active', deliverables: [] };
 const KINDS = [{ value: 'file', label: 'Documento', icon: FileText }, { value: 'link', label: 'Enlace', icon: Link2 }];
 const STATUSES = [{ value: 'active', label: 'Activo' }, { value: 'archived', label: 'Archivado' }];
 const TYPES = [{ value: 'e-book', label: 'Ebook', icon: BookOpen }, { value: 'app', label: 'App', icon: AppWindow }];
@@ -65,7 +67,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
     if (existing && !form) {
       const { name, description, coverUrl, status, deliverables } = existing;
       const app = existing.type === 'app';
-      setForm({ name, description, coverUrl, status, type: app ? 'app' : 'e-book', appUrl: app ? deliverables[0]?.url ?? '' : '', deliverables: app ? [] : deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
+      setForm({ name, description, coverUrl, status, type: app ? 'app' : 'e-book', appUrl: app ? deliverables[0]?.url ?? '' : '', deliverables: app ? [] : deliverables, shortDescription: existing.shortDescription ?? '', featured: existing.featured ?? false, language: existing.language ?? '', referenceConfigured: existing.referencePrice !== undefined, referenceAmount: fromMinor(existing.referencePrice?.value, existing.referencePrice?.currency || business.currency), referenceCurrency: existing.referencePrice?.currency || business.currency });
     }
   }, [existing, form, artifactMode, artifact]);
 
@@ -96,6 +98,7 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
       const { referenceConfigured, referenceAmount, referenceCurrency, appUrl, ...data } = form;
       // An app is a product whose only deliverable is its link.
       if (data.type === 'app') data.deliverables = [{ title: data.name, url: appUrl, kind: 'link' }];
+      data.language = data.language || null;
       if (referenceConfigured) {
         const value = referenceAmount.trim() ? toMinor(referenceAmount, referenceCurrency) : null;
         if (value !== null && (!Number.isInteger(value) || value <= 0)) { setError(`Ingresá un precio de referencia válido o dejalo vacío. ${amountHint(referenceCurrency)}.`); setBusy(false); return; }
@@ -140,6 +143,10 @@ function ProductForm({ artifactMode, productId, artifactSlug }) {
             <div className="space-y-5">
               <Field label="Nombre">{props => <Input {...props} value={form.name} onChange={event => set({ name: event.target.value })} maxLength={120} required disabled={busy} />}</Field>
               <Field label="Descripción">{props => <Textarea {...props} rows={5} value={form.description} onChange={event => set({ description: event.target.value })} maxLength={2000} disabled={busy} />}</Field>
+              <Field label="Idioma" hint="Se muestra con su bandera en el catálogo.">{props => <NativeSelect {...props} value={form.language} onChange={event => set({ language: event.target.value })} disabled={busy}>
+                <option value="">Sin especificar</option>
+                {LANGUAGES.map(language => <option key={language.code} value={language.code}>{language.flag} {language.name}</option>)}
+              </NativeSelect>}</Field>
             </div>
             <ImageField label="Portada" value={form.coverUrl} onChange={coverUrl => set({ coverUrl })} disabled={busy} uploadOnly hint={`Opcional. Se muestra en la landing, el checkout y este panel.`} />
           </div>

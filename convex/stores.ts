@@ -45,11 +45,8 @@ async function clean(ctx: MutationCtx, args: {
     if (id === offer.mainProductId) fail('El producto principal no puede repetirse como bono o extra.');
   }
 
-  if (postPurchase.enabled) {
-    if (!postPurchase.productId || !(await ctx.db.get(postPurchase.productId))) {
-      fail('Oferta post-compra: elegí un producto del catálogo.');
-    }
-  }
+  const postProduct = postPurchase.productId && await ctx.db.get(postPurchase.productId);
+  if (postPurchase.enabled && !postProduct) fail('Oferta post-compra: elegí un producto del catálogo.');
   if (args.status === 'active' && main.deliverables.length === 0) {
     fail('Para activar la tienda, el producto principal necesita al menos un entregable.');
   }
@@ -75,7 +72,7 @@ async function clean(ctx: MutationCtx, args: {
     },
     postPurchase: {
       enabled: postPurchase.enabled,
-      productId: postPurchase.productId,
+      productId: postProduct?._id,
       price: postPurchase.enabled ? cleanAmount(postPurchase.price, 'Precio post-compra') : cleanAmount(postPurchase.price, 'Precio post-compra', 0),
       ...(postPurchase.downsellPercent ? { downsellPercent: cleanPercent(postPurchase.downsellPercent, 'Descuento del downsell post-compra') } : {}),
     },

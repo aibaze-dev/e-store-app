@@ -11,7 +11,7 @@ export const api = {
   analytics: { rollingActivity: ref('analytics:rollingActivity'), liveSessions: ref('analytics:liveSessions'), recordView: ref('analytics:recordView'), report: ref('analytics:report') },
   auth: { getCurrentUser: ref('auth:getCurrentUser') },
   access: { check: ref('access:check') },
-  products: { getByArtifactSlug: ref('products:getByArtifactSlug'), saveArtifact: ref('products:saveArtifact'), list: ref('products:list'), storeUsage: ref('products:storeUsage'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update') },
+  products: { getByArtifactSlug: ref('products:getByArtifactSlug'), saveArtifact: ref('products:saveArtifact'), list: ref('products:list'), storeUsage: ref('products:storeUsage'), get: ref('products:get'), create: ref('products:create'), update: ref('products:update'), removeEbook: ref('products:removeEbook') },
   stores: { list: ref('stores:list'), get: ref('stores:get'), create: ref('stores:create'), update: ref('stores:update'), updateCheckout: ref('stores:updateCheckout'), setSubdomain: ref('stores:setSubdomain') },
   landings: {list:ref('landings:list'),cloneSources:ref('landings:cloneSources'),cloneFrom:ref('landings:cloneFrom'),unpublish:ref('landings:unpublish'), getForStore: ref('landings:getForStore'), preview: ref('landings:preview'), saveDraft: ref('landings:saveDraft'), publish: ref('landings:publish') },
   landingWizard: { generate: ref('landing_wizard:generate'), importPrompt: ref('landing_wizard:importPrompt'), importJson: ref('landing_wizard:importJson') },
