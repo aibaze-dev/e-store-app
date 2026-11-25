@@ -4,7 +4,7 @@ import { makeFunctionReference as ref } from 'convex/server';
 export const api = {
   projectBrief: { open: ref('project_brief:open'), submit: ref('project_brief:submit') },
   media: { uploadUrl: ref('media:uploadUrl'), finalize: ref('media:finalize') },
-  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','checkoutArrival','checkoutContact','imageUploadUrl','imageUrl','cloneSources','cloneProposal'].map(name=>[name,ref(`quizzes:${name}`)])),
+  quizzes: Object.fromEntries(['get','save','publish','publicConfig','start','recover','saveAnswer','sessions','detail','remove','funnel','resultArrival','checkoutArrival','checkoutContact','imageUploadUrl','imageUrl','cloneSources','cloneProposal'].map(name=>[name,ref(`quizzes:${name}`)])),
   quizWizard: {generate:ref('quiz_wizard:generate')},
   translations: { landing: ref('translations:landing'), quiz: ref('translations:quiz') },
   quizImages: {generate:ref('quiz_images:generate')},

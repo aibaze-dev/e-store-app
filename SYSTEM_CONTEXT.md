@@ -99,7 +99,7 @@ Las nuevas sesiones tienen un límite de ráfaga por tienda/IP representada medi
 
 La captura de nombre/email puede ser opcional, requerida o desactivada. El consentimiento de marketing es independiente y no está preseleccionado. Se guarda decisión, fecha, texto y publicación. Esta entrega no envía emails automáticamente.
 
-**Contactos y respuestas** permite listar sesiones paginadas, consultar respuestas, cálculos, perfil y compras vinculadas. Eliminar un registro borra respuestas/contacto y desvincula la sesión de sus órdenes; las órdenes mantienen su historial financiero y origen. No hay purga automática. Las consultas administrativas y operaciones de edición requieren `requireAdmin`.
+**Contactos y respuestas** muestra cuántas sesiones iniciaron el quiz, llegaron a la página final y pasaron al checkout. El embudo reúne todas las publicaciones de la tienda. Para las sesiones anteriores al registro de vistas del resultado, identifica las llegadas estimadas por finalización. El desglose cuenta una vez cada pantalla completada por sesión de la última publicación, en el orden del quiz. También permite listar sesiones paginadas, consultar respuestas, cálculos, perfil y compras vinculadas. Eliminar un registro borra respuestas/contacto y desvincula la sesión de sus órdenes; las órdenes mantienen su historial financiero y origen. No hay purga automática. Las consultas administrativas y operaciones de edición requieren `requireAdmin`.
 
 ## Checkout, promociones y atribución
 

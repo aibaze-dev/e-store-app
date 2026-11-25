@@ -255,6 +255,7 @@ export default defineSchema({
     ipHash:v.optional(v.string()), ip:v.optional(v.string()), attribution: v.optional(attribution), tokenHash: v.string(), revision: v.number(), lastCommand: v.string(), currentStep: v.union(v.string(), v.null()),
     stepEvents: v.optional(v.array(v.object({stepId:v.string(),at:v.number()}))), firstCompletedAt:v.optional(v.number()), contactCapturedAt:v.optional(v.number()),
     history: v.array(v.string()), answers: v.any(), calculations: v.any(), resultId: v.optional(v.string()),
+    resultViewedAt: v.optional(v.union(v.number(), v.null())),
     contact: v.optional(v.any()), consent: v.optional(v.any()), completedAt: v.optional(v.number()), checkoutAt: v.optional(v.number()), updatedAt: v.number(),
   }).index('by_token', ['tokenHash']).index('by_store', ['storeId']).index('by_store_ip',['storeId','ipHash']),
   // Public support form (/soporte, linked from the purchase email). The email is what the

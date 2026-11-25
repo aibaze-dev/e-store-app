@@ -98,6 +98,7 @@ export default function Quiz({ subdomain, view }) {
   useEffect(() => { trackPageView(view?.store.metaPixelIds); }, [view?.store.metaPixelIds]);
   const start = useMutation(api.quizzes.start), save = useMutation(api.quizzes.saveAnswer), arrival = useMutation(api.quizzes.checkoutArrival), recordView = useMutation(api.analytics.recordView);
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [retry, setRetry] = useState(0);
+  const recordResult = useMutation(api.quizzes.resultArrival);
   const pending = useRef(null);
   const navigate = useNavigate(), location = useLocation();
   const base = location.pathname.includes('/l/') ? `/l/${subdomain}` : '';
@@ -123,6 +124,11 @@ export default function Quiz({ subdomain, view }) {
     const expected = `${base}/quiz${data.session.currentStep === null ? '/resultado' : ''}`;
     if (location.pathname !== expected) navigate(expected, { replace: true });
   }, [data, base, location.pathname, navigate]);
+  const showingResult = Boolean(config !== null && data?.session.resultId && data.session.currentStep === null);
+  useEffect(() => {
+    const token = showingResult && readQuizToken(subdomain);
+    if (token) recordResult({ token }).catch(() => {});
+  }, [showingResult, subdomain, recordResult]);
   async function command(direction, value) {
     if (busy) return;
     setBusy(true); setError('');

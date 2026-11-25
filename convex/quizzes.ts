@@ -103,7 +103,7 @@ export const start = mutation({args:{subdomain:v.string(),token:v.string(),attri
  const publication=(await ctx.db.get(landing.publicationId))!;
  // The campaign of the ad link that opened the quiz; a recovered session keeps its own.
  const campaign=cleanAttribution(attribution);
- const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,...(ip?{ip}:{}),...(campaign?{attribution:campaign}:{}),tokenHash:hash,...initialSession(publication.content),updatedAt:Date.now()});
+ const id=await ctx.db.insert('quizSessions',{storeId:store._id,landingId:landing._id,publicationId:publication._id,ipHash,...(ip?{ip}:{}),...(campaign?{attribution:campaign}:{}),tokenHash:hash,resultViewedAt:null,...initialSession(publication.content),updatedAt:Date.now()});
  return response(ctx,await ctx.db.get(id));
 }});
 export const recover = query({args:{token:v.string()},handler:async(ctx,{token})=>response(ctx,await authorizedSession(ctx,token))});
@@ -146,38 +146,78 @@ export const checkoutContact = query({args:{subdomain:v.string(),token:v.string(
  const email=typeof session.contact?.email==='string'?session.contact.email.trim().slice(0,254):'';
  return name||email?{name,email}:null;
 }});
+export const resultArrival = mutation({args:{token:v.string()},handler:async(ctx,{token})=>{
+ const session=await authorizedSession(ctx,token);
+ if(session.currentStep !== null || !session.resultId)fail('Please finish the quiz first.');
+ if(session.resultViewedAt == null)await ctx.db.patch(session._id,{resultViewedAt:Date.now()});
+}});
 export const checkoutArrival = mutation({args:{token:v.string()},handler:async(ctx,{token})=>{
  const session=await authorizedSession(ctx,token);if(!session.completedAt)fail('Please finish the quiz first.');
  if(!session.checkoutAt)await ctx.db.patch(session._id,{checkoutAt:Date.now()});
 }});
-const emptyFunnel=()=>({sources:['classic','quiz','direct'].map(origin=>({origin,visits:0,checkout:0,purchases:0})),started:0,completed:0,contacts:0,checkout:0,steps:{} as Record<string,number>});
-export const funnelPage=internalQuery({args:{storeId:v.id('stores'),table:v.union(v.literal('quizSessions'),v.literal('orders'),v.literal('pageViews')),cursor:v.union(v.string(),v.null()),before:v.number()},handler:async(ctx,{storeId,table,cursor,before})=>{
- await requireAdmin(ctx);
- const page=table==='pageViews'?await ctx.db.query('pageViews').withIndex('by_store_day',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:100}):table==='orders'?await ctx.db.query('orders').withIndex('by_store',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:100}):await ctx.db.query('quizSessions').withIndex('by_store',q=>q.eq('storeId',storeId)).paginate({cursor,numItems:20});
- const totals=emptyFunnel();
- for(const row of page.page as any[]){
-  if(row._creationTime>before)continue;
-  if(table==='quizSessions'){
-   totals.started++;if(row.firstCompletedAt||row.completedAt)totals.completed++;if(row.contactCapturedAt||row.contact?.email||row.contact?.name)totals.contacts++;if(row.checkoutAt)totals.checkout++;
-   for(const id of row.stepEvents?.map((e:any)=>e.stepId)??row.history)totals.steps[id]=(totals.steps[id]??0)+1;
-  }else{
-   const origin=row.origin??(table==='pageViews'&&row.page==='landing'?'classic':'direct');const source=totals.sources.find(s=>s.origin===origin)!;
-   if(table==='orders'){if(!row.parentOrderId&&row.status==='paid')source.purchases++;}
-   else if(row.page==='landing')source.visits++;else if(row.page==='checkout')source.checkout++;
-  }
- }
- return {totals,cursor:page.continueCursor,done:page.isDone};
-}});
-export const funnel=action({args:{storeId:v.id('stores')},handler:async(ctx,{storeId})=>{
- await requireAdmin(ctx);const result=emptyFunnel(),before=Date.now();
- for(const table of ['quizSessions','orders','pageViews']){
-  let cursor:string|null=null;
-  for(;;){const page:any=await ctx.runQuery(makeFunctionReference<'query'>('quizzes:funnelPage'),{storeId,table,cursor,before});
-   for(const key of ['started','completed','contacts','checkout'] as const)result[key]+=page.totals[key];
-   for(const [id,count]of Object.entries(page.totals.steps))result.steps[id]=(result.steps[id]??0)+(count as number);
-   for(const source of result.sources){const values=page.totals.sources.find((s:any)=>s.origin===source.origin);source.visits+=values.visits;source.checkout+=values.checkout;source.purchases+=values.purchases;}
-   if(page.done)break;cursor=page.cursor;
-  }
- }
- return {...result,steps:Object.entries(result.steps),asOf:before};
-}});
+type Screen = { id: string; title: string };
+const emptyFunnel = () => ({ started: 0, contacts: 0, finalPage: 0, estimatedFinal: 0, checkout: 0, publicationSessions: 0 });
+
+export const funnelPublication = internalQuery({
+  args: { storeId: v.id('stores') },
+  handler: async (ctx, { storeId }) => {
+    await requireAdmin(ctx);
+    const version = await ctx.db.query('quizPublications').withIndex('by_store', q => q.eq('storeId', storeId)).order('desc').first();
+    if (!version) return null;
+    const screens: Screen[] = version.content.steps
+      .filter((step: { enabled?: boolean }) => step.enabled !== false)
+      .map(({ id, title }: Screen) => ({ id, title }));
+    return { id: version._id, screens };
+  },
+});
+
+export const funnelPage = internalQuery({
+  args: { storeId: v.id('stores'), publicationId: v.union(v.id('quizPublications'), v.null()), cursor: v.union(v.string(), v.null()), before: v.number() },
+  handler: async (ctx, { storeId, publicationId, cursor, before }) => {
+    await requireAdmin(ctx);
+    const page = await ctx.db.query('quizSessions')
+      .withIndex('by_store', q => q.eq('storeId', storeId).lte('_creationTime', before))
+      .paginate({ cursor, numItems: 20 });
+    const totals = emptyFunnel();
+    const steps = new Map<string, number>();
+    for (const session of page.page) {
+      totals.started++;
+      if (session.contactCapturedAt || session.contact?.email || session.contact?.name) totals.contacts++;
+      // Older sessions did not distinguish finishing the quiz from rendering the result.
+      if (session.resultViewedAt != null || session.checkoutAt != null) totals.finalPage++;
+      else if (session.resultViewedAt === undefined && (session.firstCompletedAt || session.completedAt)) {
+        totals.finalPage++;
+        totals.estimatedFinal++;
+      }
+      if (session.checkoutAt != null) totals.checkout++;
+      if (session.publicationId !== publicationId) continue;
+      totals.publicationSessions++;
+      const completed = new Set([...session.history, ...(session.stepEvents ?? []).map(event => event.stepId)]);
+      for (const id of completed) steps.set(id, (steps.get(id) ?? 0) + 1);
+    }
+    return { totals, steps: [...steps], cursor: page.continueCursor, done: page.isDone };
+  },
+});
+
+export const funnel = action({
+  args: { storeId: v.id('stores') },
+  handler: async (ctx, { storeId }) => {
+    await requireAdmin(ctx);
+    const asOf = Date.now();
+    const publication: { id: Id<'quizPublications'>; screens: Screen[] } | null = await ctx.runQuery(
+      makeFunctionReference<'query'>('quizzes:funnelPublication'), { storeId });
+    const totals = emptyFunnel();
+    const counts = new Map<string, number>();
+    let cursor: string | null = null;
+    for (;;) {
+      const page: { totals: typeof totals; steps: [string, number][]; cursor: string; done: boolean } = await ctx.runQuery(
+        makeFunctionReference<'query'>('quizzes:funnelPage'), { storeId, publicationId: publication?.id ?? null, cursor, before: asOf });
+      for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += page.totals[key];
+      for (const [id, count] of page.steps) counts.set(id, (counts.get(id) ?? 0) + count);
+      if (page.done) break;
+      cursor = page.cursor;
+    }
+    const screens = (publication?.screens ?? []).map(screen => ({ ...screen, count: counts.get(screen.id) ?? 0 }));
+    return { ...totals, screens, asOf };
+  },
+});

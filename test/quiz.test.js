@@ -81,8 +81,8 @@ describe('simplified quiz authoring and shared presentation', () => {
   await f.t.mutation(api.quizzes.saveAnswer,args);await f.t.mutation(api.quizzes.saveAnswer,args);
   await f.t.mutation(api.quizzes.checkoutArrival,{token:key});await f.t.mutation(api.quizzes.checkoutArrival,{token:key});
   const report=await f.admin.action(api.quizzes.funnel,{storeId:f.storeId});
-  expect(report).toMatchObject({started:1,completed:1,contacts:1,checkout:1});
-  expect(Object.fromEntries(report.steps)).toEqual({choice:1,contact:1});
+  expect(report).toMatchObject({started:1,finalPage:1,contacts:1,checkout:1});
+  expect(report.screens.map(({id,count})=>[id,count])).toEqual([['choice',1],['contact',1]]);
   const row=(await f.admin.query(api.quizzes.sessions,{storeId:f.storeId,cursor:null})).page[0];
   await expect(f.t.query(api.quizzes.detail,{sessionId:row._id})).rejects.toThrow();
   await expect(f.t.mutation(api.quizzes.remove,{sessionId:row._id})).rejects.toThrow();
@@ -90,6 +90,35 @@ describe('simplified quiz authoring and shared presentation', () => {
   // The IP is kept for later location lookups but never leaves the server.
   expect(row.ip).toBeUndefined();
   expect((await f.t.run(ctx=>ctx.db.get(row._id))).ip).toBe('192.0.2.1');
+ });
+ it('counts displayed results, preserves historical estimates, and scopes screen counts to the latest publication', async () => {
+  const f = await fixture();
+  const key = token();
+  await publish(f);
+  await complete(f, key);
+  const report = () => f.admin.action(api.quizzes.funnel, { storeId: f.storeId });
+  expect(await report()).toMatchObject({ started: 1, finalPage: 0, checkout: 0 });
+  await f.t.mutation(api.quizzes.resultArrival, { token: key });
+  await f.t.mutation(api.quizzes.resultArrival, { token: key });
+  expect(await report()).toMatchObject({ finalPage: 1, checkout: 0, estimatedFinal: 0 });
+  const legacy = token();
+  await complete(f, legacy);
+  const [row] = (await f.admin.query(api.quizzes.sessions, { storeId: f.storeId, cursor: null })).page;
+  await f.t.run(ctx => ctx.db.patch(row._id, { resultViewedAt: undefined, stepEvents: undefined }));
+  expect(await report()).toMatchObject({ finalPage: 2, estimatedFinal: 1, screens: [{ count: 2 }, { count: 2 }] });
+  const quiz = tiny();
+  quiz.steps.splice(1, 0, newStep('text', 'optional'));
+  quiz.steps[0].jumps = [{ target: 'contact', when: { mode: 'all', conditions: [{ ref: 'answer:choice', operator: 'eq', value: 'option1' }] } }];
+  await publish(f, quiz);
+  const other = token();
+  const start = await f.t.mutation(api.quizzes.start, { subdomain: 'guide', token: other });
+  await expect(f.t.mutation(api.quizzes.resultArrival, { token: other })).rejects.toThrow();
+  await f.t.mutation(api.quizzes.saveAnswer, { token: other, ...command(start.session, 'option1') });
+  await f.t.mutation(api.quizzes.checkoutArrival, { token: key });
+  expect(await report()).toMatchObject({
+    started: 3, finalPage: 2, estimatedFinal: 1, checkout: 1, publicationSessions: 1,
+    screens: [{ id: 'choice', count: 1 }, { id: 'optional', count: 0 }, { id: 'contact', count: 0 }],
+  });
  });
  it('retains bonuses, extras, downsell, post-purchase attribution and delivery after webhooks',async()=>{
   const f=await fixture();const extra=await f.admin.mutation(api.products.create,product('Extra','extra'));
