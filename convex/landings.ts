@@ -40,6 +40,17 @@ export function cleanContent(content: typeof landingContent.type) {
   if (content.faq.items.length > 20 || (content.socialProof?.items.length ?? 0) > 12) fail('Usá hasta 20 preguntas y 12 testimonios.');
   const accent = content.style.accentColor.trim();
   if (accent && !/^#[0-9a-fA-F]{6}$/.test(accent)) fail('Color de acento: usá un color hexadecimal, por ejemplo #f59e0b.');
+  // Floating figures next to the hero photo; rows the form left empty are dropped.
+  const heroChips = (content.hero.chips ?? []).filter(chip => chip.value.trim() || chip.label.trim());
+  if (heroChips.length > 3) fail('Encabezado: usá hasta 3 datos flotantes.');
+  // Optional colors of their own; empty means the piece follows the main color.
+  const ownColor = (value: string | undefined, label: string) => {
+    const color = (value ?? '').trim();
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) fail(`${label}: usá un color hexadecimal, por ejemplo #1d4ed8.`);
+    return color;
+  };
+  const barColor = ownColor(content.promotion?.barColor, 'Color de la barra de oferta');
+  const ctaColor = ownColor(content.hero.ctaColor, 'Color del botón del hero');
   const days = content.guarantee.days;
   if (days !== undefined && (!Number.isInteger(days) || days < 1 || days > 365)) fail('Garantía: ingresá entre 1 y 365 días.');
   const endsAt = content.promotion?.endsAt;
@@ -57,7 +68,7 @@ export function cleanContent(content: typeof landingContent.type) {
   const videoUrl = cleanUrl(post.postPurchaseVideo.url, 'Video post-compra');
   if (videoUrl && !videoSource(videoUrl)) fail('Video post-compra: subí un archivo MP4, WebM u OGV.');
   if (post.postPurchaseVideo.enabled && !videoUrl) fail('Video post-compra: subí un archivo para activar el VSL.');
-  const storyHeading = (key: keyof typeof CLASSIC_STORY) => {
+  const storyHeading = (key: Exclude<keyof typeof CLASSIC_STORY, 'riskFree'>) => {
     const value = { ...CLASSIC_STORY[key], ...content[key] };
     return { ...section(value), eyebrow: cleanText(value.eyebrow, 'Antetítulo', 120), title: cleanText(value.title, 'Título de sección', 120) };
   };
@@ -78,6 +89,15 @@ export function cleanContent(content: typeof landingContent.type) {
   const kitVideo = sectionVideo(content.benefits.videoUrl, 'Video del kit');
   const showcaseVideo = sectionVideo(content.showcase?.videoUrl, 'Video de qué viene adentro');
   const combo = { ...CLASSIC_STORY.combo, ...content.combo };
+  // Opt-in blocks: each keeps exactly the fields its form edits.
+  const action = (value: { ctaText?: string; note?: string }) => ({ ctaText: cleanText(value.ctaText ?? '', 'Texto del botón', 60), note: cleanText(value.note ?? '', 'Nota de sección', 240) });
+  const highlights = { ...CLASSIC_STORY.highlights, ...content.highlights };
+  const offerTimer = { ...CLASSIC_STORY.offerTimer, ...content.offerTimer };
+  const bonusCards = { ...CLASSIC_STORY.bonusCards, ...content.bonusCards };
+  const valueStack = { ...CLASSIC_STORY.valueStack, ...content.valueStack };
+  const riskFree = { ...CLASSIC_STORY.riskFree, ...content.riskFree };
+  if (highlights.items.length > 6) fail('Tarjetas destacadas: usá hasta 6 tarjetas.');
+  if (valueStack.items.length > 6) fail('Resumen de valor: usá hasta 6 líneas adicionales.');
   // Errors name the screen: the landing and checkout exit popups share their field labels.
   const cleanLabels = (key: 'postLabels' | 'landingExit' | 'backPopup', fields: Record<string, { label: string }>, screen: string, optional: string[]) => Object.fromEntries(Object.entries(fields).filter(([name]) => content[key]?.[name] !== undefined).map(([name, field]) => [name, cleanText(content[key][name], `${screen} · ${field.label}`, 1200, !optional.includes(name))]));
   return {
@@ -90,6 +110,11 @@ export function cleanContent(content: typeof landingContent.type) {
     about: { ...storyHeading('about'), ...storyImage('about'), text: cleanText(content.about?.text ?? '', 'Quiénes somos', 2400), signature: cleanText(content.about?.signature ?? '', 'Firma del equipo', 120) },
     showcase: { ...storyHeading('showcase'), ...storyImage('showcase'), videoUrl: showcaseVideo },
     comparison: { ...storyHeading('comparison'), badge: cleanText(content.comparison?.badge ?? '', 'Etiqueta de la opción destacada', 60), ctaText: cleanText(content.comparison?.ctaText ?? '', 'Texto del botón', 60), items: (content.comparison?.items ?? []).map(item => ({ title: cleanText(item.title, 'Opción de comparación', 120, true), description: cleanText(item.description, 'Detalle de comparación', 600, true), highlighted: item.highlighted })) },
+    highlights: { ...storyHeading('highlights'), items: (highlights.items as Array<{ title: string; description: string; icon: string; fact?: string }>).map(item => ({ title: cleanText(item.title, 'Título de la tarjeta', 120, true), description: cleanText(item.description, 'Texto de la tarjeta', 600), icon: cleanText(item.icon, 'Ícono', 32), fact: cleanText(item.fact ?? '', 'Dato de la tarjeta', 160) })) },
+    offerTimer: { ...storyHeading('offerTimer'), ...action(offerTimer), badge: cleanText(offerTimer.badge, 'Etiqueta de la oferta', 60), priceNote: cleanText(offerTimer.priceNote, 'Línea bajo el precio', 120), text: cleanText(offerTimer.text, 'Aviso de la oferta', 400) },
+    bonusCards: { ...storyHeading('bonusCards'), ...action(bonusCards) },
+    valueStack: { ...storyHeading('valueStack'), ...action(valueStack), items: (valueStack.items as Array<{ title: string; description: string }>).map(item => ({ title: cleanText(item.title, 'Línea del resumen', 120, true), description: cleanText(item.description, 'Detalle de la línea', 240) })) },
+    riskFree: { enabled: riskFree.enabled, title: cleanText(riskFree.title, 'Título del sello', 120), text: cleanText(riskFree.text, 'Texto del sello', 1200), imageUrl: cleanUrl(riskFree.imageUrl, 'Sello de garantía'), imageAlt: cleanText(riskFree.imageAlt, 'Descripción del sello', 240) },
     combo: { ...storyHeading('combo'), ...copy(combo, combo.eyebrow), upsellText: cleanText(combo.upsellText, 'Texto de extras', 120), allText: cleanText(combo.allText, 'Botón para sumar todo', 60) },
     postPurchase: {
       eyebrow: cleanText(post.postPurchase.eyebrow, 'Antetítulo post-compra', 120),
@@ -116,6 +141,8 @@ export function cleanContent(content: typeof landingContent.type) {
     },
     hero: {
       eyebrow: cleanText(content.hero.eyebrow ?? '', 'Antetítulo principal', 120),
+      ctaColor,
+      chips: heroChips.map(chip => ({ value: cleanText(chip.value, 'Dato flotante', 20, true), label: cleanText(chip.label, 'Etiqueta del dato flotante', 40) })),
       secondaryImageUrl: cleanUrl(content.hero.secondaryImageUrl ?? '', 'Segunda imagen principal'),
       note: cleanText(content.hero.note ?? '', 'Nota de presentación', 240),
       noteTitle: cleanText(content.hero.noteTitle ?? '', 'Título de la nota', 120),
@@ -166,6 +193,7 @@ export function cleanContent(content: typeof landingContent.type) {
       timerLabel: cleanText(content.promotion?.timerLabel ?? PROMOTION_COPY.timerLabel, 'Texto del contador', 120),
       spotsText: cleanText(content.promotion?.spotsText ?? PROMOTION_COPY.spotsText, 'Texto de cupos', 240),
       enabled: content.promotion?.enabled ?? true,
+      barColor,
       timerMode: content.promotion?.timerMode ?? 'session',
       ...(remainingSpots !== undefined ? { remainingSpots } : {}),
       message: cleanText(content.promotion?.message ?? 'Limited-time offer', 'Mensaje de promoción', 120),

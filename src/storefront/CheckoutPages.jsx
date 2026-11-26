@@ -114,7 +114,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
     {guarantee && <span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5" aria-hidden="true" />{guarantee}</span>}
   </p>;
 
-  return <div className="checkout-page min-h-screen bg-muted/40">
+  return <div className="checkout-page min-h-screen bg-muted/40" style={classicTheme(content.style?.accentColor)}>
     <header className="border-b bg-card"><div className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-4 text-sm font-semibold sm:px-6">
       <LockKeyhole className="size-4 text-primary" aria-hidden="true" />{copy.secure}
       <Link onClick={event => { if (preview) event.preventDefault(); }} to={origin==='quiz'?'../quiz/resultado':'..'} className="ml-auto font-normal text-muted-foreground underline underline-offset-4 hover:text-foreground">{copy.back}</Link>

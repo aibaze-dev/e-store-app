@@ -8,7 +8,9 @@ import { requireAdmin } from './lib/permissions';
 import { cleanText, fail } from './lib/validation';
 import { PROMOTION_COPY, ACTIVITY_COPY } from '../shared/landing-copy.js';
 
-const ICONS = ['check', 'book', 'target', 'growth', 'strength', 'brain', 'settings', 'cart', 'mail', 'sparkles'];
+const ICONS = ['check', 'book', 'target', 'growth', 'strength', 'brain', 'settings', 'cart', 'mail', 'sparkles', 'clock', 'wallet', 'grid', 'heart', 'star', 'bolt', 'gift', 'shield'];
+// Opt-in sections: the copy is always written, the seller decides which ones show.
+const OPTIONAL_SECTIONS = { highlights: 'tarjetas destacadas (3 tarjetas con ícono, texto y un dato)', offerTimer: 'oferta con contador (recuadro con el precio grande y un reloj)', bonusCards: 'bonos en tarjetas (una tarjeta por bono con sus viñetas)', valueStack: 'resumen de valor (lista de todo lo incluido con el total y el precio de hoy)', riskFree: 'sello de riesgo cero (sello de garantía con una promesa)' };
 const TONES = { cercano: 'cercano y cálido', profesional: 'profesional y sobrio', energico: 'enérgico y motivador' };
 
 const answers = v.object({
@@ -28,8 +30,9 @@ const text = { type: 'string' };
 const object = (properties: Record<string, unknown>) => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 const list = (properties: Record<string, unknown>) => ({ type: 'array', items: object(properties) });
 const icon = { type: 'string', enum: ICONS };
+const enabled = { type: 'boolean' };
 const SCHEMA = object({
-  hero: object({ eyebrow: text, title: text, titleAccent: text, subtitle: text, headerCtaText: text, ctaText: text, trustText: text, noteTitle: text, note: text, footnote: text }),
+  hero: object({ eyebrow: text, title: text, titleAccent: text, subtitle: text, chips: list({ value: text, label: text }), headerCtaText: text, ctaText: text, trustText: text, noteTitle: text, note: text, footnote: text }),
   introduction: object({ title: text, text, badge: text }),
   transformation: object({ eyebrow: text, title: text, subtitle: text }),
   benefits: object({ eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text, icon }) }),
@@ -39,6 +42,11 @@ const SCHEMA = object({
   about: object({ eyebrow: text, title: text, text, signature: text }),
   showcase: object({ eyebrow: text, title: text, subtitle: text }),
   summary: object({ ctaText: text, note: text }),
+  highlights: object({ enabled, eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text, icon, fact: text }) }),
+  offerTimer: object({ enabled, eyebrow: text, title: text, subtitle: text, badge: text, priceNote: text, text, ctaText: text, note: text }),
+  bonusCards: object({ enabled, eyebrow: text, title: text, subtitle: text, ctaText: text, note: text }),
+  valueStack: object({ enabled, eyebrow: text, title: text, subtitle: text, items: list({ title: text, description: text }), ctaText: text, note: text }),
+  riskFree: object({ enabled, title: text, text }),
   comparison: object({ title: text, badge: text, ctaText: text, alternatives: list({ title: text, drawbacks: { type: 'array', items: text } }), product: object({ title: text, advantages: { type: 'array', items: text } }) }),
   faq: object({ items: list({ question: text, answer: text }) }),
   guarantee: object({ title: text, text, ctaText: text }),
@@ -61,6 +69,7 @@ Reglas:
 - Escribí TODAS las secciones del esquema: la landing se arma completa con tu respuesta.
 - eyebrow (etiqueta sobre el título): hasta 40 caracteres, sin punto final.
 - hero: title y titleAccent son dos partes consecutivas del mismo título: title es el inicio en color base y titleAccent es el remate resaltado. Texto plano en ambos, sin asteriscos; hasta 160 caracteres entre los dos. No repitas el título completo en titleAccent; puede estar vacío si no hace falta resaltar. eyebrow breve; headerCtaText y ctaText son botones distintos entre sí. trustText: una línea de hasta 120 caracteres con datos separados por « · » (acceso inmediato, pago único y seguro, y la garantía solo si el vendedor informó los días). noteTitle y note: una duda frecuente antes de comprar (pregunta de hasta 80 caracteres) y su respuesta (hasta 200), usando solo los datos recibidos. footnote: el formato del producto en hasta 80 caracteres (es digital).
+- hero.chips: hasta 3 datos que flotan junto a la portada. value es una cifra o palabra muy corta (hasta 8 caracteres, por ejemplo 100 o +12) y label la nombra en hasta 20 caracteres (por ejemplo, recetas). Usá solo cifras que figuren en los datos recibidos, como la cantidad real de bonos; si no hay ninguna, devolvé la lista vacía.
 - introduction: title es una pregunta o frase gancho (hasta 110 caracteres); text son 3 o 4 párrafos cortos separados por un salto de línea que presentan el ebook, para quién es y qué resuelve; badge es una frase de cierre de hasta 60 caracteres.
 - transformation: título de hasta 90 caracteres con el cambio «de … a …» que logra el lector y un subtítulo de una línea. La foto la sube el vendedor: no la describas.
 - showcase: título y subtítulo breves que presentan la imagen con todo lo que recibe el comprador. No enumeres contenidos que no figuren en los datos.
@@ -68,6 +77,12 @@ Reglas:
 - about: sección «Quiénes somos». Si el vendedor contó quién está detrás, usá únicamente esos datos. Si no, escribí en primera persona del plural una presentación breve con el nombre de la tienda: por qué armaron este ebook y cómo acompañan al lector. No inventes personas, trayectoria, años, cantidad de clientes, títulos ni premios. text: 2 o 3 párrafos separados por un salto de línea. signature: el nombre de la tienda o del equipo.
 - summary: ctaText del recuadro de precio y una nota breve con el mismo criterio que trustText.
 - comparison: título de hasta 70 caracteres; alternatives son exactamente 2 caminos habituales para resolver el problema sin este ebook (genéricos, sin nombrar marcas, personas ni competidores), cada uno con 3 desventajas de hasta 60 caracteres; product lleva el nombre del ebook y 3 o 4 ventajas de hasta 70 caracteres sustentadas en los datos; badge de hasta 30 caracteres para destacar al ebook y ctaText.
+- Secciones opcionales (highlights, offerTimer, bonusCards, valueStack y riskFree): escribí siempre sus textos. enabled es true solo en las que el vendedor pidió incluir; si no pidió ninguna, false en todas.
+- highlights: exactamente 3 tarjetas con cualidades prácticas del ebook (por ejemplo, fácil de seguir, accesible, variado). Cada una con title de hasta 40 caracteres, description de hasta 220, el ícono más afín y fact: un dato concreto de hasta 90 caracteres tomado de los datos recibidos, o vacío si no hay un dato real. Además eyebrow, título de hasta 60 y subtítulo opcional.
+- offerTimer: recuadro con el precio y un contador que agrega la aplicación. eyebrow, título de hasta 60 que presenta la oferta completa y subtítulo opcional. badge: hasta 30 caracteres y sin porcentajes, precios ni fechas (dejalo vacío para que el sistema muestre el descuento real). priceNote: hasta 60 caracteres sobre la forma de pago (pago único). text: aviso de hasta 200 caracteres, sin fechas ni duraciones y sin prometer que el precio cambia al terminar el contador. ctaText y note con el criterio de trustText.
+- bonusCards: si hay bonos gratis, eyebrow, título de hasta 60, subtítulo, ctaText y una nota breve. Las tarjetas se arman con los datos de cada bono: no los describas. Sin bonos devolvé textos vacíos.
+- valueStack: eyebrow, título de hasta 60 sobre llevarse todo con un solo pago y subtítulo opcional. El ebook y los bonos se listan solos con sus precios: items son hasta 3 líneas adicionales incluidas (por ejemplo, acceso inmediato, o la garantía si el vendedor informó los días), con title de hasta 60 y description de hasta 120, sin precios. ctaText y note con el criterio de trustText.
+- riskFree: si el vendedor informó días de garantía, título de hasta 60 y texto de hasta 300 con esos días exactos, que acompañan a un sello. Sin garantía devolvé ambos vacíos.
 - closing: además del título y el botón, text es una invitación final de hasta 300 caracteres y note sigue el criterio de trustText.
 - Límites: título principal hasta 90 caracteres; subtítulos hasta 220; botones hasta 30; títulos de sección hasta 60; títulos de elementos hasta 70; descripciones hasta 220; respuestas hasta 350.
 - benefits: 4 a 6 elementos con lo que el lector obtiene. painPoints: 3 a 5 problemas con los que el lector se identifica. steps: 3 pasos para aplicar el ebook. Elegí el ícono más afín para cada elemento.
@@ -122,7 +137,15 @@ const copyText = (value: unknown, fallback: string, max: number, token?: string)
   return text && (!token || text.includes(token)) && tokens.every(found => found === token) ? text : fallback;
 };
 
-export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: Offer['postPurchase'], hasBonuses = true) {
+// `withToggles`: a pasted JSON also says which optional sections to show; the wizard never does.
+export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: Offer['postPurchase'], hasBonuses = true, withToggles = false) {
+  const optional = <T extends Record<string, unknown>>(key: keyof typeof OPTIONAL_SECTIONS, value: T) => {
+    const texts = filled(value);
+    const shown = withToggles && typeof raw?.[key]?.enabled === 'boolean' ? { enabled: raw[key].enabled as boolean } : {};
+    return Object.keys(texts).length || 'enabled' in shown ? { [key]: { ...texts, ...shown } } : {};
+  };
+  const top = (value: any) => ({ eyebrow: clip(value?.eyebrow, 120), title: clip(value?.title, 120), subtitle: clip(value?.subtitle, 400) });
+  const action = (value: any) => ({ ctaText: clip(value?.ctaText, 60), note: clip(value?.note, 240) });
   const hero = splitHeroTitle(raw?.hero);
   const guarantee = { title: clip(raw?.guarantee?.title, 120), text: clip(raw?.guarantee?.text, 1200) };
   const eyebrow = (value: any) => filled({ eyebrow: clip(value?.eyebrow, 120) });
@@ -134,7 +157,7 @@ export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: 
   return {
     hero: {
       title: clip(hero.title, 160), titleAccent: clip(hero.titleAccent, 160), subtitle: clip(raw?.hero?.subtitle, 400), ctaText: clip(raw?.hero?.ctaText, 60),
-      ...filled({ eyebrow: clip(raw?.hero?.eyebrow, 120), headerCtaText: clip(raw?.hero?.headerCtaText, 60), trustText: clip(raw?.hero?.trustText, 160), noteTitle: clip(raw?.hero?.noteTitle, 120), note: clip(raw?.hero?.note, 240), footnote: clip(raw?.hero?.footnote, 160) }),
+      ...filled({ chips: items(raw?.hero?.chips, 3).map(chip => ({ value: clip(chip?.value, 20), label: clip(chip?.label, 40) })).filter(chip => chip.value), eyebrow: clip(raw?.hero?.eyebrow, 120), headerCtaText: clip(raw?.hero?.headerCtaText, 60), trustText: clip(raw?.hero?.trustText, 160), noteTitle: clip(raw?.hero?.noteTitle, 120), note: clip(raw?.hero?.note, 240), footnote: clip(raw?.hero?.footnote, 160) }),
     },
     ...section('introduction', { title: clip(raw?.introduction?.title, 120), text: clip(raw?.introduction?.text, 2400), badge: clip(raw?.introduction?.badge, 120) }),
     ...section('transformation', { eyebrow: clip(raw?.transformation?.eyebrow, 120), title: clip(raw?.transformation?.title, 120), subtitle: clip(raw?.transformation?.subtitle, 400) }),
@@ -142,6 +165,12 @@ export function draftFromModel(raw: any, guaranteeDays?: number, postPurchase?: 
     ...section('showcase', { eyebrow: clip(raw?.showcase?.eyebrow, 120), title: clip(raw?.showcase?.title, 120), subtitle: clip(raw?.showcase?.subtitle, 400) }),
     ...(hasBonuses ? section('bonuses', { eyebrow: clip(raw?.bonuses?.eyebrow, 120), title: clip(raw?.bonuses?.title, 120), subtitle: clip(raw?.bonuses?.subtitle, 400), chips: lines(raw?.bonuses?.chips, 3, 40), ctaText: clip(raw?.bonuses?.ctaText, 60), note: clip(raw?.bonuses?.note, 240) }) : {}),
     ...section('summary', { ctaText: clip(raw?.summary?.ctaText, 60), note: clip(raw?.summary?.note, 240) }),
+    ...optional('highlights', { ...top(raw?.highlights), items: items(raw?.highlights?.items, 6).map(item => ({ title: clip(item?.title, 120), description: clip(item?.description, 600), icon: ICONS.includes(item?.icon) ? item.icon as string : 'check', fact: clip(item?.fact, 160) })).filter(item => item.title) }),
+    ...optional('offerTimer', { ...top(raw?.offerTimer), ...action(raw?.offerTimer), badge: clip(raw?.offerTimer?.badge, 60), priceNote: clip(raw?.offerTimer?.priceNote, 120), text: clip(raw?.offerTimer?.text, 400) }),
+    ...(hasBonuses ? optional('bonusCards', { ...top(raw?.bonusCards), ...action(raw?.bonusCards) }) : {}),
+    ...optional('valueStack', { ...top(raw?.valueStack), ...action(raw?.valueStack), items: items(raw?.valueStack?.items, 6).map(item => ({ title: clip(item?.title, 120), description: clip(item?.description, 240) })).filter(item => item.title) }),
+    // Like the guarantee, the seal's promise is only written when the seller stated one.
+    ...(guaranteeDays ? optional('riskFree', { title: clip(raw?.riskFree?.title, 120), text: clip(raw?.riskFree?.text, 1200) }) : {}),
     // A comparison needs the product and at least one alternative to make sense.
     ...(paths.length > 1 && paths.at(-1)!.highlighted ? { comparison: { ...filled({ title: clip(raw?.comparison?.title, 120), badge: clip(raw?.comparison?.badge, 60), ctaText: clip(raw?.comparison?.ctaText, 60) }), items: paths } } : {}),
     benefits: { ...heading(raw?.benefits), ...eyebrow(raw?.benefits), items: features(raw?.benefits?.items, 12) },
@@ -250,7 +279,7 @@ export const generate = action({
 function example(schema: any): unknown {
   if (schema.type === 'object') return Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, example(value)]));
   if (schema.type === 'array') return [example(schema.items)];
-  return schema.enum ? schema.enum[0] : '';
+  return schema.type === 'boolean' ? false : schema.enum ? schema.enum[0] : '';
 }
 
 // Prompt to paste into another AI chat; its JSON reply comes back through importJson.
@@ -266,6 +295,7 @@ Antes de escribir, preguntame en un solo mensaje lo que te falte de esta lista. 
 5. ¿Quién está detrás del producto? (opcional; solo datos reales)
 6. Tono de los textos: cercano, profesional o enérgico.
 7. Días de garantía (opcional; si no hay, no se menciona ninguna garantía).
+8. ¿Qué secciones opcionales querés sumar? Podés elegir varias, todas o ninguna: ${Object.values(OPTIONAL_SECTIONS).join('; ')}.
 
 Datos de la tienda:
 ${[...offerLines(offer), `Tienda: ${offer.storeName}`].filter(Boolean).join('\n')}
@@ -275,7 +305,8 @@ ${SYSTEM}
 
 Formato de la respuesta:
 - Respondé solo con el JSON: sin texto antes ni después. Si tu interfaz lo permite, ponelo en un bloque de código para copiarlo fácil.
-- Usá exactamente estas claves, sin agregar ni quitar ninguna. Todos los valores son texto, salvo guaranteeDays.
+- Usá exactamente estas claves, sin agregar ni quitar ninguna. Todos los valores son texto, salvo guaranteeDays y enabled.
+- enabled: true o false (sin comillas) en ${Object.keys(OPTIONAL_SECTIONS).join(', ')}, según la respuesta a la pregunta 8.
 - guaranteeDays: número entero de días de garantía (1 a 365), o 0 si no hay garantía.
 - icon: uno de ${ICONS.join(', ')}.
 - Las listas del ejemplo muestran un solo elemento: escribí la cantidad que piden las instrucciones.
@@ -311,7 +342,7 @@ export const importJson = action({
     const raw = parsePastedJson(args.json);
     const days = Number(raw.guaranteeDays);
     const guaranteeDays = Number.isInteger(days) && days >= 1 && days <= 365 ? days : undefined;
-    const draft = draftFromModel(raw, guaranteeDays, offer.postPurchase, offer.bonuses.length > 0);
+    const draft = draftFromModel(raw, guaranteeDays, offer.postPurchase, offer.bonuses.length > 0, true);
     if (!draft.hero.title) fail('Al JSON le falta hero.title: usá la estructura del prompt sin cambiar las claves.');
     return draft;
   },

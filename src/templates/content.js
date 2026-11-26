@@ -9,8 +9,8 @@ export const EMPTY_CONTENT = {
   labels: { ...LANDING_LABEL_DEFAULTS },
   ...POST_PURCHASE_CONTENT,
   ...CLASSIC_STORY,
-  hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Get my copy' },
-  promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Limited-time offer', timerMode: 'session' },
+  hero: { eyebrow: '', title: '', titleAccent: '', subtitle: '', chips: [], ctaColor: '', imageUrl: '', secondaryImageUrl: '', headerCtaText: '', ratingText: '', trustText: '', noteTitle: '', note: '', footnote: '', ctaText: 'Get my copy' },
+  promotion: { ...PROMOTION_COPY, title: '', enabled: true, message: 'Limited-time offer', timerMode: 'session', barColor: '' },
   benefits: { enabled: true, eyebrow: 'Your complete kit', title: 'What’s inside?', subtitle: 'Everything you need in one place', imageUrl: '', imageAlt: '', videoUrl: '', items: [] },
   painPoints: { closingText: '', enabled: true, eyebrow: 'Who this is for', title: 'Does this sound familiar?', subtitle: '', ctaText: '', items: [] },
   socialProof: { eyebrow: 'Reader testimonials', enabled: true, title: 'What readers are saying', subtitle: '', ctaText: '', items: [] },
@@ -28,13 +28,13 @@ export const EMPTY_CONTENT = {
 export function normalizeContent(content = {}) {
   const normalized = Object.fromEntries(Object.entries(EMPTY_CONTENT).map(([key, defaults]) => [key, { ...defaults, ...content[key] }]));
   normalized.activity = upgradeNoticeDefaults(normalized.activity);
-  Object.assign(normalized.hero, splitHeroTitle(content.hero));
+  Object.assign(normalized.hero, splitHeroTitle(content.hero), { chips: normalized.hero.chips.map(chip => ({ ...chip })) });
   for (const key of ['benefits', 'painPoints', 'steps', 'postPurchaseBenefits']) {
     normalized[key].items = normalized[key].items.map(item => typeof item === 'string' ? { title: item, description: '', icon: 'check' } : { ...item });
   }
   normalized.socialProof.items = normalized.socialProof.items.map(item => ({ imageUrl: '', photoUrl: '', verified: false, format: 'quote', openingMessage: '', closingMessage: '', ...item }));
   normalized.bonuses.chips = [...normalized.bonuses.chips];
-  normalized.comparison.items = normalized.comparison.items.map(item => ({ ...item }));
+  for (const key of ['comparison', 'highlights', 'valueStack']) normalized[key].items = normalized[key].items.map(item => ({ ...item }));
   return normalized;
 }
 

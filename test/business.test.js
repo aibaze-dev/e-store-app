@@ -915,7 +915,7 @@ describe('section-based sales template', () => {
 
     await save({
       ...content,
-      hero: { ...content.hero, title: 'Aprendé y *delegá*', headerCtaText: ' Quiero empezar ', ratingText: 'Edición 2026', noteTitle: '¿Es digital?', footnote: 'Incluye versión para imprimir' },
+      hero: { ...content.hero, title: 'Aprendé y *delegá*', ctaColor: ' #F5C542 ', chips: [{ value: ' 100 ', label: 'recetas' }, { value: '', label: ' ' }], headerCtaText: ' Quiero empezar ', ratingText: 'Edición 2026', noteTitle: '¿Es digital?', footnote: 'Incluye versión para imprimir' },
       bonuses: { title: 'Anexos', eyebrow: 'Bono gratis', chips: ['12 profesiones', ' ', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' },
       benefits: { ...content.benefits, imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' },
       showcase: { enabled: true, title: 'Todo lo que recibís', imageUrl: 'https://example.com/inside.png', videoUrl: 'https://example.com/inside.mp4' },
@@ -926,6 +926,8 @@ describe('section-based sales template', () => {
     });
     await admin.mutation(api.landings.publish, { storeId });
     const saved = (await t.query(api.storefront.getLanding, { subdomain: 'inversion' })).content;
+    expect(saved.hero).toMatchObject({ ctaColor: '#F5C542', chips: [{ value: '100', label: 'recetas' }] });
+    expect(saved.promotion.barColor).toBe('');
     expect(saved.hero).toMatchObject({ title: 'Aprendé y *delegá*', headerCtaText: 'Quiero empezar', ratingText: 'Edición 2026', noteTitle: '¿Es digital?' });
     expect(saved.bonuses).toMatchObject({ chips: ['12 profesiones', 'Incluido gratis'], ctaText: 'Quiero mi kit', note: 'Descarga inmediata' });
     expect(saved.benefits).toMatchObject({ imageUrl: 'https://example.com/kit.png', videoUrl: 'https://example.com/kit.mp4' });
@@ -943,6 +945,9 @@ describe('section-based sales template', () => {
       { benefits: { ...content.benefits, imageUrl: 'javascript:alert(1)' } },
       { socialProof: { title: '', items: [{ name: 'Ana', quote: 'Texto', photoUrl: 'data:image/png;base64,x' }] } },
       { hero: { ...content.hero, headerCtaText: 'x'.repeat(61) } },
+      { hero: { ...content.hero, ctaColor: 'gold' } },
+      { hero: { ...content.hero, chips: Array.from({ length: 4 }, () => ({ value: '10', label: 'x' })) } },
+      { promotion: { enabled: true, message: 'Oferta', barColor: '#12' } },
       { hero: { ...content.hero, titleAccent: 'x'.repeat(161) } },
     ]) await expect(save({ ...content, ...patch })).rejects.toThrow();
   });
@@ -1289,6 +1294,40 @@ describe('landing copy assistant', () => {
 
     const noGuarantee = await admin.action(api.landing_wizard.importJson, { storeId, json: JSON.stringify({ ...copy, guaranteeDays: 0 }) });
     expect(noGuarantee.guarantee).toBeUndefined();
+  });
+
+  it('writes the optional sections, and only a pasted JSON decides which ones show', async () => {
+    const { admin, storeId } = await campaign();
+    const { draftFromModel } = await import('../convex/landing_wizard');
+    const prompt = await admin.query(api.landing_wizard.importPrompt, { storeId });
+    const template = JSON.parse(prompt.slice(prompt.lastIndexOf('\n{\n') + 1));
+    expect(prompt).toContain('8. ¿Qué secciones opcionales querés sumar?');
+    expect(template.highlights).toEqual({ enabled: false, eyebrow: '', title: '', subtitle: '', items: [{ title: '', description: '', icon: 'check', fact: '' }] });
+    expect(template.riskFree).toEqual({ enabled: false, title: '', text: '' });
+    for (const key of ['offerTimer', 'bonusCards', 'valueStack']) expect(template[key].enabled).toBe(false);
+
+    const optional = {
+      highlights: { enabled: true, eyebrow: 'Lo que recibís', title: 'Abrí, elegí y empezá', subtitle: '', items: [{ title: 'Fácil de seguir', description: 'Paso a paso.', icon: 'clock', fact: 'Sin tecnicismos' }, { title: '', description: 'Sin título', icon: 'x', fact: '' }] },
+      offerTimer: { enabled: true, eyebrow: 'Oferta', title: 'El ebook completo', subtitle: '', badge: '', priceNote: 'Pago único', text: '', ctaText: 'Lo quiero', note: '' },
+      bonusCards: { enabled: false, eyebrow: '', title: 'Bonos que van con tu compra', subtitle: '', ctaText: '', note: '' },
+      valueStack: { enabled: true, eyebrow: '', title: 'Todo por un solo pago', subtitle: '', items: [{ title: 'Acceso inmediato', description: '' }], ctaText: '', note: '' },
+      riskFree: { enabled: true, title: 'Riesgo cero', text: 'Probalo 14 días.' },
+    };
+    const pasted = await admin.action(api.landing_wizard.importJson, { storeId, json: JSON.stringify({ ...copy, ...optional, guaranteeDays: 14 }) });
+    expect(pasted.highlights).toEqual({ enabled: true, eyebrow: 'Lo que recibís', title: 'Abrí, elegí y empezá', items: [{ title: 'Fácil de seguir', description: 'Paso a paso.', icon: 'clock', fact: 'Sin tecnicismos' }] });
+    expect(pasted.offerTimer).toEqual({ enabled: true, eyebrow: 'Oferta', title: 'El ebook completo', priceNote: 'Pago único', ctaText: 'Lo quiero' });
+    expect(pasted.valueStack).toEqual({ enabled: true, title: 'Todo por un solo pago', items: [{ title: 'Acceso inmediato', description: '' }] });
+    expect(pasted.riskFree).toEqual({ enabled: true, title: 'Riesgo cero', text: 'Probalo 14 días.' });
+    const merged = mergeGeneratedContent(normalizeContent(content), pasted);
+    expect(merged.highlights.enabled).toBe(true);
+    await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft: merged });
+
+    // The assistant writes the same texts but never switches a section on or off; no guarantee, no seal promise.
+    const written = draftFromModel({ ...copy, ...optional });
+    expect(written.highlights.enabled).toBeUndefined();
+    expect(written.offerTimer.title).toBe('El ebook completo');
+    expect(written.riskFree).toBeUndefined();
+    expect(mergeGeneratedContent(normalizeContent(content), written).highlights).toMatchObject({ enabled: false, title: 'Abrí, elegí y empezá' });
   });
 
   it('rejects invalid pasted JSON with a readable message and only for admins', async () => {

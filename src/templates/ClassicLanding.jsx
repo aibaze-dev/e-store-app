@@ -8,14 +8,14 @@ export { readableOn } from '../../shared/classic-design.js';
 import { videoSource } from '../../shared/post-purchase.js';
 import { formatLandingText } from '../../shared/landing-copy.js';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, Gift, ImageOff, ImageUp, LockKeyhole, PiggyBank, Plus, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Volume2, X, ShoppingCart, Mail, Target, TrendingUp, Dumbbell, Brain, Settings } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, Gift, ImageOff, ImageUp, LockKeyhole, PiggyBank, Plus, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Volume2, X, ShoppingCart, Mail, Target, TrendingUp, Dumbbell, Brain, Settings, Clock, Heart, LayoutGrid, Star, Wallet, Zap } from 'lucide-react';
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
 import { useSimulatedCheckoutSignals } from '@/storefront/CheckoutSignals.jsx';
 import DemoPurchaseToasts from '@/storefront/DemoPurchaseToasts.jsx';
 import { checkoutTotals, normalizeContent, offerTotals, productDiscount } from './content.js';
 
 // Used by the post-purchase page, which keeps its own icon list.
-export const FEATURE_ICONS = { check: Check, book: BookOpen, target: Target, growth: TrendingUp, strength: Dumbbell, brain: Brain, settings: Settings, cart: ShoppingCart, mail: Mail, sparkles: Sparkles };
+export const FEATURE_ICONS = { check: Check, book: BookOpen, target: Target, growth: TrendingUp, strength: Dumbbell, brain: Brain, settings: Settings, cart: ShoppingCart, mail: Mail, sparkles: Sparkles, clock: Clock, wallet: Wallet, grid: LayoutGrid, heart: Heart, star: Star, bolt: Zap, gift: Gift, shield: ShieldCheck };
 
 export function Cover({ src, name }) {
   const [failed, setFailed] = useState(false);
@@ -142,6 +142,20 @@ function Testimonial({ item, labels }) {
   </div></figure>;
 }
 
+// Bonuses as cards: the product's short description on top and one line of its description per bullet.
+function BonusCards({ bonuses, labels, money }) {
+  return <div className="cl-bcards">{bonuses.map((bonus, index) => <article key={bonus.productId} className="cl-bcard">
+    <div className="cl-bcard-top">
+      <p>{formatLandingText(labels.bonusNumber, { numero: index + 1 })}</p>
+      <h3>{bonus.name}</h3>
+      {bonus.shortDescription && <span>{bonus.shortDescription}</span>}
+      {bonus.coverUrl ? <Picture src={bonus.coverUrl} alt="" /> : <Gift aria-hidden="true" />}
+    </div>
+    {paragraphs(bonus.description).length > 0 && <ul>{paragraphs(bonus.description).slice(0, 6).map((line, i) => <li key={i}><Check aria-hidden="true" />{line}</li>)}</ul>}
+    <p className="cl-bcard-foot"><span>{bonus.referenceValue > 0 ? <>{labels.bonusValue} <del>{money(bonus.referenceValue)}</del></> : labels.bonusIncluded}</span><strong>{labels.free}</strong></p>
+  </article>)}</div>;
+}
+
 function ComboRow({ item, money, checked, locked, extra, onToggle }) {
   const percent = productDiscount(item.price, item.compareAtPrice);
   return <label className={`cl-combo-row ${checked ? 'is-on' : ''} ${extra ? '' : 'is-main'} ${item.featured ? 'is-featured' : ''}`}>
@@ -196,7 +210,7 @@ export default function ClassicLanding({ view, onCta }) {
     return () => { frame.removeEventListener('scroll', update); frame.removeEventListener('resize', update); };
   }, [closing.stickyEnabled, hasCombo]);
 
-  const theme = classicTheme(content.style.accentColor);
+  const theme = classicTheme(content.style.accentColor, { bar: promotion.barColor, heroButton: hero.ctaColor });
   const money = value => formatMoney(value, store.currency);
   const totals = offerTotals(offer);
   const chosen = upsells.filter(upsell => selected.includes(upsell.productId));
@@ -204,6 +218,12 @@ export default function ClassicLanding({ view, onCta }) {
   const guarantee = content.guarantee.enabled && Boolean(content.guarantee.text);
   const guaranteeLabel = content.guarantee.days ? formatLandingText(labels.guarantee, { dias: content.guarantee.days }) : content.guarantee.title;
   const trustText = hero.trustText || [labels.access, labels.payment, guarantee && guaranteeLabel].filter(Boolean).join(' · ');
+  // Seals under the hero button: the automatic ones carry their own icon, a custom line a plain check.
+  const trustItems = hero.trustText
+    ? hero.trustText.split('·').map(part => part.trim()).filter(Boolean).map(part => [CircleCheck, part])
+    : [[Zap, labels.access], [LockKeyhole, labels.payment], [ShieldCheck, guarantee && guaranteeLabel]].filter(([, text]) => text);
+  const heroChips = hero.chips.filter(chip => chip.value).slice(0, 3);
+  const showSpots = countdown !== null && promotion.remainingSpots > 0;
   const pay = onCta ? () => onCta(chosen.map(upsell => upsell.productId)) : undefined;
   // With an order builder every button leads to it; the builder's own button starts the payment.
   const go = hasCombo ? () => comboRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : pay;
@@ -220,43 +240,52 @@ export default function ClassicLanding({ view, onCta }) {
     ? <Picture className="cl-figure" src={section.imageUrl} alt={section.imageAlt || section.title} />
     : <PhotoSlot {...slot} />;
 
+  // The same simulated countdown as the offer bar, split into the boxes of a clock.
+  const [clockMinutes = '--', clockSeconds = '--'] = (timeLeft ?? '').split(':');
+  const mainDiscount = productDiscount(offer.main.price, offer.main.compareAtPrice);
+  const dealBadge = content.offerTimer.badge || (mainDiscount > 0 ? formatLandingText(labels.discount, { porcentaje: mainDiscount }) : '');
+  const risk = content.riskFree;
+
   const heroHeading = <>{rich(hero.title || offer.main.name)}{hero.titleAccent && <> <em>{plainText(hero.titleAccent)}</em></>}</>;
 
   return <div ref={landingRef} className={`cl-landing ${hasSticky ? 'has-sticky' : ''}`} style={theme}>
     {hasPromo && <div ref={promoRef} {...edit('promotion')} className="cl-promo"><strong>{promotion.title || offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Ends in ${countdown}`}>{countdown}</time></>}</span></div>}
     {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
     <main>
-      <header {...edit('hero')} className="cl-masthead"><div className="cl-wrap">
-        <div className="cl-masthead-copy">
-          {hero.eyebrow && <span className="cl-tag"><Sparkles aria-hidden="true" />{hero.eyebrow}</span>}
-          <h1>{heroHeading}</h1>
-          {hero.subtitle && <p>{rich(hero.subtitle)}</p>}
+      <header className="cl-epic"><div className="cl-wrap">
+        <div className="cl-epic-copy">
+          <div {...edit('hero')}>
+            {hero.eyebrow && <span className="cl-epic-pill"><Sparkles aria-hidden="true" /><span>{rich(hero.eyebrow)}</span></span>}
+            {hero.title && <p className="cl-epic-brand">{offer.main.name}</p>}
+            <h1>{heroHeading}</h1>
+            {hero.subtitle && <p className="cl-epic-sub">{rich(hero.subtitle)}</p>}
+          </div>
+          <div className="cl-epic-buy" {...edit('cover')}>
+            {(proof.rating > 0 || hero.ratingText) && <p className="cl-rating">{proof.rating > 0 && <span className="cl-stars" aria-hidden="true">★★★★★</span>}
+              <span>{[proof.rating > 0 && number(proof.rating), proof.rating > 0 && proof.customers > 0 && `${number(proof.customers)} ${labels.customers}`, hero.ratingText].filter(Boolean).join(' · ')}</span></p>}
+            <Price labels={labels} main={offer.main} money={money} />
+            <button type="button" className="cl-btn is-epic" onClick={go} disabled={!go}>{hero.headerCtaText || hero.ctaText || 'Buy now'}<ArrowRight aria-hidden="true" /></button>
+            {trustItems.length > 0 && <ul className="cl-seals">{trustItems.map(([Icon, text], i) => <li key={i}><Icon aria-hidden="true" />{text}</li>)}</ul>}
+          </div>
         </div>
-        <div className="cl-masthead-offer">
-          <Price labels={labels} main={offer.main} money={money} />
-          <button type="button" className="cl-btn is-white" onClick={go} disabled={!go}>{hero.headerCtaText || hero.ctaText || 'Buy now'}<ArrowRight aria-hidden="true" /></button>
+        <div className={`cl-stage ${hero.secondaryImageUrl ? 'has-back' : ''}`} {...edit('cover')}>
+          {hero.secondaryImageUrl && <Picture priority className="cl-stage-back" src={hero.secondaryImageUrl} alt={`Contents of ${offer.main.name}`} />}
+          {preview && !hero.imageUrl && !offer.main.coverUrl
+            ? <PhotoSlot className="cl-stage-main" ratio="4 / 5" title="Foto principal" hint="Vertical, 800 × 1000 px (o cuadrada). Sin foto se usa la portada del producto." />
+            : <Picture priority className="cl-stage-main" src={hero.imageUrl || offer.main.coverUrl} alt={`Cover of ${offer.main.name}`} name={offer.main.name} />}
+          {heroChips.map((chip, i) => <p key={i} className="cl-chip"><b>{chip.value}</b>{chip.label}</p>)}
         </div>
       </div></header>
 
-      <section className="cl-hero" aria-label={offer.main.name} {...edit('cover')}><div className="cl-wrap cl-w-900">
-        <div className={`cl-hero-media ${hero.secondaryImageUrl || preview ? 'is-pair' : ''}`}>
-          {preview && !hero.imageUrl && !offer.main.coverUrl
-            ? <PhotoSlot ratio="1" title="Foto principal" hint="Cuadrada, 1000 × 1000 px. Sin foto se usa la portada del producto." />
-            : <Picture priority src={hero.imageUrl || offer.main.coverUrl} alt={`Cover of ${offer.main.name}`} name={offer.main.name} />}
-          {hero.secondaryImageUrl ? <Picture priority src={hero.secondaryImageUrl} alt={`Contents of ${offer.main.name}`} />
-            : preview && <PhotoSlot ratio="1" title="Segunda foto" hint="Opcional · cuadrada, 1000 × 1000 px. Sin ella, la principal queda sola y centrada." />}
-        </div>
-        {(proof.rating > 0 || hero.ratingText) && <p className="cl-rating">{proof.rating > 0 && <span className="cl-stars" aria-hidden="true">★★★★★</span>}
-          <span>{[proof.rating > 0 && number(proof.rating), proof.rating > 0 && proof.customers > 0 && `${number(proof.customers)} ${labels.customers}`, hero.ratingText].filter(Boolean).join(' · ')}</span></p>}
-        {content.activity.salesCount && <p className="cl-sales"><ShoppingBag aria-hidden="true" />{formatLandingText(content.activity.salesText, { cantidad: simulatedSales })}</p>}
-        <Price labels={labels} main={offer.main} money={money} tone="is-big" />
-        {cta(hero.ctaText, 'is-big')}
-        {trustText && <p className="cl-trust">{trustText}</p>}
+      {(content.activity.salesCount || content.activity.viewers || showSpots || hero.noteTitle || hero.note || hero.footnote) && <section className="cl-proof" aria-label={offer.main.name} {...edit('cover')}><div className="cl-wrap">
+        {(content.activity.salesCount || content.activity.viewers || showSpots) && <div className="cl-proof-row">
+          {content.activity.salesCount && <p className="cl-sales"><ShoppingBag aria-hidden="true" />{formatLandingText(content.activity.salesText, { cantidad: simulatedSales })}</p>}
+          {content.activity.viewers && <p className="cl-live"><span aria-hidden="true" />{formatLandingText(content.activity.viewersText, { cantidad: shoppers })}</p>}
+          {showSpots && <p className="cl-spots"><span aria-hidden="true" />{formatLandingText(promotion.spotsText, { cantidad: promotion.remainingSpots })}</p>}
+        </div>}
         {(hero.noteTitle || hero.note) && <p className="cl-note"><Check aria-hidden="true" /><span>{hero.noteTitle && <strong>{hero.noteTitle} </strong>}{rich(hero.note)}</span></p>}
         {hero.footnote && <p className="cl-footnote"><Smartphone aria-hidden="true" />{hero.footnote}</p>}
-        {countdown !== null && promotion.remainingSpots > 0 && <p className="cl-spots"><span aria-hidden="true" />{formatLandingText(promotion.spotsText, { cantidad: promotion.remainingSpots })}</p>}
-        {content.activity.viewers && <p className="cl-live"><span aria-hidden="true" />{formatLandingText(content.activity.viewersText, { cantidad: shoppers })}</p>}
-      </div></section>
+      </div></section>}
 
       {content.introduction.enabled && (content.introduction.title || content.introduction.text) && <section {...edit('introduction')} className="cl-section cl-intro"><div className="cl-wrap cl-w-560">
         {content.introduction.title && <h2>{rich(content.introduction.title)}</h2>}
@@ -276,11 +305,46 @@ export default function ClassicLanding({ view, onCta }) {
         <div className="cl-action">{cta(content.painPoints.ctaText)}</div>
       </div></section>}
 
+      {content.highlights.enabled && content.highlights.items.length > 0 && <section {...edit('highlights')} className="cl-section"><div className="cl-wrap">
+        <Head section={content.highlights} />
+        <div className="cl-cards">{content.highlights.items.map((item, index) => {
+          const Icon = FEATURE_ICONS[item.icon] ?? Check;
+          return <article key={index}>
+            <span aria-hidden="true"><Icon /></span>
+            <h3>{item.title}</h3>
+            {item.description && <p>{rich(item.description)}</p>}
+            {item.fact && <p className="cl-card-fact"><Check aria-hidden="true" />{item.fact}</p>}
+          </article>;
+        })}</div>
+      </div></section>}
+
+      {content.offerTimer.enabled && <section {...edit('offerTimer')} className="cl-section cl-dark"><div className="cl-wrap cl-w-560">
+        <Head section={content.offerTimer} tone="is-gold" />
+        <div className="cl-deal">
+          {dealBadge && <span className="cl-deal-badge">{dealBadge}</span>}
+          {offer.main.compareAtPrice > offer.main.price && <del>{money(offer.main.compareAtPrice)}</del>}
+          <strong>{money(offer.main.price)}</strong>
+          {content.offerTimer.priceNote && <p className="cl-deal-note">{content.offerTimer.priceNote}</p>}
+          <div className="cl-clock" role="timer" aria-live="off" aria-label={timeLeft ? `${promotion.timerLabel} ${timeLeft}` : undefined}>
+            {[['00', labels.hours], [clockMinutes, labels.minutes], [clockSeconds, labels.seconds]].map(([value, unit], i) => <div key={i} aria-hidden="true"><b>{value}</b><span>{unit}</span></div>)}
+          </div>
+          {content.offerTimer.text && <p className="cl-deal-text">{rich(content.offerTimer.text)}</p>}
+          {cta(content.offerTimer.ctaText, 'is-big is-wide')}
+          {(content.offerTimer.note || trustText) && <p className="cl-trust">{content.offerTimer.note || trustText}</p>}
+        </div>
+      </div></section>}
+
       {content.bonuses.enabled && offer.bonuses.length > 0 && <section {...edit('offer')} className="cl-section cl-dark"><div className="cl-wrap">
         <Head section={content.bonuses} tone="is-gold" icon={Gift} />
         {content.bonuses.chips.some(Boolean) && <ul className="cl-chips">{content.bonuses.chips.filter(Boolean).map((chip, i) => <li key={i}>{chip}</li>)}</ul>}
         <BonusFlow labels={labels} bonuses={offer.bonuses} />
         <div className="cl-action">{cta(content.bonuses.ctaText, 'is-big')}{content.bonuses.note && <p className="cl-trust">{content.bonuses.note}</p>}</div>
+      </div></section>}
+
+      {content.bonusCards.enabled && offer.bonuses.length > 0 && <section {...edit('bonusCards')} className="cl-section"><div className="cl-wrap">
+        <Head section={content.bonusCards} icon={Gift} />
+        <BonusCards bonuses={offer.bonuses} labels={labels} money={money} />
+        <div className="cl-action">{cta(content.bonusCards.ctaText)}{content.bonusCards.note && <p className="cl-trust">{content.bonusCards.note}</p>}</div>
       </div></section>}
 
       {content.steps.enabled && content.steps.items.length > 0 && <section {...edit('steps')} className="cl-section is-cream"><div className="cl-wrap cl-w-760">
@@ -337,11 +401,36 @@ export default function ClassicLanding({ view, onCta }) {
         </article>)}</div>
       </div></section>}
 
+      {content.valueStack.enabled && <section {...edit('valueStack')} className="cl-section cl-dark"><div className="cl-wrap cl-w-640">
+        <Head section={content.valueStack} tone="is-gold" />
+        <div className="cl-stack">
+          <ul>
+            <li><Check aria-hidden="true" /><p>{offer.main.name}{offer.main.shortDescription && <small>{offer.main.shortDescription}</small>}</p><b>{offer.main.compareAtPrice > offer.main.price ? <del>{money(offer.main.compareAtPrice)}</del> : money(offer.main.price)}</b></li>
+            {offer.bonuses.map((bonus, index) => <li key={bonus.productId}><Check aria-hidden="true" /><p>{formatLandingText(labels.bonusNumber, { numero: index + 1 })} · {bonus.name}{bonus.shortDescription && <small>{bonus.shortDescription}</small>}</p><b>{bonus.referenceValue > 0 ? <del>{money(bonus.referenceValue)}</del> : labels.free}</b></li>)}
+            {content.valueStack.items.map((item, index) => <li key={index}><Check aria-hidden="true" /><p>{item.title}{item.description && <small>{item.description}</small>}</p><b>{labels.included}</b></li>)}
+          </ul>
+          <div className="cl-stack-total">
+            {totals.savings > 0 && <p>{labels.reference} <del>{money(totals.reference)}</del></p>}
+            <p className="cl-stack-today">{labels.today} <strong>{money(offer.main.price)}</strong></p>
+            {totals.savings > 0 && <span>{formatLandingText(labels.savings, { importe: money(totals.savings) })}</span>}
+          </div>
+        </div>
+        <div className="cl-action">{cta(content.valueStack.ctaText, 'is-big')}{(content.valueStack.note || trustText) && <p className="cl-trust">{content.valueStack.note || trustText}</p>}</div>
+      </div></section>}
+
       {guarantee && <section {...edit('guarantee')} className="cl-section is-cream-end"><div className="cl-wrap cl-w-600"><div className="cl-guarantee">
         <span aria-hidden="true"><ShieldCheck /></span>
         <h2>{rich(content.guarantee.title || guaranteeLabel)}</h2>
         {paragraphs(content.guarantee.text).map((line, i) => <p key={i}>{rich(line)}</p>)}
         {cta(content.guarantee.ctaText)}
+      </div></div></section>}
+
+      {risk.enabled && (risk.title || risk.text || risk.imageUrl) && <section {...edit('riskFree')} className="cl-section"><div className="cl-wrap cl-w-760"><div className="cl-risk">
+        {risk.imageUrl ? <img className="cl-risk-seal" src={risk.imageUrl} alt={risk.imageAlt} loading="lazy" decoding="async" /> : <span className="cl-risk-seal is-shield" aria-hidden="true"><ShieldCheck /></span>}
+        <div>
+          {risk.title && <h2>{rich(risk.title)}</h2>}
+          {paragraphs(risk.text).map((line, i) => <p key={i}>{rich(line)}</p>)}
+        </div>
       </div></div></section>}
 
       {content.faq.enabled && content.faq.items.length > 0 && <section {...edit('faq')} className="cl-section"><div className="cl-wrap cl-w-680">

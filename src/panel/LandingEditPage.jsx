@@ -34,6 +34,8 @@ import TranslateControl from './TranslateControl.jsx';
 import { landingAttention } from './landing-attention.js';
 
 const MARKS = 'Usá *asteriscos* para resaltar una parte y **dobles** para negrita.';
+// Icons a highlight card can show; the keys match FEATURE_ICONS in the landing.
+const CARD_ICONS = { check: 'Tilde', clock: 'Reloj', wallet: 'Billetera', grid: 'Variedad', book: 'Libro', target: 'Objetivo', growth: 'Crecimiento', strength: 'Fuerza', brain: 'Cerebro', heart: 'Corazón', star: 'Estrella', bolt: 'Rayo', gift: 'Regalo', shield: 'Escudo', settings: 'Ajustes', cart: 'Carrito', mail: 'Correo', sparkles: 'Destellos' };
 const newFeature = () => ({ title: '', description: '', icon: 'check' });
 const newTestimonial = () => ({ name: '', quote: '', photoUrl: '', imageUrl: '', verified: false, format: 'quote', openingMessage: '', closingMessage: '' });
 const slug = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63).replace(/-+$/, '');
@@ -120,6 +122,12 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   const numberField = (key, property, label, max, step = 1) => <Field label={label}>{ids => <Input {...ids} type="number" min="0" max={max} step={step} value={content[key][property] ?? ''} onChange={event => change(key, { [property]: event.target.value === '' ? undefined : Number(event.target.value) })} disabled={Boolean(busy)} />}</Field>;
   const toggle = (key, label = 'Mostrar esta sección', property = 'enabled') => <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="size-5 accent-primary" checked={content[key][property]} onChange={event => change(key, { [property]: event.target.checked })} disabled={Boolean(busy)} />{label}</label>;
   const image = (key, property, label, hint) => <ImageField uploadOnly label={label} hint={hint} value={content[key][property]} onChange={value => change(key, { [property]: value })} disabled={Boolean(busy)} />;
+  // A piece with a color of its own; while empty it follows the landing's main color.
+  const ownColor = (key, property, label, hint) => <Field label={label} hint={hint}>{ids => <div className="flex flex-wrap items-center gap-3">
+    <input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={content[key][property] || classicAccent(content.style.accentColor)} onChange={event => change(key, { [property]: event.target.value })} disabled={Boolean(busy)} />
+    <span className="text-sm text-muted-foreground">{content[key][property] || 'Usa el color principal'}</span>
+    {content[key][property] && <Button type="button" variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => change(key, { [property]: '' })}>Volver al color principal</Button>}
+  </div>}</Field>;
   // Label, title and subtitle of a section: what the visitor reads first.
   const heading = (key, { eyebrow = true, subtitle = true } = {}) => <>
     {toggle(key)}
@@ -251,6 +259,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
         <Section id="promotion" attention={checks.promotion} description="La franja fija de arriba con el contador y los avisos de compra" hidden={!content.promotion.enabled} defaultOpen>
           {toggle('promotion', 'Mostrar la barra de oferta')}
           {field('promotion', 'title', 'Título de la barra superior', { maxLength: 160, placeholder: mainProduct?.name, hint: 'Si queda vacío, usamos el nombre del producto principal.' })}
+          {ownColor('promotion', 'barColor', 'Color de la barra (opcional)', 'Si no elegís uno, la barra usa el color principal de la landing. El texto y el contador ajustan su contraste automáticamente.')}
           {field('promotion', 'message', 'Mensaje de la oferta', { maxLength: 120, placeholder: 'Oferta de lanzamiento', hint: 'Se muestra junto al nombre del producto y al contador.' })}
           <p className="text-xs leading-6 text-muted-foreground">El contador es simulado: cada visita arranca cerca de los 15 minutos, se comparte con el checkout y vuelve a empezar al llegar a cero. No modifica precios ni bloquea pagos.</p>
           {field('promotion', 'spotsText', 'Texto de cupos', { maxLength: 240, hint: 'Usá {cantidad} para insertar los cupos disponibles.' })}
@@ -265,20 +274,31 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('activity', 'purchaseLocationText', 'Texto de ubicación del aviso', { maxLength: 240, hint: 'Usá {ciudad} para insertar la ubicación.' })}
           <p className="text-xs leading-6 text-muted-foreground">Los avisos de ejemplo muestran nombres ficticios y ciudades de Estados Unidos y Europa.</p>
         </Section>
-        <Section id="hero" attention={checks.hero} description="La franja naranja: promesa, precio y primer botón">
+        <Section id="hero" attention={checks.hero} description="El hero oscuro: etiqueta, título grande y los datos que flotan junto a la foto">
           {field('hero', 'eyebrow', 'Etiqueta sobre el título (opcional)', { maxLength: 120, placeholder: 'En 7 días' })}
           {field('hero', 'title', 'Título principal', { multiline: true, maxLength: 160, placeholder: 'Aprendé a usar Claude desde cero en 7 días y', hint: 'La primera parte del título, en el color base del encabezado.' })}
           {field('hero', 'titleAccent', 'Título principal accent', { multiline: true, maxLength: 160, placeholder: 'tené un asistente que te deja el trabajo hecho', hint: 'Se muestra a continuación, con el color destacado. Opcional; no necesitás usar asteriscos.' })}
           {field('hero', 'subtitle', 'Subtítulo', { multiline: true, maxLength: 400 })}
-          {field('hero', 'headerCtaText', 'Texto del botón del encabezado', { maxLength: 60, hint: 'Si queda vacío, usamos el botón principal.' })}
+          <fieldset className="landing-item-fields"><legend>Datos flotantes junto a la foto (opcional)</legend>
+            <p className="text-xs text-muted-foreground">Hasta 3 cifras reales de tu producto, por ejemplo “100” y “recetas”. Las filas vacías no se muestran.</p>
+            {[0, 1, 2].map(index => {
+              const setChip = patch => change('hero', { chips: [0, 1, 2].map(i => ({ value: '', label: '', ...content.hero.chips[i], ...(i === index ? patch : {}) })) });
+              return <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3">
+                <Field label={`Dato ${index + 1}`}>{ids => <Input {...ids} maxLength={20} placeholder={['100', '+12', '10'][index]} value={content.hero.chips[index]?.value ?? ''} onChange={event => setChip({ value: event.target.value })} disabled={Boolean(busy)} />}</Field>
+                <Field label="Etiqueta">{ids => <Input {...ids} maxLength={40} placeholder={['recetas', 'de Navidad', 'oraciones'][index]} value={content.hero.chips[index]?.label ?? ''} onChange={event => setChip({ label: event.target.value })} disabled={Boolean(busy)} />}</Field>
+              </div>;
+            })}
+          </fieldset>
         </Section>
-        <Section id="cover" attention={checks.cover} description="Las fotos principales, la calificación y el botón de compra">
-          {image('hero', 'imageUrl', 'Foto principal', 'Si no subís ninguna, usamos la portada del producto.')}
-          {image('hero', 'secondaryImageUrl', 'Segunda foto (opcional)', 'Se muestra al lado de la principal, las dos cuadradas.')}
+        <Section id="cover" attention={checks.cover} description="La foto del hero, la calificación, el botón de compra y los avisos de debajo">
+          {image('hero', 'imageUrl', 'Foto principal', 'Se muestra inclinada, como un libro, junto al título. Vertical de 800 × 1000 px o cuadrada. Si no subís ninguna, usamos la portada del producto.')}
+          {image('hero', 'secondaryImageUrl', 'Segunda foto (opcional)', 'Asoma por detrás de la principal.')}
           {numberField('socialProof', 'rating', 'Calificación con estrellas (0 a 5, opcional)', 5, 0.1)}
           {field('hero', 'ratingText', 'Texto junto a la calificación (opcional)', { maxLength: 120, placeholder: 'La guía definitiva · Edición 2026' })}
           {field('hero', 'ctaText', 'Texto del botón principal', { maxLength: 60 })}
-          {field('hero', 'trustText', 'Línea debajo del botón', { maxLength: 160, placeholder: '15 min por día · Descarga inmediata · Garantía 7 días', hint: 'Si queda vacía, mostramos acceso inmediato, pago seguro y la garantía.' })}
+          {field('hero', 'headerCtaText', 'Texto del botón del hero (opcional)', { maxLength: 60, hint: 'Si queda vacío, el hero usa el botón principal.' })}
+          {ownColor('hero', 'ctaColor', 'Color del botón del hero (opcional)', 'Solo cambia el botón grande del hero; los demás botones siguen el color principal. El texto ajusta su contraste automáticamente.')}
+          {field('hero', 'trustText', 'Línea debajo del botón', { maxLength: 160, placeholder: '15 min por día · Descarga inmediata · Garantía 7 días', hint: 'Se muestra como sellos bajo el botón: separá cada dato con « · ». Si queda vacía, mostramos acceso inmediato, pago seguro y la garantía.' })}
           {field('hero', 'noteTitle', 'Aclaración: pregunta (opcional)', { maxLength: 120, placeholder: '¿Necesito pagar algo aparte?' })}
           {field('hero', 'note', 'Aclaración: respuesta', { multiline: true, maxLength: 240 })}
           {field('hero', 'footnote', 'Nota de formato (opcional)', { maxLength: 160, placeholder: 'Guía 100% digital · incluye versión para imprimir', hint: 'Se repite al pie del cierre.' })}
@@ -301,6 +321,28 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('painPoints', 'closingText', 'Frase de cierre (opcional)', { maxLength: 240 })}
           {button('painPoints')}
         </Section>
+        <Section id="highlights" attention={checks.highlights} description="Hasta 6 tarjetas con ícono, texto y un dato destacado" hidden={off('highlights')}>
+          {heading('highlights')}
+          {content.highlights.items.length === 0 && <p className="text-sm text-muted-foreground">Agregá una tarjeta para mostrar esta sección.</p>}
+          {content.highlights.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Tarjeta {index + 1}</legend>
+            <Field label="Ícono">{ids => <NativeSelect {...ids} value={item.icon || 'check'} disabled={Boolean(busy)} onChange={event => changeItem('highlights', index, { icon: event.target.value })}>{Object.entries(CARD_ICONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect>}</Field>
+            {itemField('highlights', index, 'title', 'Título', { maxLength: 120, required: true, placeholder: 'Fácil de seguir' })}
+            {itemField('highlights', index, 'description', 'Texto (opcional)', { multiline: true, maxLength: 600 })}
+            {itemField('highlights', index, 'fact', 'Dato destacado con tilde (opcional)', { maxLength: 160, placeholder: 'Más de 60 recetas listas en 20 minutos' })}
+            {remove('highlights', index, 'tarjeta')}
+          </fieldset>)}
+          {add('highlights', 'tarjeta', { title: '', description: '', icon: 'check', fact: '' }, 6)}
+        </Section>
+        <Section id="offerTimer" attention={checks.offerTimer} description="Recuadro oscuro con el precio grande, el contador en cajas y un botón" hidden={off('offerTimer')}>
+          {heading('offerTimer')}
+          {field('offerTimer', 'badge', 'Etiqueta sobre el recuadro (opcional)', { maxLength: 60, placeholder: '32% OFF · Solo hoy', hint: 'Si queda vacía y el producto principal tiene precio tachado, mostramos el porcentaje de descuento.' })}
+          {field('offerTimer', 'priceNote', 'Línea bajo el precio (opcional)', { maxLength: 120, placeholder: 'Pago único · sin suscripción' })}
+          {field('offerTimer', 'text', 'Aviso bajo el contador (opcional)', { multiline: true, maxLength: 400, hint: MARKS })}
+          {button('offerTimer')}
+          {field('offerTimer', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240, hint: 'Si queda vacía, usamos la línea de confianza de la portada.' })}
+          <p className="text-xs leading-6 text-muted-foreground">El contador es el mismo de la barra de oferta y del checkout: simulado, arranca cerca de los 15 minutos y vuelve a empezar al llegar a cero. No modifica precios ni bloquea pagos. El precio y el tachado salen de la oferta de la tienda.</p>
+          {labels('offerTimer')}
+        </Section>
         <Section id="offer" attention={checks.offer} description="El carrusel oscuro con las portadas de los bonos gratis" hidden={off('bonuses')}>
           {heading('bonuses')}
           <fieldset className="landing-item-fields"><legend>Etiquetas bajo el subtítulo</legend>{[0, 1, 2, 3].map(index => <Field key={index} label={`Etiqueta ${index + 1} (opcional)`}>{ids => <Input {...ids} maxLength={40} value={content.bonuses.chips[index] ?? ''} disabled={Boolean(busy)}
@@ -310,6 +352,13 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           <StoreOfferSummary store={store} products={products} openInNewTab />
           <p className="text-xs leading-6 text-muted-foreground">Cada tarjeta del carrusel usa la portada, el nombre y la descripción del producto bono. Para cambiar una foto, editá ese producto. Estos enlaces abren otra pestaña para que conserves lo que estás escribiendo.</p>
           {labels('offer')}
+        </Section>
+        <Section id="bonusCards" attention={checks.bonusCards} description="Una tarjeta por bono, con sus viñetas y la etiqueta de gratis" hidden={off('bonusCards')}>
+          {heading('bonusCards')}
+          {button('bonusCards')}
+          {field('bonusCards', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240 })}
+          <p className="text-xs leading-6 text-muted-foreground">Cada tarjeta usa la portada, el nombre, la descripción corta y la descripción del producto bono: cada línea de la descripción es una viñeta (hasta 6). Si el bono tiene valor de referencia en la oferta, se muestra tachado junto a la etiqueta de gratis. Podés usarla junto con el carrusel de bonos o en su lugar. <Link to={`/panel/tiendas/${storeId}/catalogo`} target="_blank" rel="noreferrer" className="underline">Editar productos</Link></p>
+          {labels('bonusCards')}
         </Section>
         <Section id="steps" attention={checks.steps} description="Los pasos numerados del recorrido" hidden={off('steps')}>
           {heading('steps')}
@@ -376,12 +425,33 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('comparison', 'badge', 'Etiqueta de la columna destacada (opcional)', { maxLength: 60, placeholder: 'El camino corto' })}
           {button('comparison', 'Botón de la columna destacada (opcional)')}
         </Section>
+        <Section id="valueStack" attention={checks.valueStack} description="La lista de todo lo que se lleva, con el valor total y el precio de hoy" hidden={off('valueStack')}>
+          {heading('valueStack')}
+          <p className="text-xs leading-6 text-muted-foreground">La lista se arma sola con el producto principal y los bonos de la tienda, con sus precios tachados o la etiqueta de gratis. El valor total, el precio de hoy y el ahorro se calculan con la oferta.</p>
+          {content.valueStack.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Línea adicional {index + 1}</legend>
+            {itemField('valueStack', index, 'title', 'Título', { maxLength: 120, required: true, placeholder: 'Garantía de 14 días' })}
+            {itemField('valueStack', index, 'description', 'Detalle (opcional)', { maxLength: 240, placeholder: '100% de tu dinero de vuelta si no te gusta' })}
+            {remove('valueStack', index, 'línea adicional')}
+          </fieldset>)}
+          {add('valueStack', 'línea adicional', { title: '', description: '' }, 6)}
+          {button('valueStack')}
+          {field('valueStack', 'note', 'Nota debajo del botón (opcional)', { maxLength: 240, hint: 'Si queda vacía, usamos la línea de confianza de la portada.' })}
+          {labels('valueStack')}
+        </Section>
         <Section id="guarantee" attention={checks.guarantee} description="El recuadro punteado con las condiciones" hidden={off('guarantee')}>
           {toggle('guarantee')}
           <Field label="Días de garantía (opcional)">{ids => <Input {...ids} type="number" min="1" max="365" step="1" value={content.guarantee.days ?? ''} onChange={event => change('guarantee', { days: event.target.value === '' ? undefined : Number(event.target.value) })} disabled={Boolean(busy)} />}</Field>
           {field('guarantee', 'title', 'Título', { maxLength: 120 })}
           {field('guarantee', 'text', 'Condiciones de la garantía', { multiline: true, maxLength: 1200, hint: 'La garantía aparece cuando completás este texto.' })}
           {button('guarantee')}
+        </Section>
+        <Section id="riskFree" attention={checks.riskFree} description="Un sello subido como imagen junto a una promesa. Es solo visual" hidden={off('riskFree')}>
+          {toggle('riskFree')}
+          {image('riskFree', 'imageUrl', 'Sello o badge de garantía (opcional)', 'PNG cuadrado con fondo transparente, 400 × 400 px. Sin imagen mostramos un escudo con tu color.')}
+          {field('riskFree', 'imageAlt', 'Descripción del sello', { maxLength: 240, placeholder: 'Sello de 14 días de garantía', hint: 'Para quienes usan un lector de pantalla.' })}
+          {field('riskFree', 'title', 'Título', { maxLength: 120, hint: MARKS })}
+          {field('riskFree', 'text', 'Texto', { multiline: true, maxLength: 1200, placeholder: 'Probalo durante 14 días. Si no te gusta, te devolvemos el 100% de tu dinero.', hint: `Separá los párrafos con un salto de línea. ${MARKS}` })}
+          <p className="text-xs leading-6 text-muted-foreground">Esta sección es solo visual: no lee ni cambia la garantía de la tienda, sus días ni lo que se muestra en el checkout.</p>
         </Section>
         <Section id="faq" attention={checks.faq} description="Las dudas que respondés antes de la compra" hidden={off('faq')}>
           {heading('faq', { eyebrow: false })}
@@ -409,7 +479,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {labels('combo')}
         </Section>
         <Section id="identity" attention={checks.identity} description="Color, marca, enlaces legales y dirección pública">
-          <Field label="Color principal" hint="Los botones ajustan su contraste automáticamente.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
+          <Field label="Color principal" hint="Toda la landing toma este color: botones, fondos, secciones oscuras, bordes y sombras, también en gracias, post-compra y los popups. El contraste se ajusta solo. La barra de oferta y el botón del hero pueden llevar un color propio desde sus secciones.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
           {field('footer', 'brandName', 'Marca en el pie de página', { maxLength: 120, hint: 'Si queda vacío, usamos el nombre de la tienda.' })}
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
           <p className="text-xs leading-6 text-muted-foreground">{urls ? <>Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a>. </> : 'Todavía no definiste el subdominio. '}El subdominio se edita en <Link to={`/panel/tiendas/${storeId}/configuracion`} className="underline">Configuración</Link>; el dominio propio requiere configurar dominio y DNS.</p>

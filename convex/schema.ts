@@ -17,6 +17,9 @@ export const deliverable = v.object({ title: v.string(), url: v.string(), kind: 
 const sectionFields = { enabled: v.optional(v.boolean()), subtitle: v.optional(v.string()), eyebrow: v.optional(v.string()), ctaText: v.optional(v.string()), note: v.optional(v.string()) };
 const feature = v.object({ title: v.string(), description: v.string(), icon: v.string() });
 const storyFields = { ...sectionFields, eyebrow: v.optional(v.string()), title: v.string() };
+// Sections that only take what their form edits, so a save keeps every field.
+const headingFields = { enabled: v.optional(v.boolean()), eyebrow: v.optional(v.string()), title: v.string(), subtitle: v.optional(v.string()) };
+const actionFields = { ctaText: v.optional(v.string()), note: v.optional(v.string()) };
 const storyImage = { imageUrl: v.optional(v.string()), imageAlt: v.optional(v.string()) };
 
 const optionalTexts = (fields: Record<string, unknown>) => v.optional(v.object(Object.fromEntries(Object.keys(fields).map(key => [key, v.optional(v.string())]))));
@@ -45,13 +48,18 @@ export const landingContent = v.object({
     enabled: v.boolean(), title: v.string(), url: v.string(),
     format: v.optional(v.union(v.literal('auto'), v.literal('reel'), v.literal('landscape'))),
   })),
-  hero: v.object({ title: v.string(), titleAccent: v.optional(v.string()), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()), headerCtaText: v.optional(v.string()), ratingText: v.optional(v.string()), trustText: v.optional(v.string()), noteTitle: v.optional(v.string()), footnote: v.optional(v.string()) }),
+  hero: v.object({ ctaColor: v.optional(v.string()), chips: v.optional(v.array(v.object({ value: v.string(), label: v.string() }))), title: v.string(), titleAccent: v.optional(v.string()), subtitle: v.string(), imageUrl: v.string(), ctaText: v.string(), eyebrow: v.optional(v.string()), secondaryImageUrl: v.optional(v.string()), note: v.optional(v.string()), headerCtaText: v.optional(v.string()), ratingText: v.optional(v.string()), trustText: v.optional(v.string()), noteTitle: v.optional(v.string()), footnote: v.optional(v.string()) }),
   introduction: v.optional(v.object({ ...storyFields, text: v.string(), badge: v.optional(v.string()) })),
   transformation: v.optional(v.object({ ...storyFields, ...storyImage })),
   about: v.optional(v.object({ ...storyFields, ...storyImage, text: v.string(), signature: v.optional(v.string()) })),
   showcase: v.optional(v.object({ ...storyFields, ...storyImage, videoUrl: v.optional(v.string()) })),
   comparison: v.optional(v.object({ ...storyFields, badge: v.optional(v.string()), items: v.array(v.object({ title: v.string(), description: v.string(), highlighted: v.boolean() })) })),
   combo: v.optional(v.object({ ...storyFields, upsellText: v.string(), allText: v.string() })),
+  highlights: v.optional(v.object({ ...headingFields, items: v.array(v.object({ title: v.string(), description: v.string(), icon: v.string(), fact: v.optional(v.string()) })) })),
+  offerTimer: v.optional(v.object({ ...headingFields, ...actionFields, badge: v.optional(v.string()), priceNote: v.optional(v.string()), text: v.optional(v.string()) })),
+  bonusCards: v.optional(v.object({ ...headingFields, ...actionFields })),
+  valueStack: v.optional(v.object({ ...headingFields, ...actionFields, items: v.array(v.object({ title: v.string(), description: v.string() })) })),
+  riskFree: v.optional(v.object({ enabled: v.optional(v.boolean()), title: v.string(), text: v.string(), imageUrl: v.optional(v.string()), imageAlt: v.optional(v.string()) })),
   benefits: v.object({ ...sectionFields, ...storyImage, videoUrl: v.optional(v.string()), title: v.string(), items: v.array(v.union(v.string(), feature)) }),
   painPoints: v.optional(v.object({ closingText: v.optional(v.string()), ...sectionFields, title: v.string(), items: v.array(v.union(v.string(), feature)) })),
   socialProof: v.optional(v.object({ eyebrow: v.optional(v.string()), rating: v.optional(v.number()), customers: v.optional(v.number()), satisfaction: v.optional(v.number()), ...sectionFields, title: v.string(), items: v.array(v.object({ name: v.string(), quote: v.string(), imageUrl: v.optional(v.string()), photoUrl: v.optional(v.string()), verified: v.optional(v.boolean()), format: v.optional(v.union(v.literal('quote'), v.literal('chat'))), openingMessage: v.optional(v.string()), closingMessage: v.optional(v.string()), isExample: v.optional(v.boolean()) })) })),
@@ -59,7 +67,7 @@ export const landingContent = v.object({
   faq: v.object({ ...sectionFields, title: v.string(), items: v.array(v.object({ question: v.string(), answer: v.string() })) }),
   guarantee: v.object({ ...sectionFields, title: v.string(), text: v.string(), days: v.optional(v.number()) }),
   style: v.object({ accentColor: v.string() }),
-  promotion: v.optional(v.object({ title: v.optional(v.string()), timerLabel: v.optional(v.string()), spotsText: v.optional(v.string()), enabled: v.boolean(), message: v.string(), timerMode: v.optional(v.union(v.literal('session'), v.literal('date'))), remainingSpots: v.optional(v.number()), endsAt: v.optional(v.number()) })),
+  promotion: v.optional(v.object({ barColor: v.optional(v.string()), title: v.optional(v.string()), timerLabel: v.optional(v.string()), spotsText: v.optional(v.string()), enabled: v.boolean(), message: v.string(), timerMode: v.optional(v.union(v.literal('session'), v.literal('date'))), remainingSpots: v.optional(v.number()), endsAt: v.optional(v.number()) })),
   steps: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   summary: v.optional(v.object({ ...sectionFields, title: v.string() })),
   closing: v.optional(v.object({ enabled: v.boolean(), title: v.string(), ctaText: v.string(), stickyEnabled: v.boolean(), text: v.optional(v.string()), note: v.optional(v.string()) })),

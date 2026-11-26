@@ -19,7 +19,7 @@ function sample(validator, key = '') {
     case 'literal': return validator.value;
     case 'boolean': return true;
     case 'float64': return 1;
-    case 'string': return /url$/i.test(key) ? 'https://example.com/file.mp4' : key === 'accentColor' ? '#aabbcc' : `Texto de ${key}`;
+    case 'string': return /url$/i.test(key) ? 'https://example.com/file.mp4' : /color$/i.test(key) ? '#aabbcc' : `Texto de ${key}`;
     default: throw new Error(`Sin valor de ejemplo para ${validator.kind} (${key})`);
   }
 }

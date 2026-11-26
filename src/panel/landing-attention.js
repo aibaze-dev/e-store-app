@@ -11,13 +11,17 @@ export function landingAttention(content, { bonuses = 0, upsells = 0, hasCover =
 
   if (!content.hero.title.trim()) add('hero', 'needs', 'Falta el título', 'Falta el título principal: sin él no se puede publicar.');
   if (!content.hero.imageUrl && !hasCover) add('cover', 'needs', 'Falta la foto principal', 'Falta la foto principal y el producto no tiene portada.');
-  if (!content.hero.secondaryImageUrl) add('cover', 'extras', 'Segunda foto', 'Segunda foto sin subir: la principal queda sola y centrada.');
+  if (!content.hero.secondaryImageUrl) add('cover', 'extras', 'Segunda foto', 'Segunda foto sin subir: se muestra solo la principal.');
   if (!(proof.rating > 0)) add('cover', 'extras', 'Calificación', 'Calificación con estrellas sin cargar: no se muestran las estrellas.');
   if (!content.hero.ratingText) add('cover', 'extras', 'Texto de calificación', 'Texto junto a las estrellas vacío.');
   if (content.promotion.enabled && !(content.promotion.remainingSpots > 0)) add('promotion', 'extras', 'Cupos', 'Cupos sin cantidad: no se muestran.');
   if (on('introduction') && !content.introduction.title && !content.introduction.text) add('introduction', 'needs', 'Sin texto', 'No tiene título ni texto: la sección no se muestra.');
   if (on('transformation') && !content.transformation.imageUrl) add('transformation', 'needs', 'Falta la foto', 'Falta la foto: la sección no se publica hasta que la subas.');
   empty('painPoints', 'problemas');
+  empty('highlights', 'tarjetas');
+  if (on('bonusCards') && bonuses === 0) add('bonusCards', 'needs', 'Sin bonos en la tienda', 'La tienda no tiene bonos cargados: la sección no se muestra.');
+  if (on('riskFree') && !content.riskFree.title && !content.riskFree.text && !content.riskFree.imageUrl) add('riskFree', 'needs', 'Sin contenido', 'No tiene sello, título ni texto: la sección no se muestra.');
+  else if (on('riskFree') && !content.riskFree.imageUrl) add('riskFree', 'extras', 'Sello', 'Sello sin subir: se muestra un escudo con tu color.');
   if (on('bonuses') && bonuses === 0) add('offer', 'needs', 'Sin bonos en la tienda', 'La tienda no tiene bonos cargados: la sección no se muestra.');
   empty('steps', 'pasos');
   if (on('about') && !content.about.text) add('about', 'needs', 'Sin texto', 'No tiene texto: la sección no se muestra.');

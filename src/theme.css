@@ -214,13 +214,13 @@
   --muted-foreground: #667085;
   --border: #e1e5eb;
   --input: #ccd2dc;
-  --primary: #aa4b05;
-  --primary-foreground: #ffffff;
-  --accent: #fff9e7;
+  --primary: var(--classic-action, #aa4b05);
+  --primary-foreground: var(--classic-on-action, #ffffff);
+  --accent: var(--classic-cream, #fff9e7);
   --destructive: #d91e28;
   --ring: #075bd8;
   --checkout-blue: #075bd8;
   --checkout-green: #07803b;
   --checkout-selected: #08a879;
-  --checkout-amber: #f59e0b;
+  --checkout-amber: var(--sales-accent, #f59e0b);
 }

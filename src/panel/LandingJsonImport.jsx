@@ -66,7 +66,7 @@ export default function LandingJsonImport({ storeId, hasContent, disabled, onApp
           {loading
             ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" />Preparando el prompt con los datos de tu tienda…</p>
             : prompt && <Textarea readOnly value={prompt} aria-label="Prompt para el chat de IA" className="h-40 font-mono text-xs leading-5" onFocus={event => event.target.select()} />}
-          <p className="text-xs leading-5 text-muted-foreground">Incluye el producto, los bonos y el post-compra de esta tienda, las reglas de redacción y la estructura exacta del JSON.</p>
+          <p className="text-xs leading-5 text-muted-foreground">Incluye el producto, los bonos y el post-compra de esta tienda, las reglas de redacción y la estructura exacta del JSON. También pregunta qué secciones opcionales sumar (tarjetas destacadas, oferta con contador, bonos en tarjetas, resumen de valor y sello de riesgo cero): las que elijas llegan activadas.</p>
         </section>
 
         <form className="space-y-3" onSubmit={submit} aria-busy={busy}>

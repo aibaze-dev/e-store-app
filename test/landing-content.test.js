@@ -41,6 +41,43 @@ describe('sales template content', () => {
     expect(classicTheme('#2040a0')).toMatchObject({ '--sales-accent': '#2040a0', '--classic-cta-end': '#2040a0', '--classic-cta-text': '#ffffff' });
     expect(classicTheme('#eeeeee')['--classic-cta-text']).toBe('#111827');
   });
+  it('derives every surface, ink and highlight from the chosen color, leaving no default orange behind', () => {
+    const blue = classicTheme('#2040a0');
+    const orange = /f56b20|ff4d00|ff9e3d|e83a00|ff5c1a|b9380b|ffdc92|ffb648|ffe9a8/i;
+    for (const [token, value] of Object.entries(blue)) expect(`${token}: ${value}`).not.toMatch(orange);
+    expect(Object.keys(blue)).toEqual(Object.keys(classicTheme()));
+    expect(blue['--classic-ink']).toBe('color-mix(in srgb, #2040a0 12%, #141414)');
+    expect(blue['--classic-sticky-bg']).toBe('linear-gradient(135deg, #1d3b93, #2040a0)');
+    expect(blue['--classic-gold-end']).toBe('#90a0d0');
+    expect(blue['--classic-on-gold']).toBe('#111827');
+    // The default orange keeps its gold highlights and the blue fixed button.
+    expect(classicTheme()).toMatchObject({ '--classic-gold-start': '#ffdc92', '--classic-highlight': '#ffe9a8', '--classic-sticky-text': '#ffffff' });
+    expect(classicTheme()['--classic-sticky-bg']).toContain('#2f5bff');
+    // A light color gets dark highlights so they stay readable on its banner.
+    expect(classicTheme('#ffe45c')).toMatchObject({ '--classic-cta-text': '#111827', '--classic-highlight': '#665b25', '--classic-action': '#736729', '--classic-on-action': '#ffffff' });
+    // The offer bar follows the accent until it gets its own color; an invalid one is ignored.
+    expect(blue).toMatchObject({ '--classic-bar-mid': '#2040a0', '--classic-bar-text': '#ffffff' });
+    expect(classicTheme('#2040a0', { bar: 'red' })).toEqual(blue);
+    const purple = classicTheme('#2040a0', { bar: '#7c3aed' });
+    expect(purple).toMatchObject({ '--classic-bar-start': '#6931c9', '--classic-bar-mid': '#7c3aed', '--classic-bar-text': '#ffffff', '--sales-accent': '#2040a0', '--classic-cta-end': '#2040a0' });
+    expect(classicTheme('#2040a0', { bar: '#fde047' })['--classic-bar-text']).toBe('#111827');
+    // So does the hero's button: only its own tokens change.
+    expect(blue).toMatchObject({ '--classic-hero-cta-end': '#2040a0', '--classic-hero-cta-edge': blue['--classic-action'] });
+    const gold = classicTheme('#2040a0', { heroButton: '#f5c542' });
+    expect(gold).toMatchObject({ '--classic-hero-cta-end': '#f5c542', '--classic-hero-cta-text': '#111827', '--classic-cta-end': '#2040a0', '--classic-bar-mid': '#2040a0' });
+  });
+  it('keeps the optional sections off until the seller turns them on', () => {
+    const empty = normalizeContent(content);
+    for (const key of ['highlights', 'offerTimer', 'bonusCards', 'valueStack', 'riskFree']) expect(empty[key].enabled).toBe(false);
+    expect(empty.labels).toMatchObject({ discount: '{porcentaje}% OFF', bonusNumber: 'Bonus {numero}', included: 'Included' });
+    expect(empty.hero.chips).toEqual([]);
+    expect(empty.promotion.barColor).toBe('');
+    expect(empty.hero.ctaColor).toBe('');
+    const items = [{ title: 'Fácil', description: '', icon: 'clock', fact: 'Dato' }];
+    const copy = normalizeContent({ ...content, highlights: { enabled: true, title: 'Tarjetas', items } });
+    expect(copy.highlights.items).toEqual(items);
+    expect(copy.highlights.items[0]).not.toBe(items[0]);
+  });
   it('removes the highlight marks wherever a title is shown as plain text', () => {
     expect(plainText('Aprendé y *tené el trabajo hecho* en **7 días**')).toBe('Aprendé y tené el trabajo hecho en 7 días');
     expect(plainText('5 * 3 = 15')).toBe('5 * 3 = 15');
@@ -165,5 +202,17 @@ describe('landing editor attention', () => {
     const after = landingAttention(solved, { bonuses: 2, upsells: 1, hasCover: true });
     for (const id of ['transformation', 'showcase', 'cover', 'offer', 'combo', 'socialProof', 'guarantee', 'promotion']) expect(after[id]).toBeUndefined();
     expect(landingAttention(normalizeContent({ ...content, hero: { ...content.hero, title: ' ' } })).hero.needs[0].label).toBe('Falta el título');
+
+    // Optional sections only ask for something once they are switched on.
+    for (const id of ['highlights', 'offerTimer', 'bonusCards', 'valueStack', 'riskFree']) expect(checks[id]).toBeUndefined();
+    const optional = normalizeContent({ ...generated, highlights: { enabled: true }, bonusCards: { enabled: true }, riskFree: { enabled: true, title: '', text: '' }, valueStack: { enabled: true }, offerTimer: { enabled: true } });
+    const flagged = landingAttention(optional, { bonuses: 0, upsells: 0, hasCover: false });
+    expect(flagged.highlights.needs[0].label).toBe('Sin tarjetas');
+    expect(flagged.bonusCards.needs[0].label).toBe('Sin bonos en la tienda');
+    expect(flagged.riskFree.needs[0].label).toBe('Sin contenido');
+    expect(flagged.valueStack ?? flagged.offerTimer).toBeUndefined();
+    const sealed = landingAttention(normalizeContent({ ...optional, riskFree: { enabled: true, title: 'Riesgo cero', text: '' } }), { bonuses: 2 });
+    expect(sealed.riskFree).toEqual({ needs: [], extras: [expect.objectContaining({ label: 'Sello' })] });
+    expect(sealed.bonusCards).toBeUndefined();
   });
 });
