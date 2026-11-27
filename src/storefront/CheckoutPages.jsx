@@ -286,7 +286,7 @@ export function DownsellOfferView({ view, origin = 'direct', payment, busy = fal
         <h1 className="text-3xl font-semibold tracking-tight">{copy.pageTitle}</h1>
         <p className="leading-7 text-muted-foreground">{copy.pageSubtitle}</p>
       </div>
-      {downsell.videoUrl && videoSource(downsell.videoUrl) && <Video key={downsell.videoUrl} video={{ enabled: true, url: downsell.videoUrl, title: '' }} editKey="popupBack" labels={labels} preview={preview} />}
+      {downsell.videoUrl && videoSource(downsell.videoUrl) && <Video key={downsell.videoUrl} video={{ enabled: true, url: downsell.videoUrl, title: '' }} autoPlay={!preview} editKey="popupBack" labels={labels} preview={preview} />}
       <CheckoutOfferTimer timeLeft={checkout.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} />
       <section className="overflow-hidden rounded-xl border bg-card" aria-label={copy.offerLabel}>
         <div className="space-y-4 p-5">

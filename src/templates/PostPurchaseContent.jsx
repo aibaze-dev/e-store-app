@@ -186,7 +186,15 @@ export function Video({ video, children, autoPlay = false, editKey = 'postPurcha
   const edit = usePreviewSection();
   const [failed, setFailed] = useState(false);
   const [nativeRatio, setNativeRatio] = useState(null);
+  const player = useRef(null);
   const source = videoSource(video.url, { autoPlay });
+  // Browsers refuse to start a video with sound unless the visitor has already interacted
+  // with the page. Then it starts muted, and the player's own controls turn the sound on.
+  useEffect(() => {
+    const element = player.current;
+    if (!autoPlay || !element) return;
+    element.play()?.catch(() => { element.muted = true; element.play()?.catch(() => {}); });
+  }, [autoPlay, source?.src]);
   if (!video.enabled || !source) return null;
   const format = video.format && video.format !== 'auto' ? video.format : source.format;
   const ratio = format === 'reel' ? 9 / 16 : format === 'landscape' ? 16 / 9 : nativeRatio ?? 16 / 9;
@@ -199,7 +207,7 @@ export function Video({ video, children, autoPlay = false, editKey = 'postPurcha
     {source.kind === 'embed'
       ? <iframe src={source.src} title={video.title || labels.videoTitle} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
       : failed || forceError ? <p role="status" className="purchase-notice">{labels.videoError}</p>
-        : <video src={source.src} autoPlay={autoPlay} controls playsInline preload={autoPlay ? 'auto' : 'metadata'} onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
+        : <video ref={player} src={source.src} autoPlay={autoPlay} controls playsInline preload={autoPlay ? 'auto' : 'metadata'} onLoadedMetadata={measureVideo} onError={() => setFailed(true)}>{labels.videoUnsupported}</video>}
     {children}
     <a onClick={event => { if (preview) event.preventDefault(); }} href={video.url} target="_blank" rel="noreferrer">{labels.videoOpen}<ExternalLink aria-hidden="true" /></a>
   </div>;
