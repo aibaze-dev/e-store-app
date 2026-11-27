@@ -73,9 +73,10 @@
 .cl-stars { color: var(--classic-star); letter-spacing: 2px; }
 
 /* Buttons */
-.cl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; max-width: 100%; min-height: 52px; padding: 14px 30px; border: 1px solid #ffffff33; border-radius: 12px; background: var(--cl-grad); color: var(--classic-cta-text); font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; letter-spacing: -.005em; text-align: center; cursor: pointer; box-shadow: 0 10px 26px var(--cl-glow), inset 0 1px 0 #ffffff59; transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease; }
+/* Buttons take the landing's button color (style.buttonColor); without one it is the accent. */
+.cl-btn { --cl-btn-glow: var(--classic-btn-glow, var(--cl-glow)); display: inline-flex; align-items: center; justify-content: center; gap: 10px; max-width: 100%; min-height: 52px; padding: 14px 30px; border: 1px solid #ffffff33; border-radius: 12px; background: linear-gradient(135deg, var(--classic-btn-start, var(--classic-cta-start)), var(--classic-btn-end, var(--classic-cta-end))); color: var(--classic-btn-text, var(--classic-cta-text)); font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; letter-spacing: -.005em; text-align: center; cursor: pointer; box-shadow: 0 10px 26px var(--cl-btn-glow), inset 0 1px 0 #ffffff59; transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease; }
 .cl-btn svg { width: 18px; height: 18px; flex-shrink: 0; transition: transform 180ms ease; }
-.cl-btn:hover:not(:disabled) { transform: translateY(-2px); filter: saturate(1.08) brightness(1.03); box-shadow: 0 14px 32px var(--cl-glow), inset 0 1px 0 #ffffff66; }
+.cl-btn:hover:not(:disabled) { transform: translateY(-2px); filter: saturate(1.08) brightness(1.03); box-shadow: 0 14px 32px var(--cl-btn-glow), inset 0 1px 0 #ffffff66; }
 .cl-btn:hover:not(:disabled) svg { transform: translateX(3px); }
 .cl-btn:active:not(:disabled) { transform: none; }
 .cl-btn:disabled { cursor: default; }
@@ -246,11 +247,10 @@
 .cl-testis { display: flex; justify-content: safe center; gap: 14px; padding: 4px 4px 14px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .cl-testi { display: flex; flex: 1 0 236px; max-width: 280px; padding: 26px 26px 30px; border: 1px solid var(--cl-line); border-radius: 14px; background: var(--cl-paper); box-shadow: 0 12px 30px color-mix(in srgb, var(--sales-accent) 7%, transparent); scroll-snap-align: center; }
 .cl-testi > img { width: 100%; height: auto; align-self: center; border-radius: 12px; box-shadow: 0 6px 20px color-mix(in srgb, var(--cl-ink) 12%, transparent); }
-.cl-testi-card { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 8px; padding: 14px 16px 18px; border-radius: 12px; background: #fff; box-shadow: 0 6px 20px color-mix(in srgb, var(--cl-ink) 12%, transparent); text-align: center; }
-.cl-avatar { display: grid; place-items: center; width: 104px; height: 104px; border-radius: 50%; object-fit: cover; background: var(--cl-peach); color: var(--classic-action); font-family: var(--cl-display); font-size: 40px; font-weight: 700; }
-.cl-testi figcaption { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--cl-ink); }
-.cl-testi .cl-stars { font-size: 16px; letter-spacing: 4px; }
-.cl-testi blockquote { font-size: 12.5px; line-height: 1.65; white-space: pre-line; }
+.cl-testi-card { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 8px; padding: 20px 16px 18px; border-radius: 12px; background: #fff; box-shadow: 0 6px 20px color-mix(in srgb, var(--cl-ink) 12%, transparent); text-align: center; }
+.cl-testi figcaption { font-family: var(--cl-display); font-size: 15px; font-weight: 700; color: var(--cl-ink); }
+.cl-testi .cl-stars { font-size: 17px; letter-spacing: 4px; }
+.cl-testi blockquote { margin-bottom: 6px; font-size: 13px; line-height: 1.65; white-space: pre-line; }
 .cl-verified { display: inline-flex; align-items: center; gap: 5px; margin-top: auto; padding: 3px 10px; border-radius: 999px; background: #ecfdf3; color: #15803d; font-size: 10px; font-weight: 600; }
 .cl-verified svg { width: 12px; height: 12px; }
 .cl-metrics { display: flex; justify-content: center; margin-top: 22px; }

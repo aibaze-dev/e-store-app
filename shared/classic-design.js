@@ -44,9 +44,10 @@ const highlightOn = (text, { shade, tint }) => text === '#ffffff' ? tint(.25) : 
 
 // One palette for the public landing, the purchase pages and their portaled offer dialogs.
 // Every surface, ink and shadow is a mix of the chosen color, so no page keeps the default orange.
-// `bar` and `heroButton` are the optional colors of the offer bar and of the hero's button;
-// without them both follow the accent.
-export function classicTheme(value, { bar, heroButton } = {}) {
+// `bar`, `button` and `heroButton` are the optional colors of the offer bar, of every landing
+// button and of the hero's button; without them they follow the accent. The hero's button
+// takes its own color first, then the buttons' color.
+export function classicTheme(value, { bar, button, heroButton } = {}) {
   const accent = HEX.test(value || '') ? classicAccent(value) : CLASSIC_ACCENT;
   const standard = accent.toLowerCase() === CLASSIC_ACCENT;
   const { shade, tint } = tones(accent);
@@ -61,7 +62,12 @@ export function classicTheme(value, { bar, heroButton } = {}) {
   const highlight = standard ? '#ffe9a8' : highlightOn(ctaText, { shade, tint });
   const own = HEX.test(bar || '') ? tones(bar) : null;
   const barText = own ? readableOn(own.shade(.92)) : ctaText;
-  const button = HEX.test(heroButton || '') ? tones(heroButton) : null;
+  const buttons = HEX.test(button || '') ? tones(button) : null;
+  const btnStart = buttons ? buttons.shade(.92) : ctaStart;
+  const btnEnd = buttons ? button : ctaEnd;
+  const btnText = buttons ? readableOn(btnStart) : ctaText;
+  const heroColor = HEX.test(heroButton || '') ? heroButton : buttons ? button : null;
+  const hero = heroColor ? tones(heroColor) : null;
   return {
     '--sales-accent': accent, '--sales-on-accent': readableOn(accent),
     '--classic-action': action, '--classic-on-action': readableOn(action),
@@ -70,9 +76,11 @@ export function classicTheme(value, { bar, heroButton } = {}) {
     // Offer bar at the top of the landing.
     '--classic-bar-start': own ? own.shade(.85) : bannerStart, '--classic-bar-mid': own ? bar : bannerMid, '--classic-bar-end': own ? own.tint(.82) : ctaEnd,
     '--classic-bar-text': barText, '--classic-bar-highlight': own ? highlightOn(barText, own) : highlight, '--classic-bar-glow': mix(38, 'transparent', own ? bar : accent),
+    // Every button of the landing; the gradients of icons and badges keep the accent.
+    '--classic-btn-start': btnStart, '--classic-btn-end': btnEnd, '--classic-btn-text': btnText, '--classic-btn-glow': mix(38, 'transparent', buttons ? button : accent),
     // The hero's button, with the darker edge that gives it relief.
-    '--classic-hero-cta-start': button ? button.shade(.92) : ctaStart, '--classic-hero-cta-end': button ? heroButton : ctaEnd,
-    '--classic-hero-cta-text': button ? readableOn(button.shade(.92)) : ctaText, '--classic-hero-cta-edge': button ? button.shade(.62) : action,
+    '--classic-hero-cta-start': hero ? hero.shade(.92) : ctaStart, '--classic-hero-cta-end': hero ? heroColor : ctaEnd,
+    '--classic-hero-cta-text': hero ? readableOn(hero.shade(.92)) : ctaText, '--classic-hero-cta-edge': hero ? hero.shade(.62) : action,
     // Text and rules: neutral greys carrying a little of the accent.
     '--classic-ink': mix(12, '#141414'), '--classic-text': mix(10, '#404040'), '--classic-muted': mix(10, '#707070'), '--classic-faint': mix(10, '#a0a0a0'),
     '--classic-line': mix(12, '#f0f0f0'), '--classic-rule': mix(5, '#e8e8e8'),
@@ -84,12 +92,13 @@ export function classicTheme(value, { bar, heroButton } = {}) {
     // Highlights: gold with the default orange, tints of the accent with any other color.
     '--classic-gold-start': standard ? '#ffdc92' : tint(.3), '--classic-gold-end': standard ? '#ffb648' : tint(.5), '--classic-on-gold': standard ? '#4a2a05' : readableOn(tint(.5)),
     '--classic-highlight': highlight, '--classic-night-highlight': standard ? '#ffe9a8' : tint(.3),
-    // Rating stars and discount badges: amber and red with the default orange, the accent otherwise.
-    '--classic-star': standard ? '#ffa41c' : readableOn(accent) === '#ffffff' ? accent : shade(.85),
+    // Testimonial stars are always yellow: like green and red, the color carries the meaning.
+    '--classic-star': '#f5b301',
+    // Discount badges: red with the default orange, the accent otherwise.
     '--classic-badge': standard ? '#ff3b1f' : action, '--classic-on-badge': standard ? '#ffffff' : readableOn(action),
-    // Fixed buy button: blue next to the default orange, the accent gradient otherwise.
-    '--classic-sticky-bg': standard ? 'linear-gradient(90deg, #2f5bff, #2f8cff 55%, #38c6ff)' : `linear-gradient(135deg, ${ctaStart}, ${ctaEnd})`,
-    '--classic-sticky-text': standard ? '#ffffff' : ctaText, '--classic-sticky-glow': standard ? '#2f6bff59' : mix(38, 'transparent'),
+    // Fixed buy button: blue next to the default orange, the buttons' gradient otherwise.
+    '--classic-sticky-bg': standard && !buttons ? 'linear-gradient(90deg, #2f5bff, #2f8cff 55%, #38c6ff)' : `linear-gradient(135deg, ${btnStart}, ${btnEnd})`,
+    '--classic-sticky-text': standard && !buttons ? '#ffffff' : btnText, '--classic-sticky-glow': standard && !buttons ? '#2f6bff59' : mix(38, 'transparent', buttons ? button : accent),
   };
 }
 

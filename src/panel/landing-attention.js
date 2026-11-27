@@ -31,10 +31,8 @@ export function landingAttention(content, { bonuses = 0, upsells = 0, hasCover =
   if (on('benefits') && content.benefits.items.length > 0 && !content.benefits.imageUrl && !content.benefits.videoUrl) add('benefits', 'extras', 'Foto o video', 'Foto o video del kit sin cargar.');
   if (on('socialProof')) {
     const examples = proof.items.filter(item => item.isExample).length;
-    const faceless = proof.items.filter(item => !item.photoUrl && !item.imageUrl).length;
     if (examples > 0) add('socialProof', 'needs', 'Testimonios de ejemplo', `${examples === 1 ? 'Hay 1 testimonio de ejemplo escrito' : `Hay ${examples} testimonios de ejemplo escritos`} por la IA: reemplazalos por opiniones reales.`);
     if (proof.items.length === 0 && !(proof.rating > 0) && !(proof.customers > 0) && !(proof.satisfaction > 0)) add('socialProof', 'needs', 'Sin testimonios', 'No tiene testimonios ni métricas: la sección no se muestra.');
-    if (faceless > 0) add('socialProof', 'extras', 'Fotos', `${faceless === 1 ? '1 testimonio sin foto: muestra' : `${faceless} testimonios sin foto: muestran`} la inicial del nombre.`);
     if (!(proof.customers > 0) || !(proof.satisfaction > 0)) add('socialProof', 'extras', 'Métricas', 'Métricas de clientes y satisfacción sin cargar.');
   }
   empty('comparison', 'columnas');

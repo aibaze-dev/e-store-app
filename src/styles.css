@@ -425,6 +425,7 @@
 .checkout-page .checkout-pay:hover:not(:disabled) { background: #064db5; }
 .checkout-sidebar > section { box-shadow: 0 2px 4px #202a3b0d; border-radius: 16px; }
 .checkout-page .checkout-positive { color: var(--checkout-green); }
+.checkout-page .checkout-savings { border: 1px solid #a8edbd; background: #eafbf0; color: var(--checkout-green); }
 .checkout-page .checkout-extra-selected { border-color: var(--checkout-amber); background: var(--accent); }
 .checkout-sidebar [role='timer'] { justify-content: flex-start; padding: 4px 8px; font-size: 12px; }
 .checkout-extra-button { color: var(--checkout-blue); }

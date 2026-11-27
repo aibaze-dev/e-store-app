@@ -4,7 +4,7 @@ import { POST_LABEL_FIELDS, POST_LABEL_GROUPS, POST_LABEL_DEFAULTS, POST_OPTIONA
 import { CHECKOUT_FIELDS, CHECKOUT_DEFAULTS, CHECKOUT_OPTIONAL_FIELDS } from '../../shared/checkout-copy.js';
 import { CopyFields, CopyGroup, OptionFields } from './PurchaseCopyFields.jsx';
 import PopupJourney from './PopupJourney.jsx';
-import { LANDING_LABEL_FIELDS } from '../../shared/landing-copy.js';
+import { LANDING_LABEL_FIELDS, NOTICE_REGIONS } from '../../shared/landing-copy.js';
 import { Tabs } from 'radix-ui';
 import CheckoutContentFields from './CheckoutContentFields.jsx';
 import { checkoutConfig } from '../../shared/checkout-copy.js';
@@ -123,10 +123,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
   const toggle = (key, label = 'Mostrar esta sección', property = 'enabled') => <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="size-5 accent-primary" checked={content[key][property]} onChange={event => change(key, { [property]: event.target.checked })} disabled={Boolean(busy)} />{label}</label>;
   const image = (key, property, label, hint) => <ImageField uploadOnly label={label} hint={hint} value={content[key][property]} onChange={value => change(key, { [property]: value })} disabled={Boolean(busy)} />;
   // A piece with a color of its own; while empty it follows the landing's main color.
-  const ownColor = (key, property, label, hint) => <Field label={label} hint={hint}>{ids => <div className="flex flex-wrap items-center gap-3">
-    <input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={content[key][property] || classicAccent(content.style.accentColor)} onChange={event => change(key, { [property]: event.target.value })} disabled={Boolean(busy)} />
-    <span className="text-sm text-muted-foreground">{content[key][property] || 'Usa el color principal'}</span>
-    {content[key][property] && <Button type="button" variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => change(key, { [property]: '' })}>Volver al color principal</Button>}
+  // `inherited` is the color it takes while empty, when that is not the main one.
+  const ownColor = (key, property, label, hint, inherited) => <Field label={label} hint={hint}>{ids => <div className="flex flex-wrap items-center gap-3">
+    <input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={content[key][property] || inherited || classicAccent(content.style.accentColor)} onChange={event => change(key, { [property]: event.target.value })} disabled={Boolean(busy)} />
+    <span className="text-sm text-muted-foreground">{content[key][property] || (inherited ? 'Usa el color de los botones' : 'Usa el color principal')}</span>
+    {content[key][property] && <Button type="button" variant="ghost" size="sm" disabled={Boolean(busy)} onClick={() => change(key, { [property]: '' })}>{inherited ? 'Volver al color de los botones' : 'Volver al color principal'}</Button>}
   </div>}</Field>;
   // Label, title and subtitle of a section: what the visitor reads first.
   const heading = (key, { eyebrow = true, subtitle = true } = {}) => <>
@@ -201,7 +202,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
     } : null,
     subdomain: form.subdomain, checkout: store.checkout,
     downsell: store.downsell?.enabled ? { ...store.downsell, ...mainDiscountPrices(store.offer.price, store.downsell.percent) } : null,
-    content, store: { name: store.name, currency: store.currency },
+    content, store: { name: store.name, currency: store.currency, language: store.language },
     offer: {
       main: { ...mainProduct, price: store.offer.price, compareAtPrice: referencePrice(mainProduct, store.offer.compareAtPrice) },
       bonuses: store.offer.bonuses.flatMap(bonus => {
@@ -272,7 +273,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {toggle('activity', 'Mostrar avisos de compra de ejemplo', 'notifications')}
           {field('activity', 'purchaseText', 'Texto del aviso de compra', { maxLength: 240, hint: 'Usá {nombre} para insertar el nombre.' })}
           {field('activity', 'purchaseLocationText', 'Texto de ubicación del aviso', { maxLength: 240, hint: 'Usá {ciudad} para insertar la ubicación.' })}
-          <p className="text-xs leading-6 text-muted-foreground">Los avisos de ejemplo muestran nombres ficticios y ciudades de Estados Unidos y Europa.</p>
+          <Field label="Nombres y ciudades de los avisos" hint="De dónde parecen venir las compras de ejemplo. Se aplica también a los avisos del checkout. Los nombres son ficticios.">{ids =>
+            <NativeSelect {...ids} value={content.activity.noticeRegion} disabled={Boolean(busy)} onChange={event => change('activity', { noticeRegion: event.target.value })}>
+              {Object.entries(NOTICE_REGIONS).map(([value, region]) => <option key={value} value={value}>{region.label}</option>)}
+            </NativeSelect>}</Field>
+          <p className="text-xs leading-6 text-muted-foreground">Mientras los textos del aviso sigan en su versión original en inglés, se muestran en el idioma de la tienda.</p>
         </Section>
         <Section id="hero" attention={checks.hero} description="El hero oscuro: etiqueta, título grande y los datos que flotan junto a la foto">
           {field('hero', 'eyebrow', 'Etiqueta sobre el título (opcional)', { maxLength: 120, placeholder: 'En 7 días' })}
@@ -297,7 +302,7 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {field('hero', 'ratingText', 'Texto junto a la calificación (opcional)', { maxLength: 120, placeholder: 'La guía definitiva · Edición 2026' })}
           {field('hero', 'ctaText', 'Texto del botón principal', { maxLength: 60 })}
           {field('hero', 'headerCtaText', 'Texto del botón del hero (opcional)', { maxLength: 60, hint: 'Si queda vacío, el hero usa el botón principal.' })}
-          {ownColor('hero', 'ctaColor', 'Color del botón del hero (opcional)', 'Solo cambia el botón grande del hero; los demás botones siguen el color principal. El texto ajusta su contraste automáticamente.')}
+          {ownColor('hero', 'ctaColor', 'Color del botón del hero (opcional)', 'Solo cambia el botón grande del hero. Si no elegís uno, usa el color de los botones (sección «Identidad y dirección») o, si tampoco hay, el color principal. El texto ajusta su contraste automáticamente.', content.style.buttonColor)}
           {field('hero', 'trustText', 'Línea debajo del botón', { maxLength: 160, placeholder: '15 min por día · Descarga inmediata · Garantía 7 días', hint: 'Se muestra como sellos bajo el botón: separá cada dato con « · ». Si queda vacía, mostramos acceso inmediato, pago seguro y la garantía.' })}
           {field('hero', 'noteTitle', 'Aclaración: pregunta (opcional)', { maxLength: 120, placeholder: '¿Necesito pagar algo aparte?' })}
           {field('hero', 'note', 'Aclaración: respuesta', { multiline: true, maxLength: 240 })}
@@ -390,12 +395,11 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           </fieldset>
           {labels('benefits')}
         </Section>
-        <Section id="socialProof" attention={checks.socialProof} description="Las tarjetas con foto, estrellas y opinión" hidden={off('socialProof')}>
+        <Section id="socialProof" attention={checks.socialProof} description="Las tarjetas con nombre, estrellas y opinión" hidden={off('socialProof')}>
           {heading('socialProof')}
           {content.socialProof.items.length === 0 && <p className="text-sm text-muted-foreground">Agregá un testimonio para mostrar esta sección.</p>}
           {content.socialProof.items.map((item, index) => <fieldset key={index} className="landing-item-fields"><legend>Testimonio {index + 1}</legend>
             {itemField('socialProof', index, 'name', 'Nombre y ciudad', { maxLength: 120, required: true, placeholder: 'Marta S. · Córdoba' })}
-            {itemImage('socialProof', index, 'photoUrl', 'Foto de la persona')}
             {itemField('socialProof', index, 'quote', 'Opinión', { multiline: true, maxLength: 1200 })}
             {itemImage('socialProof', index, 'imageUrl', 'Captura o tarjeta ya diseñada (opcional)')}
             <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-primary" checked={Boolean(item.verified)} disabled={Boolean(busy)} onChange={event => changeItem('socialProof', index, { verified: event.target.checked })} />Mostrar el sello “Compra verificada”</label>
@@ -479,7 +483,8 @@ export function LandingConfigurator({ landing, store, products, hash = '', uploa
           {labels('combo')}
         </Section>
         <Section id="identity" attention={checks.identity} description="Color, marca, enlaces legales y dirección pública">
-          <Field label="Color principal" hint="Toda la landing toma este color: botones, fondos, secciones oscuras, bordes y sombras, también en gracias, post-compra y los popups. El contraste se ajusta solo. La barra de oferta y el botón del hero pueden llevar un color propio desde sus secciones.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
+          <Field label="Color principal" hint="Toda la landing toma este color: botones, fondos, secciones oscuras, bordes y sombras, también en gracias, post-compra y los popups. El contraste se ajusta solo. Los botones, la barra de oferta y el botón del hero pueden llevar un color propio.">{ids => <div className="flex items-center gap-3"><input {...ids} type="color" className="h-11 w-14 cursor-pointer rounded border" value={classicAccent(content.style.accentColor)} onChange={event => change('style', { accentColor: event.target.value })} disabled={Boolean(busy)} /><span className="text-sm text-muted-foreground">{classicAccent(content.style.accentColor)}</span></div>}</Field>
+          {ownColor('style', 'buttonColor', 'Color de los botones (opcional)', 'Cambia todos los botones de compra de la landing, incluido el botón fijo al pie. Si no elegís uno, usan el color principal. El texto ajusta su contraste automáticamente. El botón del hero puede llevar además un color propio desde la sección «Portada y precio».')}
           {field('footer', 'brandName', 'Marca en el pie de página', { maxLength: 120, hint: 'Si queda vacío, usamos el nombre de la tienda.' })}
           {field('footer', 'termsUrl', 'Términos y condiciones (URL)', { type: 'url' })}{field('footer', 'privacyUrl', 'Política de privacidad (URL)', { type: 'url' })}
           <p className="text-xs leading-6 text-muted-foreground">{urls ? <>Dirección pública: <a href={urls.path} target="_blank" rel="noreferrer" className="break-all underline">{urls.path}</a>. </> : 'Todavía no definiste el subdominio. '}El subdominio se edita en <Link to={`/panel/tiendas/${storeId}/configuracion`} className="underline">Configuración</Link>; el dominio propio requiere configurar dominio y DNS.</p>

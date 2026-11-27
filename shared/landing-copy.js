@@ -36,7 +36,33 @@ export const ACTIVITY_COPY = {
   purchaseLocationText: PURCHASE_NOTICE_COPY.purchaseLocationText,
 };
 
-export const ACTIVITY_DEFAULTS = { viewers: true, notifications: true, salesCount: true };
+export const ACTIVITY_DEFAULTS = { viewers: true, notifications: true, salesCount: true, noticeRegion: 'intl' };
+
+// Who the example purchase notices are "from". Invented first names and real cities only:
+// they never create orders or metrics. Add a region here and the editor and the server accept it.
+export const NOTICE_REGIONS = {
+  intl: {
+    label: 'Estados Unidos y Europa',
+    names: ['Emma', 'James', 'Sophie', 'Oliver', 'Charlotte', 'Henry', 'Amelia', 'Noah', 'Grace', 'Daniel', 'Alice', 'Leo'],
+    places: ['New York, USA', 'Chicago, USA', 'Los Angeles, USA', 'Boston, USA', 'Seattle, USA', 'Austin, USA', 'London, UK', 'Paris, France', 'Munich, Germany', 'Rome, Italy', 'Vienna, Austria', 'Lisbon, Portugal'],
+  },
+  br: {
+    label: 'Brasil',
+    names: ['Ana', 'Lucas', 'Mariana', 'Gabriel', 'Juliana', 'Pedro', 'Camila', 'Rafael', 'Beatriz', 'Thiago', 'Larissa', 'Matheus'],
+    places: ['São Paulo, SP', 'Rio de Janeiro, RJ', 'Belo Horizonte, MG', 'Curitiba, PR', 'Porto Alegre, RS', 'Salvador, BA', 'Brasília, DF', 'Fortaleza, CE', 'Recife, PE', 'Florianópolis, SC', 'Goiânia, GO', 'Campinas, SP'],
+  },
+};
+export const noticeRegion = value => Object.hasOwn(NOTICE_REGIONS, value ?? '') ? value : ACTIVITY_DEFAULTS.noticeRegion;
+
+// The verified seal and the purchase notice follow the store's language while their text is
+// still the English default; a text the seller rewrote or translated is shown as written.
+const LOCALIZED_DEFAULTS = {
+  es: { 'Verified purchase': 'Compra verificada', '{minutos} min ago': 'hace {minutos} min', '{nombre} purchased the e-book': '{nombre} compró el e-book', 'from {ciudad}': 'desde {ciudad}', 'Close purchase notification': 'Cerrar aviso de compra' },
+  pt: { 'Verified purchase': 'Compra verificada', '{minutos} min ago': 'há {minutos} min', '{nombre} purchased the e-book': '{nombre} comprou o e-book', 'from {ciudad}': 'de {ciudad}', 'Close purchase notification': 'Fechar aviso de compra' },
+};
+export const localizedDefault = (text, language) => LOCALIZED_DEFAULTS[language]?.[text] ?? text;
+// A store saved before languages existed falls back to the language chosen for the payment form.
+export const viewLanguage = view => view?.store?.language ?? view?.content?.checkout?.paymentLocale;
 
 // Replace only known placeholders, once; inserted values are never interpreted.
 export function formatLandingText(template, values) {
@@ -65,7 +91,7 @@ export const LANDING_LABEL_FIELDS = {
   customers: { section: 'socialProof', label: 'Etiqueta de clientes', value: 'Customers' },
   rating: { section: 'socialProof', label: 'Etiqueta de calificación', value: 'Rating' },
   satisfaction: { section: 'socialProof', label: 'Etiqueta de satisfacción', value: 'Satisfaction' },
-  verified: { section: 'socialProof', label: 'Sello de compra verificada', value: 'Verified purchase' },
+  verified: { section: 'socialProof', label: 'Sello de compra verificada', value: 'Verified purchase', hint: 'Mientras quede el texto original, el sello se muestra en el idioma de la tienda (por ejemplo, «Compra verificada»).' },
   allAdded: { section: 'combo', label: 'Botón cuando ya se agregaron todos los extras', value: 'All items added' },
   comboSavings: { section: 'combo', label: 'Texto del ahorro del combo', value: 'You save {importe}', hint: 'Usá {importe} para sumar los descuentos del producto principal y de los extras seleccionados al valor de los bonos incluidos.' },
   total: { section: 'combo', label: 'Etiqueta del total a pagar', value: 'Total' },

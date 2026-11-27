@@ -161,7 +161,8 @@ describe('public landing', () => {
     const draft = normalizeContent(content);
     draft.socialProof = { ...draft.socialProof, eyebrow: 'Experiencias compartidas', items: [{ name: 'Ana', format: 'chat', quote: 'Ahora tengo un plan.', openingMessage: '¿Cómo te fue?', closingMessage: 'Gracias por contarnos.' }] };
     draft.promotion = { ...draft.promotion, title: 'Título propio de esta campaña', timerLabel: 'Tiempo disponible', spotsText: 'Disponibles: {cantidad}', remainingSpots: 8 };
-    draft.activity = { ...draft.activity, viewersText: 'Ahora: {cantidad} lectores', salesText: 'Compras: {cantidad}', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'Ubicación: {ciudad}' };
+    draft.activity = { ...draft.activity, viewersText: 'Ahora: {cantidad} lectores', salesText: 'Compras: {cantidad}', purchaseText: '{nombre} eligió esta guía', purchaseLocationText: 'Ubicación: {ciudad}', noticeRegion: 'br' };
+    draft.style = { ...draft.style, buttonColor: '#16a34a' };
     await admin.mutation(api.landings.saveDraft, { storeId, subdomain: 'inversion', template: 'classic', draft });
     const preview = await admin.query(api.landings.preview, { storeId });
     expect(preview.content.socialProof).toMatchObject(draft.socialProof);
@@ -174,7 +175,9 @@ describe('public landing', () => {
     expect(live.content.socialProof).toMatchObject(draft.socialProof);
     expect(live.content.promotion).toEqual(draft.promotion);
     expect(live.content.activity).toEqual(draft.activity);
+    expect(live.content.style).toEqual(draft.style);
     for (const patch of [
+      { style: { ...draft.style, buttonColor: 'verde' } },
       { socialProof: { ...draft.socialProof, items: [{ name: 'Ana', format: 'chat', quote: '', imageUrl: 'https://example.com/image.png' }] } },
       { socialProof: { ...draft.socialProof, eyebrow: 'x'.repeat(121) } },
       { promotion: { ...draft.promotion, timerLabel: 'x'.repeat(121) } },

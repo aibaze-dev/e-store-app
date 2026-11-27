@@ -66,14 +66,14 @@ export const landingContent = v.object({
   bonuses: v.object({ ...sectionFields, title: v.string(), chips: v.optional(v.array(v.string())) }),
   faq: v.object({ ...sectionFields, title: v.string(), items: v.array(v.object({ question: v.string(), answer: v.string() })) }),
   guarantee: v.object({ ...sectionFields, title: v.string(), text: v.string(), days: v.optional(v.number()) }),
-  style: v.object({ accentColor: v.string() }),
+  style: v.object({ accentColor: v.string(), buttonColor: v.optional(v.string()) }),
   promotion: v.optional(v.object({ barColor: v.optional(v.string()), title: v.optional(v.string()), timerLabel: v.optional(v.string()), spotsText: v.optional(v.string()), enabled: v.boolean(), message: v.string(), timerMode: v.optional(v.union(v.literal('session'), v.literal('date'))), remainingSpots: v.optional(v.number()), endsAt: v.optional(v.number()) })),
   steps: v.optional(v.object({ ...sectionFields, title: v.string(), items: v.array(feature) })),
   summary: v.optional(v.object({ ...sectionFields, title: v.string() })),
   closing: v.optional(v.object({ enabled: v.boolean(), title: v.string(), ctaText: v.string(), stickyEnabled: v.boolean(), text: v.optional(v.string()), note: v.optional(v.string()) })),
   footer: v.optional(v.object({ brandName: v.string(), termsUrl: v.string(), privacyUrl: v.string() })),
   // Sales counts come from paid orders; labels are editable presentation text.
-  activity: v.optional(v.object({ viewersText: v.optional(v.string()), salesText: v.optional(v.string()), purchaseText: v.optional(v.string()), purchaseLocationText: v.optional(v.string()), viewers: v.optional(v.boolean()), notifications: v.boolean(), salesCount: v.boolean() })),
+  activity: v.optional(v.object({ viewersText: v.optional(v.string()), salesText: v.optional(v.string()), purchaseText: v.optional(v.string()), purchaseLocationText: v.optional(v.string()), viewers: v.optional(v.boolean()), notifications: v.boolean(), salesCount: v.boolean(), noticeRegion: v.optional(v.union(v.literal('intl'), v.literal('br'))) })),
 });
 
 export const storeOffer = v.object({

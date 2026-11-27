@@ -7,7 +7,7 @@ export const LANGUAGES = { es: 'Español', en: 'English', pt: 'Português' };
 // Keys whose string values are structure, not copy.
 const SKIP_KEYS = new Set([
   'id', 'type', 'template', 'layout', 'imageLayout', 'mode', 'ref', 'operator', 'op', 'tone', 'display',
-  'format', 'timerMode', 'paymentLocale', 'color', 'background', 'textColor', 'accentColor',
+  'format', 'timerMode', 'paymentLocale', 'noticeRegion', 'color', 'background', 'textColor', 'accentColor',
   'icon', 'unitIcon', 'exitEmoji', 'supportEmail', 'stepId', 'optionId', 'resultId',
 ]);
 const STRUCTURAL = /(url|Id|Ids)$/i;

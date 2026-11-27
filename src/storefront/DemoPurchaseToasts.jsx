@@ -1,15 +1,10 @@
-import { PURCHASE_NOTICE_COPY, formatLandingText } from '../../shared/landing-copy.js';
+import { NOTICE_REGIONS, PURCHASE_NOTICE_COPY, formatLandingText, localizedDefault, noticeRegion } from '../../shared/landing-copy.js';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import '@fontsource-variable/inter';
 import './purchase-notice.css';
 
 // Presentation only: these examples never create orders, payments or analytics events.
-const NAMES = ['Emma', 'James', 'Sophie', 'Oliver', 'Charlotte', 'Henry', 'Amelia', 'Noah', 'Grace', 'Daniel', 'Alice', 'Leo'];
-const PLACES = [
-  'New York, USA', 'Chicago, USA', 'Los Angeles, USA', 'Boston, USA', 'Seattle, USA', 'Austin, USA',
-  'London, UK', 'Paris, France', 'Munich, Germany', 'Rome, Italy', 'Vienna, Austria', 'Lisbon, Portugal',
-];
 const randomBetween = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const pickAnother = (values, previous) => {
   const choices = values.filter(value => value !== previous);
@@ -18,10 +13,14 @@ const pickAnother = (values, previous) => {
 
 // One purchase notice for the landing and the checkout. `placement` only moves it:
 // 'top' sits under the offer bar, 'bottom' in the lower corner. The name is the only bold part.
-export default function DemoPurchaseToasts({ copy = PURCHASE_NOTICE_COPY, placement = 'top', checkoutCopy, preview = false }) {
-  const [purchase, setPurchase] = useState(preview ? { name: NAMES[0], place: PLACES[0], minutes: 5 } : null);
+// `region` picks the names and cities (NOTICE_REGIONS); `language` is the store's, for the
+// texts that are still the English default.
+export default function DemoPurchaseToasts({ copy = PURCHASE_NOTICE_COPY, placement = 'top', checkoutCopy, preview = false, region, language }) {
+  const { names: NAMES, places: PLACES } = NOTICE_REGIONS[noticeRegion(region)];
+  const [purchase, setPurchase] = useState(null);
   useEffect(() => {
-    if (preview) return;
+    if (preview) { setPurchase({ name: NAMES[0], place: PLACES[0], minutes: 5 }); return; }
+    setPurchase(null);
     let timer;
     let previous;
     const schedule = (first = false) => {
@@ -41,14 +40,15 @@ export default function DemoPurchaseToasts({ copy = PURCHASE_NOTICE_COPY, placem
     schedule(true);
     document.addEventListener('visibilitychange', onVisibility);
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
-  }, [preview]);
+  }, [preview, NAMES, PLACES]);
 
-  const [before, after = ''] = (copy.purchaseText ?? PURCHASE_NOTICE_COPY.purchaseText).split('{nombre}');
+  const text = key => localizedDefault(checkoutCopy?.[key] ?? copy[key] ?? PURCHASE_NOTICE_COPY[key], language);
+  const [before, after = ''] = text('purchaseText').split('{nombre}');
   return <div className={`purchase-toast-region ${placement === 'bottom' ? 'is-bottom' : ''}`} role="status" aria-live="polite" aria-atomic="true">
     {purchase && <div className="purchase-toast">
-      <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(copy.purchaseLocationText ?? PURCHASE_NOTICE_COPY.purchaseLocationText, { ciudad: purchase.place })}</p>
-      <small>{formatLandingText(checkoutCopy?.noticeAge ?? PURCHASE_NOTICE_COPY.noticeAge, { minutos: purchase.minutes })} · <span aria-hidden="true">★★★★★</span> · {checkoutCopy?.noticeExample ?? PURCHASE_NOTICE_COPY.noticeExample}</small>
-      <button type="button" aria-label={checkoutCopy?.noticeClose ?? PURCHASE_NOTICE_COPY.noticeClose} onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
+      <p>{before}<strong>{purchase.name}</strong>{after} {formatLandingText(text('purchaseLocationText'), { ciudad: purchase.place })}</p>
+      <small>{formatLandingText(text('noticeAge'), { minutos: purchase.minutes })} · <span aria-hidden="true">★★★★★</span> · {text('noticeExample')}</small>
+      <button type="button" aria-label={text('noticeClose')} onClick={() => setPurchase(null)}><X aria-hidden="true" /></button>
     </div>}
   </div>;
 }

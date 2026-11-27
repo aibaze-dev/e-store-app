@@ -1,5 +1,6 @@
 import { postLabels, backPopupConfig, purchaseText } from '../../shared/purchase-copy.js';
 import { checkoutConfig, checkoutText } from '../../shared/checkout-copy.js';
+import { viewLanguage } from '../../shared/landing-copy.js';
 import { readQuizToken } from './quiz-session.js';
 import { PurchaseResult, Video } from '@/templates/PostPurchaseContent.jsx';
 import { videoSource } from '../../shared/post-purchase.js';
@@ -48,6 +49,18 @@ function Thumb({ src, name, className = 'size-16' }) {
   const [failed, setFailed] = useState(false);
   if (src && !failed) return <img src={src} alt="" className={`${className} shrink-0 rounded-lg object-cover`} onError={() => setFailed(true)} />;
   return <span className={`${className} checkout-thumb shrink-0 rounded-lg bg-foreground text-background`} title={name}><span aria-hidden="true">📖</span>{className.includes('h-20') && <small>{name}</small>}</span>;
+}
+
+// What a line of the order costs, the same way in the summary and in the extras: the reference
+// price crossed out, the price in green and the discount in red. A bonus shows the free badge.
+const DISCOUNT_BADGE = 'rounded bg-destructive/10 px-1.5 py-0.5 font-bold whitespace-nowrap text-destructive';
+function LinePrices({ price, reference = 0, money, discountLabel, freeLabel, prefix = '' }) {
+  const percent = freeLabel ? 0 : productDiscount(price, reference);
+  return <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+    {reference > (freeLabel ? 0 : price) && <del className="text-muted-foreground">{money(reference)}</del>}
+    {freeLabel ? <Badge>{freeLabel}</Badge> : <strong className="checkout-positive text-sm">{prefix}{money(price)}</strong>}
+    {percent > 0 && <span className={DISCOUNT_BADGE}>{discountLabel(percent)}</span>}
+  </p>;
 }
 
 export function Checkout({ view, via }) {
@@ -107,6 +120,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
   const chosen = offer.upsells.filter(upsell => selected.includes(upsell.productId));
   // Shown amounts only; the server recalculates the charge from the store.
   const { total, reference, savings } = checkoutTotals(offer, chosen);
+  const discountLabel = percent => t('discount', { porcentaje: percent });
   const locked = busy || (preview && previewState === 'processing');
   const guarantee = copy.showGuarantee && content.guarantee.enabled && content.guarantee.text ? (content.guarantee.days ? t('guarantee', { dias: content.guarantee.days }) : copy.guaranteeFallback) : '';
   const trust = copy.showTrust && <p className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
@@ -125,24 +139,39 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
       <aside className="checkout-sidebar min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
         <section className="overflow-hidden rounded-xl border bg-card" aria-labelledby="checkout-summary">
           <h2 id="checkout-summary" className="border-b px-4 py-3 font-semibold">{copy.summaryTitle}</h2>
-          <div className="space-y-3 p-4">
-            <div className="flex gap-4">
-              <Thumb src={offer.main.coverUrl} name={offer.main.name} className="h-20 w-16" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <p className="flex justify-between gap-3 font-medium"><span className="min-w-0">{offer.main.name}</span><span className="whitespace-nowrap">{money(offer.main.price)}</span></p>
-                {offer.bonuses.length > 0 && <Badge variant="secondary"><Gift aria-hidden="true" />{t(offer.bonuses.length === 1 ? 'oneBonus' : 'manyBonuses', { cantidad: offer.bonuses.length })}</Badge>}
-              </div>
-            </div>
-            {offer.bonuses.length > 0 && <ul className="space-y-2">{offer.bonuses.map(bonus => <li key={bonus.productId} className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span className="min-w-0 flex-1 truncate">{bonus.name}</span>{bonus.referenceValue > 0 && <del className="whitespace-nowrap">{money(bonus.referenceValue)}</del>}<Badge>{copy.free}</Badge>
-            </li>)}</ul>}
-            {chosen.length > 0 && <ul className="space-y-3">{chosen.map(upsell => <li key={upsell.productId} className="flex items-center gap-3 text-sm">
-              <Thumb src={upsell.coverUrl} name={upsell.name} className="size-10" /><span className="min-w-0 flex-1">{upsell.name}</span><span className="whitespace-nowrap">{money(upsell.price)}</span>
-            </li>)}</ul>}
-            <div className="space-y-1 border-t pt-4" aria-live="polite">
-              <p className="flex items-end justify-between gap-4"><span className="text-muted-foreground">{copy.total}</span>
-                <span className="text-right">{savings > 0 && <del className="block text-sm text-muted-foreground">{money(reference)}</del>}<strong className="text-2xl font-semibold">{money(total)}</strong></span></p>
-              {savings > 0 && <p className="text-right text-sm font-semibold checkout-positive">{t('savings', { importe: money(savings) })}</p>}
+          <div className="space-y-4 p-4">
+            {/* Every product of the order as a card, like the extras: cover, name, prices and discount. */}
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <Thumb src={offer.main.coverUrl} name={offer.main.name} className="h-20 w-16" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <h3 className="leading-snug font-semibold">{offer.main.name}</h3>
+                  <LinePrices price={offer.main.price} reference={offer.main.compareAtPrice} money={money} discountLabel={discountLabel} />
+                  {offer.bonuses.length > 0 && <Badge variant="secondary"><Gift aria-hidden="true" />{t(offer.bonuses.length === 1 ? 'oneBonus' : 'manyBonuses', { cantidad: offer.bonuses.length })}</Badge>}
+                </div>
+              </li>
+              {offer.bonuses.map(bonus => <li key={bonus.productId} className="flex items-center gap-3">
+                <Thumb src={bonus.coverUrl} name={bonus.name} className="size-12" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h3 className="text-sm leading-snug font-semibold">{bonus.name}</h3>
+                  <LinePrices reference={bonus.referenceValue} freeLabel={copy.free} money={money} />
+                </div>
+              </li>)}
+              {chosen.map(upsell => <li key={upsell.productId} className="flex items-center gap-3">
+                <Thumb src={upsell.coverUrl} name={upsell.name} className="size-12" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h3 className="text-sm leading-snug font-semibold">{upsell.name}</h3>
+                  <LinePrices price={upsell.price} reference={upsell.compareAtPrice} money={money} discountLabel={discountLabel} prefix="+ " />
+                </div>
+              </li>)}
+            </ul>
+            <div className="space-y-3 border-t pt-4" aria-live="polite">
+              <div className="flex items-end justify-between gap-4"><span className="text-muted-foreground">{copy.total}</span>
+                <span className="grid justify-items-end gap-1 text-right">
+                  {savings > 0 && <span className="flex flex-wrap items-center justify-end gap-2 text-sm"><del className="text-muted-foreground">{money(reference)}</del><span className={`${DISCOUNT_BADGE} text-xs`}>{discountLabel(productDiscount(total, reference))}</span></span>}
+                  <strong className="checkout-positive text-2xl font-semibold">{money(total)}</strong>
+                </span></div>
+              {savings > 0 && <p className="checkout-savings rounded-lg px-3 py-2 text-center text-sm font-semibold">{t('savings', { importe: money(savings) })}</p>}
             </div>
           </div>
           <div className="border-t bg-muted/40 p-4">{trust}</div>
@@ -153,16 +182,11 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
           <CheckoutOfferTimer timeLeft={copy.showTimer ? timeLeft : null} label={view.content?.promotion?.timerLabel} />
           {offer.upsells.map(upsell => {
             const on = selected.includes(upsell.productId);
-            const percent = productDiscount(upsell.price, upsell.compareAtPrice);
             return <article key={upsell.productId} className={`relative flex items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${on ? 'checkout-extra-selected' : 'border-border'}`}>
               <Thumb src={upsell.coverUrl} name={upsell.name} className="size-10" />
               <div className="min-w-0 flex-1 space-y-1">
                 <h3 className="text-sm leading-snug font-semibold">{upsell.name}</h3>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                  {upsell.compareAtPrice && <del className="text-muted-foreground">{money(upsell.compareAtPrice)}</del>}
-                  <strong className="checkout-positive text-sm">+ {money(upsell.price)}</strong>
-                  {percent > 0 && <span className="rounded bg-destructive/10 px-1.5 font-semibold text-destructive">{t('discount', { porcentaje: percent })}</span>}
-                </p>
+                <LinePrices price={upsell.price} reference={upsell.compareAtPrice} money={money} discountLabel={discountLabel} prefix="+ " />
                 {(upsell.shortDescription || upsell.description) && <p className="line-clamp-2 text-xs leading-4 text-muted-foreground">{upsell.shortDescription || upsell.description}</p>}
                 <button type="button" className="checkout-extra-button inline-flex items-center gap-1 text-left text-xs font-semibold" aria-label={`${on ? copy.added : copy.add} · ${upsell.name}`} aria-pressed={on} disabled={locked}
                   onClick={() => setSelected(on ? selected.filter(id => id !== upsell.productId) : [...selected, upsell.productId])}>
@@ -178,7 +202,7 @@ export function CheckoutView({ view, via, initialBuyer, preview = false, preview
         {trust}
       </section>
     </main>
-    {copy.notifications && <DemoPurchaseToasts key={view.subdomain} copy={copy} preview={preview} checkoutCopy={copy} placement="bottom" />}
+    {copy.notifications && <DemoPurchaseToasts key={view.subdomain} copy={copy} preview={preview} checkoutCopy={copy} placement="bottom" region={content.activity.noticeRegion} language={viewLanguage(view)} />}
     {(content.footer.termsUrl || content.footer.privacyUrl) && <nav className="checkout-legal" aria-label={copy.legalLabel}>
       {content.footer.privacyUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.privacyUrl} target="_blank" rel="noreferrer">{copy.privacy}</a>}
       {content.footer.termsUrl && <a onClick={event => { if (preview) event.preventDefault(); }} href={content.footer.termsUrl} target="_blank" rel="noreferrer">{copy.terms}</a>}

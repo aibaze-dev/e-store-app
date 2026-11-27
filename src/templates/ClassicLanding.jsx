@@ -6,7 +6,7 @@ import './classic.css';
 import { classicTheme, plainText } from '../../shared/classic-design.js';
 export { readableOn } from '../../shared/classic-design.js';
 import { videoSource } from '../../shared/post-purchase.js';
-import { formatLandingText } from '../../shared/landing-copy.js';
+import { formatLandingText, localizedDefault, viewLanguage } from '../../shared/landing-copy.js';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, Gift, ImageOff, ImageUp, LockKeyhole, PiggyBank, Plus, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Volume2, X, ShoppingCart, Mail, Target, TrendingUp, Dumbbell, Brain, Settings, Clock, Heart, LayoutGrid, Star, Wallet, Zap } from 'lucide-react';
 import { storefrontMoney as formatMoney } from '@/lib/storefront-money.js';
@@ -131,14 +131,14 @@ function KitMedia({ section, preview, labels }) {
   return <div className="cl-kit-media"><Picture src={section.imageUrl} alt={section.imageAlt || section.title} /></div>;
 }
 
-function Testimonial({ item, labels }) {
+// Name, stars, opinion and the verified seal, which follows the store's language.
+function Testimonial({ item, labels, language }) {
   if (item.imageUrl && !item.quote) return <figure className="cl-testi"><img src={item.imageUrl} alt={`Testimonial from ${item.name}`} loading="lazy" /></figure>;
   return <figure className="cl-testi"><div className="cl-testi-card">
-    {item.photoUrl ? <img className="cl-avatar" src={item.photoUrl} alt="" loading="lazy" /> : <span className="cl-avatar" aria-hidden="true">{item.name.trim().slice(0, 1).toUpperCase()}</span>}
     <figcaption>{item.name}</figcaption>
     <span className="cl-stars" role="img" aria-label="5 out of 5 stars">★★★★★</span>
     <blockquote>{item.quote}</blockquote>
-    {item.verified && <span className="cl-verified"><CircleCheck aria-hidden="true" />{labels.verified}</span>}
+    {item.verified && <span className="cl-verified"><CircleCheck aria-hidden="true" />{localizedDefault(labels.verified, language)}</span>}
   </div></figure>;
 }
 
@@ -210,7 +210,8 @@ export default function ClassicLanding({ view, onCta }) {
     return () => { frame.removeEventListener('scroll', update); frame.removeEventListener('resize', update); };
   }, [closing.stickyEnabled, hasCombo]);
 
-  const theme = classicTheme(content.style.accentColor, { bar: promotion.barColor, heroButton: hero.ctaColor });
+  const theme = classicTheme(content.style.accentColor, { bar: promotion.barColor, button: content.style.buttonColor, heroButton: hero.ctaColor });
+  const language = viewLanguage(view);
   const money = value => formatMoney(value, store.currency);
   const totals = offerTotals(offer);
   const chosen = upsells.filter(upsell => selected.includes(upsell.productId));
@@ -250,7 +251,7 @@ export default function ClassicLanding({ view, onCta }) {
 
   return <div ref={landingRef} className={`cl-landing ${hasSticky ? 'has-sticky' : ''}`} style={theme}>
     {hasPromo && <div ref={promoRef} {...edit('promotion')} className="cl-promo"><strong>{promotion.title || offer.main.name}</strong><span>{promotion.message}{countdown && <> · <time aria-label={`Ends in ${countdown}`}>{countdown}</time></>}</span></div>}
-    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} />}
+    {content.activity.notifications && <DemoPurchaseToasts key={view.subdomain} copy={content.activity} region={content.activity.noticeRegion} language={language} />}
     <main>
       <header className="cl-epic"><div className="cl-wrap">
         <div className="cl-epic-copy">
@@ -382,7 +383,7 @@ export default function ClassicLanding({ view, onCta }) {
 
       {proof.enabled && (proof.items.length > 0 || proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <section {...edit('socialProof')} className="cl-section is-cream"><div className="cl-wrap cl-w-1450">
         <Head section={proof} />
-        {proof.items.length > 0 && <div className="cl-testis" tabIndex={0} role="region" aria-label="Testimonials">{proof.items.map((item, index) => <Testimonial labels={labels} key={index} item={item} />)}</div>}
+        {proof.items.length > 0 && <div className="cl-testis" tabIndex={0} role="region" aria-label="Testimonials">{proof.items.map((item, index) => <Testimonial labels={labels} language={language} key={index} item={item} />)}</div>}
         {(proof.customers > 0 || proof.rating > 0 || proof.satisfaction > 0) && <div className="cl-metrics">
           {proof.customers > 0 && <p><strong>{number(proof.customers)}+</strong><span>{labels.customers}</span></p>}
           {proof.rating > 0 && <p><strong>{number(proof.rating)}</strong><span>{labels.rating}</span></p>}

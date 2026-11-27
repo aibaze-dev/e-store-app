@@ -2,7 +2,7 @@ import { POST_LABEL_FIELDS, LANDING_EXIT_FIELDS, BACK_POPUP_FIELDS, POST_OPTIONA
 import { CHECKOUT_FIELDS, CHECKOUT_OPTIONAL_FIELDS } from '../shared/checkout-copy.js';
 import { saveQuizDraft, publishQuiz } from './lib/quiz_records';
 import { forStore, resolveAddress } from './lib/landing_records';
-import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS } from '../shared/landing-copy.js';
+import { PROMOTION_COPY, ACTIVITY_COPY, ACTIVITY_DEFAULTS, LANDING_LABEL_FIELDS, noticeRegion } from '../shared/landing-copy.js';
 import { postPurchaseContent, videoSource } from '../shared/post-purchase.js';
 import { v } from 'convex/values';
 import { mutation, query, type Id } from './lib/functions';
@@ -51,6 +51,7 @@ export function cleanContent(content: typeof landingContent.type) {
   };
   const barColor = ownColor(content.promotion?.barColor, 'Color de la barra de oferta');
   const ctaColor = ownColor(content.hero.ctaColor, 'Color del botón del hero');
+  const buttonColor = ownColor(content.style.buttonColor, 'Color de los botones');
   const days = content.guarantee.days;
   if (days !== undefined && (!Number.isInteger(days) || days < 1 || days > 365)) fail('Garantía: ingresá entre 1 y 365 días.');
   const endsAt = content.promotion?.endsAt;
@@ -187,7 +188,7 @@ export function cleanContent(content: typeof landingContent.type) {
       })),
     },
     guarantee: { ...section(content.guarantee), ...copy(content.guarantee), title: cleanText(content.guarantee.title, 'Título de garantía', 120), text: cleanText(content.guarantee.text, 'Garantía', 1200), ...(days !== undefined ? { days } : {}) },
-    style: { accentColor: accent },
+    style: { accentColor: accent, buttonColor },
     promotion: {
       title: cleanText(content.promotion?.title ?? '', 'Título de la barra superior', 160),
       timerLabel: cleanText(content.promotion?.timerLabel ?? PROMOTION_COPY.timerLabel, 'Texto del contador', 120),
@@ -224,7 +225,8 @@ export function cleanContent(content: typeof landingContent.type) {
       purchaseLocationText: cleanText(content.activity?.purchaseLocationText ?? ACTIVITY_COPY.purchaseLocationText, 'Texto de ubicación del aviso', 240),
       viewers: content.activity?.viewers ?? ACTIVITY_DEFAULTS.viewers,
       notifications: content.activity?.notifications ?? ACTIVITY_DEFAULTS.notifications,
-      salesCount: content.activity?.salesCount ?? ACTIVITY_DEFAULTS.salesCount
+      salesCount: content.activity?.salesCount ?? ACTIVITY_DEFAULTS.salesCount,
+      noticeRegion: noticeRegion(content.activity?.noticeRegion) as 'intl' | 'br',
     },
   };
 }

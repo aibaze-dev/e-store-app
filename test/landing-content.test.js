@@ -1,4 +1,4 @@
-import { formatLandingText, LANDING_LABEL_DEFAULTS } from '../shared/landing-copy.js';
+import { formatLandingText, LANDING_LABEL_DEFAULTS, NOTICE_REGIONS, localizedDefault, noticeRegion, viewLanguage } from '../shared/landing-copy.js';
 import { classicTheme, plainText } from '../shared/classic-design.js';
 import { describe, it, expect } from 'vitest';
 import { normalizeContent, mergeGeneratedContent, offerTotals, productDiscount, promotionRemaining, timeAgo, checkoutTotals } from '../src/templates/content.js';
@@ -65,6 +65,45 @@ describe('sales template content', () => {
     expect(blue).toMatchObject({ '--classic-hero-cta-end': '#2040a0', '--classic-hero-cta-edge': blue['--classic-action'] });
     const gold = classicTheme('#2040a0', { heroButton: '#f5c542' });
     expect(gold).toMatchObject({ '--classic-hero-cta-end': '#f5c542', '--classic-hero-cta-text': '#111827', '--classic-cta-end': '#2040a0', '--classic-bar-mid': '#2040a0' });
+  });
+  it('gives every landing button its own color while icons and badges keep the accent', () => {
+    const blue = classicTheme('#2040a0');
+    // Without a button color the buttons follow the accent; an invalid one is ignored.
+    expect(blue).toMatchObject({ '--classic-btn-start': blue['--classic-cta-start'], '--classic-btn-end': '#2040a0', '--classic-btn-text': '#ffffff' });
+    expect(classicTheme('#2040a0', { button: 'green' })).toEqual(blue);
+    const green = classicTheme('#2040a0', { button: '#166534' });
+    expect(green).toMatchObject({ '--classic-btn-end': '#166534', '--classic-btn-text': '#ffffff', '--classic-cta-end': '#2040a0', '--sales-accent': '#2040a0' });
+    // The hero's button and the fixed one follow the buttons; the hero's own color still wins.
+    expect(green['--classic-hero-cta-end']).toBe('#166534');
+    expect(green['--classic-sticky-bg']).toBe(`linear-gradient(135deg, ${green['--classic-btn-start']}, #166534)`);
+    expect(classicTheme('#2040a0', { button: '#166534', heroButton: '#f5c542' })).toMatchObject({ '--classic-hero-cta-end': '#f5c542', '--classic-btn-end': '#166534' });
+    // The default orange gives up its blue fixed button once the buttons have a color; a light one gets dark text.
+    expect(classicTheme(undefined, { button: '#fde047' })).toMatchObject({ '--classic-btn-text': '#111827', '--classic-sticky-text': '#111827' });
+    expect(classicTheme(undefined, { button: '#fde047' })['--classic-sticky-bg']).not.toContain('#2f5bff');
+    // Testimonial stars stay yellow with any accent.
+    expect(blue['--classic-star']).toBe(classicTheme()['--classic-star']);
+  });
+  it('shows the purchase notice and the verified seal in the store language until the seller rewrites them', () => {
+    expect(localizedDefault('Verified purchase', 'pt')).toBe('Compra verificada');
+    expect(localizedDefault('{minutos} min ago', 'pt')).toBe('há {minutos} min');
+    expect(localizedDefault('{nombre} purchased the e-book', 'es')).toBe('{nombre} compró el e-book');
+    expect(localizedDefault('Verified purchase', 'en')).toBe('Verified purchase');
+    expect(localizedDefault('Verified purchase', undefined)).toBe('Verified purchase');
+    expect(localizedDefault('Compra confirmada ✔', 'pt')).toBe('Compra confirmada ✔');
+    // Placeholders survive in every localized default.
+    for (const language of ['es', 'pt']) for (const text of ['{minutos} min ago', '{nombre} purchased the e-book', 'from {ciudad}']) {
+      expect(localizedDefault(text, language).match(/\{[^}]+\}/)[0]).toBe(text.match(/\{[^}]+\}/)[0]);
+    }
+    expect(viewLanguage({ store: { language: 'pt' }, content: { checkout: { paymentLocale: 'en' } } })).toBe('pt');
+    expect(viewLanguage({ store: {}, content: { checkout: { paymentLocale: 'es' } } })).toBe('es');
+    // Notices come from the USA and Europe unless the seller picks Brazil.
+    expect(normalizeContent(content).activity.noticeRegion).toBe('intl');
+    expect(noticeRegion('br')).toBe('br');
+    expect(noticeRegion('mars')).toBe('intl');
+    expect(noticeRegion(undefined)).toBe('intl');
+    expect(NOTICE_REGIONS.br.places.every(place => !/USA|UK/.test(place))).toBe(true);
+    expect(NOTICE_REGIONS.br.names).toHaveLength(NOTICE_REGIONS.intl.names.length);
+    expect(normalizeContent(content).style.buttonColor).toBe('');
   });
   it('keeps the optional sections off until the seller turns them on', () => {
     const empty = normalizeContent(content);
@@ -181,7 +220,8 @@ describe('landing editor attention', () => {
     expect(needs('offer')).toEqual(['Sin bonos en la tienda']);
     expect(needs('combo')).toEqual(['Sin extras en la tienda']);
     expect(needs('socialProof')).toEqual(['Testimonios de ejemplo']);
-    expect(checks.socialProof.extras[0].text).toContain('1 testimonio sin foto');
+    // Testimonial cards no longer show a photo, so a missing one is not flagged.
+    expect(extras('socialProof')).toEqual(['Métricas']);
     expect(needs('guarantee')).toEqual(['Sin condiciones']);
     expect(needs('comparison')).toEqual(['Sin columna destacada']);
     expect(needs('steps')).toEqual(['Sin pasos']);

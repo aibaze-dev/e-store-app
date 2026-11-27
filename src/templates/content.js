@@ -21,7 +21,7 @@ export const EMPTY_CONTENT = {
   guarantee: { enabled: true, title: 'Your purchase guarantee', subtitle: '', text: '', ctaText: '' },
   closing: { enabled: true, title: '', text: '', ctaText: 'Buy now and get started', note: '', stickyEnabled: true },
   footer: { brandName: '', termsUrl: '', privacyUrl: '' },
-  style: { accentColor: CLASSIC_ACCENT },
+  style: { accentColor: CLASSIC_ACCENT, buttonColor: '' },
   activity: { ...ACTIVITY_COPY, ...ACTIVITY_DEFAULTS },
 };
 

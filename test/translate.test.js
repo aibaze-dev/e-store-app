@@ -57,6 +57,8 @@ describe('translating a landing', () => {
     expect(translated.faq.items[0]).toEqual({ question: 'EN ¿Es digital?', answer: 'EN Sí.' });
     expect(translated.hero.imageUrl).toBe('https://cdn.example.com/hero.png');
     expect(translated.style.accentColor).toBe('#c15f3c');
+    // The region of the purchase notices is an option, not copy.
+    expect(translated.activity.noticeRegion).toBe('intl');
     expect(calls[0].system).toContain('English');
     expect(await admin.query(api.landings.getForStore, { storeId })).toBeNull();
     // The translated landing saves through the usual draft path.
