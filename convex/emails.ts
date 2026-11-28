@@ -245,13 +245,13 @@ function receipt(data: Context, labels: Record<string, string>, c: ReturnType<ty
 }
 
 // "Need help?": a card with a link to the store's public support form.
-function support(url: string, labels: Record<string, string>, c: ReturnType<typeof palette>) {
+function support(url: string, labels: Record<string, string>, c: ReturnType<typeof palette>, variant: 'solid' | 'outline' = 'outline') {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;margin-top:16px"><tr><td class="email-pad" bgcolor="${c.paper}" style="padding:24px 32px;border:1px solid ${c.line};border-radius:24px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>
 <td width="52" valign="top" style="width:52px;padding-right:16px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="52" height="52" align="center" bgcolor="${c.soft}" style="width:52px;height:52px;border-radius:16px;font-size:24px;line-height:1">&#128172;</td></tr></table></td>
 <td valign="middle" style="font-family:${FONT}"><p style="margin:0;font-size:18px;line-height:1.3;font-weight:850;color:${c.ink}">${escapeHtml(labels.supportTitle)}</p>${labels.supportText ? `<p style="margin:4px 0 0;font-size:14px;line-height:1.55;color:${c.muted}">${escapeHtml(labels.supportText)}</p>` : ''}</td>
 </tr></table>
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td>${button(url, `${escapeHtml(labels.supportLink)} &nbsp;&#8594;`, c, 'outline')}</td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td>${button(url, `${escapeHtml(labels.supportLink)} &nbsp;&#8594;`, c, variant)}</td></tr></table>
 </td></tr></table>`;
 }
 
@@ -325,6 +325,60 @@ ${legal ? `<p style="margin:6px 0 0">${legal}</p>` : ''}
     labels.emailKeep,
   ].join('\n');
   return { to: data.buyer?.email ? [data.buyer.email] : [], subject, html, text };
+}
+
+// ---------------------------------------------------------------------------------------
+// Support reply: what an admin answered in the panel's inbox, followed by the buyer's own
+// message. Same palette as the delivery email (the store's accent, or the landing default).
+// The buyer is asked not to answer the email: the button opens the store's support form,
+// the same page as "Contact support" in the delivery email, so the answer lands in the inbox.
+
+export type SupportReply = { to: string; reply: string; question: string; storeName: string; presentation?: Presentation; supportUrl?: string };
+
+const paragraphs = (value: string) => escapeHtml(value).replace(/\r?\n/g, '<br>');
+
+export function supportReplyEmail(data: SupportReply): Omit<EmailMessage, 'from'> {
+  const presentation = data.presentation ?? {};
+  const labels = postLabels(presentation) as Record<string, string>;
+  const c = palette(presentation.accentColor);
+  const store = presentation.brandName || data.storeName || '';
+  const subject = purchaseText(labels, 'supportReplySubject', { tienda: store }).replace(/\s+([,!.:])/g, '$1').trim();
+  const preheader = data.reply.replace(/\s+/g, ' ').slice(0, 140);
+  const help = data.supportUrl && safeUrl(data.supportUrl) ? data.supportUrl : '';
+  const year = new Date().getFullYear();
+  const legal = [presentation.termsUrl && safeUrl(presentation.termsUrl) ? `<a href="${escapeHtml(presentation.termsUrl)}" style="color:${c.muted};text-decoration:underline">${escapeHtml(labels.terms)}</a>` : '', presentation.privacyUrl && safeUrl(presentation.privacyUrl) ? `<a href="${escapeHtml(presentation.privacyUrl)}" style="color:${c.muted};text-decoration:underline">${escapeHtml(labels.privacy)}</a>` : ''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+  const html = `<!doctype html>
+<html lang="${/^[\x00-\x7F]*$/.test(labels.supportReplyQuote) ? 'en' : 'es'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(subject)}</title>
+<style>@media only screen and (max-width:600px){.email-shell{padding:16px 10px!important}.email-pad{padding:26px 20px!important}}</style></head>
+<body style="margin:0;padding:0;background-color:${c.cream};font-family:${FONT};color:${c.ink};-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${escapeHtml(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${c.cream}" style="width:100%;border-collapse:collapse"><tr><td class="email-shell" align="center" style="padding:32px 16px 40px">
+<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;border-collapse:separate;table-layout:fixed">
+${store ? `<tr><td align="center" style="padding:0 0 16px;font-family:${FONT};font-size:12px;line-height:1;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${c.muted}">${escapeHtml(store)}</td></tr>` : ''}
+<tr><td class="email-pad" bgcolor="${c.paper}" style="padding:34px 32px 32px;border:1px solid ${c.line};border-top:6px solid ${c.accent};border-radius:24px;overflow-wrap:anywhere;word-wrap:break-word">
+<p style="margin:0;font-family:${FONT};font-size:16px;line-height:1.7;color:${c.ink}">${paragraphs(data.reply)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;margin-top:28px"><tr><td bgcolor="${c.soft}" style="padding:16px 18px;border-left:4px solid ${c.peachLine};border-radius:0 12px 12px 0">
+<p style="margin:0 0 6px;font-family:${FONT};font-size:11px;line-height:1.4;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:${c.muted}">${escapeHtml(labels.supportReplyQuote)}</p>
+<p style="margin:0;font-family:${FONT};font-size:14px;line-height:1.6;color:${c.muted}">${paragraphs(data.question)}</p>
+</td></tr></table>
+</td></tr>
+${help ? `<tr><td>${support(help, { supportTitle: labels.supportReplyTitle, supportText: labels.supportReplyNote, supportLink: labels.supportReplyButton }, c, 'solid')}</td></tr>` : ''}
+<tr><td align="center" style="padding:28px 24px 0;font-family:${FONT};font-size:13px;line-height:1.7;color:${c.muted}">
+<p style="margin:0">&copy; ${year} ${escapeHtml(store)}. ${escapeHtml(labels.rights)}</p>
+${legal ? `<p style="margin:6px 0 0">${legal}</p>` : ''}
+</td></tr></table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table></body></html>`;
+
+  const text = [
+    data.reply, '',
+    `${labels.supportReplyQuote}:`,
+    ...data.question.split(/\r?\n/).map(line => `> ${line}`),
+    ...(help ? ['', `${labels.supportReplyTitle}. ${labels.supportReplyNote}`.trim(), `${labels.supportReplyButton}: ${help}`] : []),
+  ].join('\n');
+  return { to: data.to ? [data.to] : [], subject, html, text };
 }
 
 export function reviewEmail(data: Context): Omit<EmailMessage, 'from'> {

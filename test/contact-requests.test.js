@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
-import { backend, signedIn, content, product } from './helpers';
+import { backend, signedIn, content, product, mockResend } from './helpers';
 import { postLabels, POST_LABEL_GROUPS } from '../shared/purchase-copy.js';
 import { clientIp } from '../convex/lib/request_ip';
 
@@ -9,7 +9,7 @@ vi.mock('../convex/lib/request_ip', () => ({ clientIp: vi.fn(async () => '192.0.
 
 const ADMIN = 'support-owner@example.com';
 beforeEach(() => { vi.stubEnv('ADMIN_EMAILS', ADMIN); vi.stubEnv('BETTER_AUTH_SECRET', 'test-only-secret'); clientIp.mockResolvedValue('192.0.2.1'); });
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 async function store(subdomain = 'soporte-test', status = 'active') {
   const t = backend();
@@ -118,6 +118,107 @@ describe('support inbox in the panel', () => {
     await expect(stranger.query(api.contact_requests.list, { storeId })).rejects.toThrow(/acceso/);
     await expect(stranger.query(api.contact_requests.counts, { storeId })).rejects.toThrow(/acceso/);
     await expect(stranger.mutation(api.contact_requests.setStatus, { id: open[0]._id, status: 'closed' })).rejects.toThrow(/acceso/);
+  });
+});
+
+describe('replying by email from the panel', () => {
+  const settle = t => t.finishAllScheduledFunctions(vi.runAllTimers);
+  const configure = () => { vi.stubEnv('RESEND_API_KEY', 're_test_only'); vi.stubEnv('EMAIL_FROM', 'Tienda <ventas@example.com>'); vi.stubEnv('SITE_URL', 'https://shop.example.com'); };
+  async function inbox() {
+    const context = await store();
+    await context.t.mutation(api.contact_requests.create, { subdomain: context.subdomain, email: 'ana@example.com', message: 'I can’t open <b>the PDF</b>.\nPlease help.' });
+    const [request] = await context.admin.query(api.contact_requests.list, { storeId: context.storeId });
+    return { ...context, request };
+  }
+
+  it('emails the answer to the buyer with their message quoted and saves it in the inbox', async () => {
+    configure();
+    const { t, admin, storeId, request } = await inbox();
+    expect(await admin.query(api.contact_requests.canReply, {})).toBe(true);
+    vi.useFakeTimers();
+    const resend = mockResend();
+    await admin.mutation(api.contact_requests.reply, { id: request._id, message: '  Hi Ana,\ntry <this> link.  ' });
+    expect((await admin.query(api.contact_requests.list, { storeId }))[0].replies[0]).toMatchObject({ status: 'pending', message: 'Hi Ana,\ntry <this> link.', authorEmail: ADMIN });
+    await settle(t);
+
+    expect(resend.emails).toHaveLength(1);
+    const [{ headers, body }] = resend.emails;
+    expect(headers['Idempotency-Key']).toMatch(/^support-reply-/);
+    expect(body).toMatchObject({ from: 'Tienda <ventas@example.com>', to: ['ana@example.com'], subject: 'Re: your message to Ateneo' });
+    // The admin's own address never reaches the buyer.
+    expect(body).not.toHaveProperty('reply_to');
+    expect(JSON.stringify(body)).not.toContain(ADMIN);
+    expect(body.html).toContain('Hi Ana,<br>try &lt;this&gt; link.');
+    expect(body.html).toContain('Your message');
+    expect(body.html).toContain('I can’t open &lt;b&gt;the PDF&lt;/b&gt;.<br>Please help.');
+    expect(body.html).not.toContain('<b>the PDF</b>');
+    // Asks not to answer the email and links the store's support form instead.
+    const form = 'https://shop.example.com/l/soporte-test/soporte';
+    expect(body.html).toContain('Please don’t reply to this email');
+    expect(body.html).toContain(`href="${form}"`);
+    expect(body.html).toContain('Reply here');
+    expect(body.text).toContain(`Reply here: ${form}`);
+    expect(body.text).toContain('Hi Ana,\ntry <this> link.');
+    expect(body.text).toContain('> Please help.');
+
+    const [row] = await admin.query(api.contact_requests.list, { storeId });
+    expect(row.status).toBe('open');
+    expect(row.replies).toEqual([expect.objectContaining({ status: 'sent', error: '' })]);
+  });
+
+  it('uses EMAIL_REPLY_TO when set and resolves the message only once the email went out', async () => {
+    configure();
+    vi.stubEnv('EMAIL_REPLY_TO', 'ayuda@example.com');
+    const { t, admin, storeId, request } = await inbox();
+    vi.useFakeTimers();
+    const resend = mockResend([500, 200]);
+    await admin.mutation(api.contact_requests.reply, { id: request._id, message: 'Here is a new link.', close: true });
+    expect((await admin.query(api.contact_requests.list, { storeId }))[0].status).toBe('open');
+    await expect(admin.mutation(api.contact_requests.reply, { id: request._id, message: 'Same answer again.' })).rejects.toThrow(/todavía se está enviando/);
+    await settle(t);
+
+    expect(resend.emails).toHaveLength(2);
+    expect(new Set(resend.emails.map(email => email.headers['Idempotency-Key'])).size).toBe(1);
+    expect(resend.emails[1].body.reply_to).toBe('ayuda@example.com');
+    expect(await admin.query(api.contact_requests.list, { storeId })).toHaveLength(0);
+    const [closed] = await admin.query(api.contact_requests.list, { storeId, status: 'closed' });
+    expect(closed.closedAt).toEqual(expect.any(Number));
+    expect(closed.replies[0].status).toBe('sent');
+  });
+
+  it('keeps the message open and reports the failure when the provider rejects the email', async () => {
+    configure();
+    const { t, admin, storeId, request } = await inbox();
+    vi.useFakeTimers();
+    const resend = mockResend([422]);
+    await admin.mutation(api.contact_requests.reply, { id: request._id, message: 'An answer that fails.', close: true });
+    await settle(t);
+    expect(resend.emails).toHaveLength(1);
+    const [row] = await admin.query(api.contact_requests.list, { storeId });
+    expect(row.status).toBe('open');
+    expect(row.replies[0]).toMatchObject({ status: 'failed', error: 'application_error' });
+    // A new attempt is a new reply with its own idempotency key.
+    await admin.mutation(api.contact_requests.reply, { id: request._id, message: 'An answer that fails.' });
+    await settle(t);
+    expect(resend.emails).toHaveLength(2);
+    expect(resend.emails[1].headers['Idempotency-Key']).not.toBe(resend.emails[0].headers['Idempotency-Key']);
+    expect((await admin.query(api.contact_requests.list, { storeId }))[0].replies.map(reply => reply.status)).toEqual(['failed', 'sent']);
+  });
+
+  it('validates the answer, needs the email settings and is for admins only', async () => {
+    const { t, admin, request } = await inbox();
+    const resend = mockResend();
+    expect(await admin.query(api.contact_requests.canReply, {})).toBe(false);
+    await expect(admin.mutation(api.contact_requests.reply, { id: request._id, message: 'Hello there.' })).rejects.toThrow(/no está configurado/);
+    configure();
+    await expect(admin.mutation(api.contact_requests.reply, { id: request._id, message: '   ' })).rejects.toThrow(/Respuesta/);
+    await expect(admin.mutation(api.contact_requests.reply, { id: request._id, message: 'x'.repeat(5001) })).rejects.toThrow(/Respuesta/);
+    await expect(t.mutation(api.contact_requests.reply, { id: request._id, message: 'Hello there.' })).rejects.toThrow();
+    const stranger = await signedIn(t, 'stranger@example.com');
+    await expect(stranger.mutation(api.contact_requests.reply, { id: request._id, message: 'Hello there.' })).rejects.toThrow(/acceso/);
+    await expect(stranger.query(api.contact_requests.canReply, {})).rejects.toThrow(/acceso/);
+    expect(await t.run(ctx => ctx.db.query('contactReplies').collect())).toHaveLength(0);
+    expect(resend.emails).toHaveLength(0);
   });
 });
 

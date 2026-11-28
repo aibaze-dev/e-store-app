@@ -355,6 +355,31 @@ export const POST_LABEL_FIELDS = {
     "group": "support",
     "label": "Link para volver",
     "value": "Back to the store"
+  },
+  "supportReplySubject": {
+    "group": "support",
+    "label": "Asunto del email de respuesta",
+    "value": "Re: your message to {tienda}"
+  },
+  "supportReplyQuote": {
+    "group": "support",
+    "label": "Título de la consulta citada en la respuesta",
+    "value": "Your message"
+  },
+  "supportReplyTitle": {
+    "group": "support",
+    "label": "Aviso de no responder al email de respuesta",
+    "value": "Please don’t reply to this email"
+  },
+  "supportReplyNote": {
+    "group": "support",
+    "label": "Texto del aviso en el email de respuesta",
+    "value": "To write back to us, use the button below."
+  },
+  "supportReplyButton": {
+    "group": "support",
+    "label": "Botón para responder desde el email",
+    "value": "Reply here"
   }
 };
 export const BACK_POPUP_FIELDS = {

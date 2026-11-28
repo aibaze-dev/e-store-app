@@ -281,6 +281,17 @@ export default defineSchema({
     .index('by_store_status', ['storeId', 'status'])
     .index('by_store_email', ['storeId', 'email'])
     .index('by_store_ip', ['storeId', 'ipHash']),
+  // Answers an admin writes in the panel's support inbox; each one is emailed to the request's address.
+  contactReplies: defineTable({
+    requestId: v.id('contactRequests'),
+    storeId: v.id('stores'),
+    message: v.string(),
+    // The admin who answered, shown in the inbox. Never sent to the buyer.
+    authorEmail: v.string(),
+    // The request is marked as resolved once this email is accepted by the provider.
+    closeOnSent: v.optional(v.boolean()),
+    email: v.object({ status: emailStatus, attempts: v.number(), updatedAt: v.number(), error: v.optional(v.string()) }),
+  }).index('by_request', ['requestId']),
   webhookEvents: defineTable({
     stripeEventId: v.string(),
     type: v.string(),
